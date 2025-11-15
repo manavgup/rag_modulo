@@ -665,34 +665,105 @@ jobs:
           group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           plugins: code-engine
 
+      - name: Extract PROJECT_VERSION (same as build job)
+        id: get-version
+        run: |
+          # Priority order (same as build job):
+          # 1. Git tag (v1.0.0) -> use tag name
+          # 2. GitHub variable PROJECT_VERSION
+          # 3. Read from .env file (PROJECT_VERSION=0.8.0)
+          # 4. Read from Makefile default (PROJECT_VERSION ?= 1.0.0)
+          # 5. Read from pyproject.toml (version = "1.0.0")
+          # 6. Fallback to commit SHA
+          
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v ]]; then
+            VERSION="${{ github.ref_name }}"
+            echo "Using git tag version: $VERSION"
+          elif [ -n "${{ vars.PROJECT_VERSION }}" ]; then
+            VERSION="${{ vars.PROJECT_VERSION }}"
+            echo "Using GitHub variable PROJECT_VERSION: $VERSION"
+          elif [ -f .env ]; then
+            VERSION=$(grep -E '^PROJECT_VERSION\s*=' .env | sed -E 's/^PROJECT_VERSION\s*=\s*//' | tr -d ' ' || echo "")
+            if [ -n "$VERSION" ]; then
+              echo "Using .env PROJECT_VERSION: $VERSION"
+            fi
+          fi
+          
+          if [ -z "$VERSION" ] && [ -f Makefile ]; then
+            VERSION=$(grep -E '^PROJECT_VERSION\s*\?=\s*' Makefile | sed -E 's/^PROJECT_VERSION\s*\?=\s*//' | tr -d ' ' || echo "")
+            if [ -n "$VERSION" ]; then
+              echo "Using Makefile default PROJECT_VERSION: $VERSION"
+            fi
+          fi
+          
+          if [ -z "$VERSION" ] && [ -f pyproject.toml ]; then
+            VERSION=$(grep -E '^version\s*=\s*' pyproject.toml | sed -E 's/^version\s*=\s*"([^"]+)".*/\1/' | tr -d ' ' || echo "")
+            if [ -n "$VERSION" ]; then
+              echo "Using pyproject.toml version: $VERSION"
+            fi
+          fi
+          
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ github.sha }}"
+            echo "Using commit SHA as version: $VERSION"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Determined version: $VERSION"
+
       - name: Verify backend image exists before deployment
         env:
           ICR_REGION: ${{ env.ICR_REGION }}
           CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
           BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
           set -e
-          IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$IMAGE_TAG"
-          echo "Verifying image exists before deployment: $IMAGE_URL"
+          VERSION="${{ steps.get-version.outputs.version }}"
+          COMMIT_SHA="${{ github.sha }}"
           
           # Login to ICR
           echo "${{ secrets.IBM_CLOUD_API_KEY }}" | docker login -u iamapikey --password-stdin "$ICR_REGION.icr.io" || { echo "❌ Failed to login to ICR"; exit 1; }
           
-          # Verify image exists
-          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
-            echo "✅ Image confirmed in ICR, proceeding with deployment"
-          else
-            echo "❌ Image not found in ICR: $IMAGE_URL"
-            echo "Cannot deploy - image does not exist. Check build job logs."
+          # Try multiple image tags in priority order
+          IMAGE_FOUND=false
+          IMAGE_URL=""
+          
+          # Priority 1: Try commit SHA (most specific)
+          if docker manifest inspect "$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$COMMIT_SHA" > /dev/null 2>&1; then
+            IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$COMMIT_SHA"
+            IMAGE_FOUND=true
+            echo "✅ Found image with commit SHA tag: $IMAGE_URL"
+          # Priority 2: Try version tag (if different from commit SHA)
+          elif [ "$VERSION" != "$COMMIT_SHA" ] && docker manifest inspect "$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$VERSION" > /dev/null 2>&1; then
+            IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$VERSION"
+            IMAGE_FOUND=true
+            echo "✅ Found image with version tag: $IMAGE_URL"
+          # Priority 3: Try latest (fallback)
+          elif docker manifest inspect "$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:latest" > /dev/null 2>&1; then
+            IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:latest"
+            IMAGE_FOUND=true
+            echo "⚠️  Using 'latest' tag (commit SHA and version tags not found): $IMAGE_URL"
+          fi
+          
+          if [ "$IMAGE_FOUND" = false ]; then
+            echo "❌ No image found in ICR with any of these tags:"
+            echo "  - $COMMIT_SHA (commit SHA)"
+            echo "  - $VERSION (version)"
+            echo "  - latest"
+            echo ""
+            echo "Cannot deploy - no image exists. Check build job logs."
             exit 1
           fi
+          
+          # Export IMAGE_URL for use in deployment step
+          echo "IMAGE_URL=$IMAGE_URL" >> $GITHUB_ENV
+          echo "✅ Image confirmed in ICR: $IMAGE_URL"
 
       - name: Deploy Backend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
           ICR_REGION: ${{ env.ICR_REGION }}
-          IMAGE_URL: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          # IMAGE_URL is set by the verification step above
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
           PROJECT_NAME: ${{ env.PROJECT_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
@@ -874,7 +945,7 @@ jobs:
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
           ICR_REGION: ${{ env.ICR_REGION }}
-          IMAGE_URL: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          # IMAGE_URL is set by the verification step above
           APP_NAME: ${{ env.FRONTEND_APP_NAME }}
           PROJECT_NAME: ${{ env.PROJECT_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
