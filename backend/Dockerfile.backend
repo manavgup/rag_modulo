@@ -45,8 +45,9 @@ COPY pyproject.toml poetry.lock ./
 # https://github.com/docling-project/docling/blob/main/Dockerfile
 # Note: We normalize dependency strings by removing spaces before parentheses
 # (e.g., "psutil (>=7.0.0,<8.0.0)" -> "psutil>=7.0.0,<8.0.0")
+# and handle extras syntax (e.g., "pydantic[email]>=2.8.2" -> "pydantic[email]>=2.8.2")
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); deps = data['project']['dependencies']; print('\n'.join(d.replace(' (', '').replace(')', '') for d in deps))" | \
+    python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); deps = data['project']['dependencies']; print('\n'.join(d.replace(' (', '(').replace(') ', ')') if '[' in d else d.replace(' (', '').replace(')', '') for d in deps))" | \
     xargs pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Clean up system Python installation
