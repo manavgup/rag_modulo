@@ -797,21 +797,26 @@ jobs:
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region || { echo "❌ Failed to login to IBM Cloud"; exit 1; }
           ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP" || { echo "❌ Failed to set target"; exit 1; }
 
-          # Ensure project exists and is selected
-          if ! ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
-            echo "⚠️  Project '$PROJECT_NAME' not found, checking for soft-deleted..."
-            if ibmcloud ce project get --name "$PROJECT_NAME" 2>&1 | grep -q "soft deleted"; then
-              echo "⚠️  Project is soft-deleted, creating new one..."
-              NEW_PROJECT_NAME="${PROJECT_NAME}-$(date +%s)"
-              ibmcloud ce project create --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
-              PROJECT_NAME="$NEW_PROJECT_NAME"
-            else
-              echo "❌ Project '$PROJECT_NAME' does not exist and is not soft-deleted"
-              exit 1
-            fi
+          # Ensure project exists and handle soft-deleted state
+          # Check if project is soft-deleted BEFORE trying to select it
+          PROJECT_STATUS=$(ibmcloud ce project get --name "$PROJECT_NAME" 2>&1 || echo "")
+          
+          if echo "$PROJECT_STATUS" | grep -q "soft deleted"; then
+            echo "⚠️  Project '$PROJECT_NAME' is soft-deleted, creating new one with timestamp..."
+            NEW_PROJECT_NAME="${PROJECT_NAME}-$(date +%s)"
+            echo "🆕 Creating project '$NEW_PROJECT_NAME'..."
+            ibmcloud ce project create --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
+            ibmcloud ce project select --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to select new project"; exit 1; }
+            PROJECT_NAME="$NEW_PROJECT_NAME"
+            echo "✅ Using new project: $PROJECT_NAME"
+          elif ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
+            echo "✅ Project '$PROJECT_NAME' exists - selecting..."
+            ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
+          else
+            echo "🆕 Creating project '$PROJECT_NAME'..."
+            ibmcloud ce project create --name "$PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
+            ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
           fi
-
-          ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
 
           # Create or update registry access secret
           echo "Setting up registry access..."
@@ -1029,21 +1034,26 @@ jobs:
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region || { echo "❌ Failed to login to IBM Cloud"; exit 1; }
           ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP" || { echo "❌ Failed to set target"; exit 1; }
 
-          # Ensure project exists and is selected
-          if ! ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
-            echo "⚠️  Project '$PROJECT_NAME' not found, checking for soft-deleted..."
-            if ibmcloud ce project get --name "$PROJECT_NAME" 2>&1 | grep -q "soft deleted"; then
-              echo "⚠️  Project is soft-deleted, creating new one..."
-              NEW_PROJECT_NAME="${PROJECT_NAME}-$(date +%s)"
-              ibmcloud ce project create --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
-              PROJECT_NAME="$NEW_PROJECT_NAME"
-            else
-              echo "❌ Project '$PROJECT_NAME' does not exist and is not soft-deleted"
-              exit 1
-            fi
+          # Ensure project exists and handle soft-deleted state
+          # Check if project is soft-deleted BEFORE trying to select it
+          PROJECT_STATUS=$(ibmcloud ce project get --name "$PROJECT_NAME" 2>&1 || echo "")
+          
+          if echo "$PROJECT_STATUS" | grep -q "soft deleted"; then
+            echo "⚠️  Project '$PROJECT_NAME' is soft-deleted, creating new one with timestamp..."
+            NEW_PROJECT_NAME="${PROJECT_NAME}-$(date +%s)"
+            echo "🆕 Creating project '$NEW_PROJECT_NAME'..."
+            ibmcloud ce project create --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
+            ibmcloud ce project select --name "$NEW_PROJECT_NAME" || { echo "❌ Failed to select new project"; exit 1; }
+            PROJECT_NAME="$NEW_PROJECT_NAME"
+            echo "✅ Using new project: $PROJECT_NAME"
+          elif ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
+            echo "✅ Project '$PROJECT_NAME' exists - selecting..."
+            ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
+          else
+            echo "🆕 Creating project '$PROJECT_NAME'..."
+            ibmcloud ce project create --name "$PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
+            ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
           fi
-
-          ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
 
           # Create or update registry access secret (if not already created by backend)
           echo "Setting up registry access..."
