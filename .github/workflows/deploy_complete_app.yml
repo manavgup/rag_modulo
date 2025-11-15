@@ -700,7 +700,7 @@ jobs:
           echo "Frontend deployment complete!"
 
   smoke-test:
-    needs: [deploy-backend, deploy-frontend]
+    needs: [deploy-infrastructure, deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -716,10 +716,14 @@ jobs:
 
       - name: Select Code Engine project
         env:
-          PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name }}
+          PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name || env.PROJECT_NAME }}
         run: |
           echo "Selecting Code Engine project: $PROJECT_NAME"
-          ibmcloud ce project select --name "$PROJECT_NAME"
+          if [ -z "$PROJECT_NAME" ]; then
+            echo "❌ PROJECT_NAME is empty"
+            exit 1
+          fi
+          ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
 
       - name: Test Backend Health
         run: |
