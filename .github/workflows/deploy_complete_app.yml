@@ -969,6 +969,28 @@ jobs:
           echo "Selecting Code Engine project: $PROJECT_NAME"
           ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
 
+      - name: Check app deployment status
+        env:
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
+        run: |
+          set -e
+          echo "Checking current app deployment status..."
+          
+          # Check backend status
+          if ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json 2>/dev/null | jq -e '.status.conditions[]? | select(.status == "False" and (.reason == "RevisionFailed" or .reason == "ContainerMissing"))' > /dev/null; then
+            echo "⚠️  Backend app is in failed state - this may be due to missing image"
+            echo "The deploy job should have updated it with the correct image"
+            echo "If this persists, the image verification step may have passed but deployment failed"
+          fi
+          
+          # Check frontend status
+          if ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json 2>/dev/null | jq -e '.status.conditions[]? | select(.status == "False" and (.reason == "RevisionFailed" or .reason == "ContainerMissing"))' > /dev/null; then
+            echo "⚠️  Frontend app is in failed state - this may be due to missing image"
+            echo "The deploy job should have updated it with the correct image"
+            echo "If this persists, the image verification step may have passed but deployment failed"
+          fi
+
       - name: Wait for apps to be ready
         env:
           BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
