@@ -137,6 +137,7 @@ nav:
     - Overview: development/index.md
     - Environment Setup: development/environment-setup.md
     - Development Workflow: development/workflow.md
+    - Versioning Strategy: development/versioning.md
     - GitHub Codespaces: development/codespaces.md
     - Contributing: development/contributing.md
     - Code Style: development/code-style.md
