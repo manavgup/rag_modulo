@@ -977,16 +977,76 @@ jobs:
           set -e
           echo "Waiting for apps to be ready..."
           
+          # Function to check app status and detect failures
+          check_app_status() {
+            local APP_NAME=$1
+            local APP_JSON=$(ibmcloud ce app get --name "$APP_NAME" --output json 2>/dev/null || echo "{}")
+            
+            if [ "$APP_JSON" = "{}" ]; then
+              echo "WARNING: Could not get app status for $APP_NAME"
+              return 1
+            fi
+            
+            # Check for ready revision
+            local READY_REVISION=$(echo "$APP_JSON" | jq -r '.status.latestReadyRevisionName // empty')
+            if [ -n "$READY_REVISION" ] && [ "$READY_REVISION" != "null" ]; then
+              echo "READY:$READY_REVISION"
+              return 0
+            fi
+            
+            # Check for failed conditions
+            local FAILED_CONDITION=$(echo "$APP_JSON" | jq -r '.status.conditions[]? | select(.status == "False" and (.reason == "RevisionFailed" or .reason == "ContainerMissing" or .reason == "ContainerUnhealthy")) | .message // empty' | head -1)
+            if [ -n "$FAILED_CONDITION" ] && [ "$FAILED_CONDITION" != "null" ]; then
+              echo "FAILED:$FAILED_CONDITION"
+              return 1
+            fi
+            
+            # Check latest revision status
+            local LATEST_REVISION=$(echo "$APP_JSON" | jq -r '.status.latestCreatedRevisionName // empty')
+            if [ -n "$LATEST_REVISION" ] && [ "$LATEST_REVISION" != "null" ]; then
+              local REVISION_STATUS=$(ibmcloud ce revision get --name "$LATEST_REVISION" --output json 2>/dev/null | jq -r '.status.conditions[]? | select(.type == "Ready" and .status == "False") | .message // empty' | head -1)
+              if [ -n "$REVISION_STATUS" ] && [ "$REVISION_STATUS" != "null" ]; then
+                echo "FAILED:$REVISION_STATUS"
+                return 1
+              fi
+            fi
+            
+            # Still waiting
+            echo "WAITING"
+            return 2
+          }
+          
           # Wait for backend (max 5 minutes)
           echo "Checking backend status..."
+          BACKEND_READY=false
           for i in {1..30}; do
-            STATUS=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json 2>/dev/null | jq -r '.status.latestReadyRevisionName // empty')
-            if [ -n "$STATUS" ]; then
-              echo "✅ Backend is ready (revision: $STATUS)"
+            STATUS_RESULT=$(check_app_status "$BACKEND_APP_NAME" || echo "WAITING")
+            
+            if [[ "$STATUS_RESULT" == READY:* ]]; then
+              REVISION=$(echo "$STATUS_RESULT" | cut -d: -f2)
+              echo "✅ Backend is ready (revision: $REVISION)"
+              BACKEND_READY=true
               break
+            elif [[ "$STATUS_RESULT" == FAILED:* ]]; then
+              ERROR=$(echo "$STATUS_RESULT" | cut -d: -f2-)
+              echo "❌ Backend deployment failed: $ERROR"
+              echo ""
+              echo "Debugging information:"
+              ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json | jq '.status.conditions' || true
+              echo ""
+              echo "Latest revision details:"
+              LATEST_REV=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json | jq -r '.status.latestCreatedRevisionName // empty')
+              if [ -n "$LATEST_REV" ] && [ "$LATEST_REV" != "null" ]; then
+                ibmcloud ce revision get --name "$LATEST_REV" --output json | jq '.status.conditions' || true
+              fi
+              exit 1
             fi
+            
             if [ $i -eq 30 ]; then
               echo "❌ Backend did not become ready within 5 minutes"
+              echo ""
+              echo "Current app status:"
+              ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json | jq '.status' || true
               exit 1
             fi
             echo "Waiting for backend... ($i/30)"
@@ -995,14 +1055,35 @@ jobs:
           
           # Wait for frontend (max 5 minutes)
           echo "Checking frontend status..."
+          FRONTEND_READY=false
           for i in {1..30}; do
-            STATUS=$(ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json 2>/dev/null | jq -r '.status.latestReadyRevisionName // empty')
-            if [ -n "$STATUS" ]; then
-              echo "✅ Frontend is ready (revision: $STATUS)"
+            STATUS_RESULT=$(check_app_status "$FRONTEND_APP_NAME" || echo "WAITING")
+            
+            if [[ "$STATUS_RESULT" == READY:* ]]; then
+              REVISION=$(echo "$STATUS_RESULT" | cut -d: -f2)
+              echo "✅ Frontend is ready (revision: $REVISION)"
+              FRONTEND_READY=true
               break
+            elif [[ "$STATUS_RESULT" == FAILED:* ]]; then
+              ERROR=$(echo "$STATUS_RESULT" | cut -d: -f2-)
+              echo "❌ Frontend deployment failed: $ERROR"
+              echo ""
+              echo "Debugging information:"
+              ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json | jq '.status.conditions' || true
+              echo ""
+              echo "Latest revision details:"
+              LATEST_REV=$(ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json | jq -r '.status.latestCreatedRevisionName // empty')
+              if [ -n "$LATEST_REV" ] && [ "$LATEST_REV" != "null" ]; then
+                ibmcloud ce revision get --name "$LATEST_REV" --output json | jq '.status.conditions' || true
+              fi
+              exit 1
             fi
+            
             if [ $i -eq 30 ]; then
               echo "❌ Frontend did not become ready within 5 minutes"
+              echo ""
+              echo "Current app status:"
+              ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json | jq '.status' || true
               exit 1
             fi
             echo "Waiting for frontend... ($i/30)"
