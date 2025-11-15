@@ -1,0 +1,102 @@
+# Production environment values
+# Override default values.yaml for production deployment
+
+global:
+  namespace: rag-modulo
+  environment: production
+
+backend:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+frontend:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+postgresql:
+  persistence:
+    size: 100Gi
+    # Use high-performance storage class for production
+    # storageClassName: "fast-ssd"
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "750m"
+    limits:
+      memory: "4Gi"
+      cpu: "3000m"
+
+milvus:
+  persistence:
+    size: 200Gi
+    # storageClassName: "fast-ssd"
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2000m"
+    limits:
+      memory: "16Gi"
+      cpu: "8000m"
+
+minio:
+  persistence:
+    size: 200Gi
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "750m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+etcd:
+  persistence:
+    size: 20Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1500m"
+
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    frontend: rag-modulo.example.com
+    backend: api.rag-modulo.example.com
+    mlflow: mlflow.rag-modulo.example.com
+
+config:
+  logLevel: "INFO"
+  environment: "production"
+  skipAuth: "false"
+  developmentMode: "false"

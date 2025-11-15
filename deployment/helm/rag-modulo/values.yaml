@@ -1,0 +1,305 @@
+# Default values for rag-modulo
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  namespace: rag-modulo
+  environment: production
+
+# Image settings
+# IMPORTANT: Always use immutable tags (git SHA or semantic version) for production!
+# Never use :latest in production as it breaks reproducibility and rollback capability.
+# Set via: --set images.backend.tag="$(git rev-parse --short HEAD)"
+images:
+  backend:
+    repository: ghcr.io/manavgup/rag_modulo/backend
+    # tag: "v1.0.0"  # MUST be set to immutable tag (git SHA or version)
+    tag: ""  # Required: set via --set or CI/CD
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: ghcr.io/manavgup/rag_modulo/frontend
+    # tag: "v1.0.0"  # MUST be set to immutable tag (git SHA or version)
+    tag: ""  # Required: set via --set or CI/CD
+    pullPolicy: IfNotPresent
+  mlflow:
+    repository: ghcr.io/mlflow/mlflow
+    tag: v2.9.2
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: pgvector/pgvector
+    tag: pg16
+    pullPolicy: IfNotPresent
+  milvus:
+    repository: milvusdb/milvus
+    tag: v2.3.3
+    pullPolicy: IfNotPresent
+  minio:
+    repository: minio/minio
+    tag: RELEASE.2024-01-16T16-07-38Z  # Use specific release tag
+    pullPolicy: IfNotPresent
+  etcd:
+    repository: quay.io/coreos/etcd
+    tag: v3.5.5
+    pullPolicy: IfNotPresent
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  service:
+    type: ClusterIP
+    port: 8000
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 8080
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+  persistence:
+    enabled: true
+    size: 50Gi
+    # storageClassName: ""  # Set to your storage class
+  service:
+    type: ClusterIP
+    port: 5432
+
+# Milvus configuration
+milvus:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "8Gi"
+      cpu: "4000m"
+  persistence:
+    enabled: true
+    size: 100Gi
+  service:
+    type: ClusterIP
+    grpcPort: 19530
+    metricsPort: 9091
+
+# MinIO configuration
+minio:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    size: 100Gi
+  service:
+    type: ClusterIP
+    apiPort: 9000
+    consolePort: 9001
+
+# etcd configuration
+etcd:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    size: 10Gi
+  service:
+    type: ClusterIP
+    clientPort: 2379
+    peerPort: 2380
+
+# MLFlow configuration
+mlflow:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 5000
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx  # or 'openshift-default' for OpenShift
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  tls:
+    enabled: true
+    secretName: rag-modulo-tls
+  hosts:
+    frontend: rag-modulo.example.com
+    backend: api.rag-modulo.example.com
+    mlflow: mlflow.rag-modulo.example.com
+
+# OpenShift-specific configuration
+openshift:
+  enabled: false
+  routes:
+    enabled: false
+
+# Secrets Configuration
+# SECURITY CRITICAL: Do NOT set secret values here!
+#
+# Secrets MUST be provided via one of these secure methods:
+#
+# 1. Helm --set-string flags (recommended for CI/CD):
+#    helm install rag-modulo ./helm/rag-modulo \
+#      --set-string secrets.collectiondb.user="$POSTGRES_USER" \
+#      --set-string secrets.collectiondb.password="$POSTGRES_PASSWORD" \
+#      --set-string secrets.jwt.secretKey="$JWT_SECRET"
+#
+# 2. External secrets management (recommended for production):
+#    - Use External Secrets Operator with AWS Secrets Manager
+#    - Use Sealed Secrets (bitnami-labs/sealed-secrets)
+#    - Use Vault by HashiCorp
+#    - Use IBM Cloud Secrets Manager
+#    - Set secrets.externalSecretRef: "my-external-secret"
+#
+# 3. Kubernetes secret creation (development only):
+#    kubectl create secret generic rag-modulo-secrets \
+#      --from-literal=COLLECTIONDB_USER="postgres" \
+#      --from-literal=COLLECTIONDB_PASSWORD="secret123" \
+#      -n rag-modulo
+#
+# Required secret keys (must be provided):
+#   - COLLECTIONDB_USER
+#   - COLLECTIONDB_PASSWORD
+#   - MINIO_ROOT_USER
+#   - MINIO_ROOT_PASSWORD
+#   - JWT_SECRET_KEY
+#
+# Optional secret keys (provider-specific):
+#   - WATSONX_APIKEY
+#   - WATSONX_PROJECT_ID
+#   - OPENAI_API_KEY
+#   - ANTHROPIC_API_KEY
+#
+secrets:
+  # Name of existing Kubernetes secret (leave empty to create from values)
+  name: ""
+  # Use external secrets operator (set to true if using external secret management)
+  externalSecretRef: ""
+
+# ConfigMap values
+config:
+  vectorDb: "milvus"
+  logLevel: "INFO"
+  environment: "production"
+  skipAuth: "false"
+  developmentMode: "false"
+
+# Resource Quotas (prevent cluster resource exhaustion)
+resourceQuota:
+  enabled: true
+  hard:
+    # Compute resources
+    requestsCpu: "20"
+    requestsMemory: "40Gi"
+    limitsCpu: "40"
+    limitsMemory: "80Gi"
+    # Storage resources
+    requestsStorage: "500Gi"
+    persistentvolumeclaims: "10"
+    # Object counts
+    pods: "50"
+    services: "20"
+    configmaps: "30"
+    secrets: "30"
+    servicesLoadbalancers: "3"
+
+# Limit Ranges (default and maximum resource limits per pod/container)
+limitRange:
+  pod:
+    max:
+      cpu: "8"
+      memory: "16Gi"
+    min:
+      cpu: "100m"
+      memory: "128Mi"
+  container:
+    max:
+      cpu: "4"
+      memory: "8Gi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+    default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "250m"
+      memory: "256Mi"
+    maxLimitRequestRatio:
+      cpu: 4
+      memory: 4
+  pvc:
+    max:
+      storage: "200Gi"
+    min:
+      storage: "1Gi"
+
+# Network Policies (security isolation between components)
+networkPolicy:
+  enabled: true
+  ingressNamespace: "ingress-nginx"  # Namespace where ingress controller runs

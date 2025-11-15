@@ -1,0 +1,256 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-modulo-postgres-netpol
+  namespace: rag-modulo
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-modulo
+      component: postgres
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow backend to access PostgreSQL
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: backend
+      ports:
+      - protocol: TCP
+        port: 5432
+    # Allow MLFlow to access PostgreSQL
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: mlflow
+      ports:
+      - protocol: TCP
+        port: 5432
+  egress:
+    # Allow DNS resolution only
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-modulo-milvus-netpol
+  namespace: rag-modulo
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-modulo
+      component: milvus
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow backend to access Milvus
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: backend
+      ports:
+      - protocol: TCP
+        port: 19530
+      - protocol: TCP
+        port: 9091
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow access to etcd
+    - to:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: etcd
+      ports:
+      - protocol: TCP
+        port: 2379
+    # Allow access to MinIO
+    - to:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: minio
+      ports:
+      - protocol: TCP
+        port: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-modulo-minio-netpol
+  namespace: rag-modulo
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-modulo
+      component: minio
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow backend and Milvus to access MinIO
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: backend
+      ports:
+      - protocol: TCP
+        port: 9000
+      - protocol: TCP
+        port: 9001
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: milvus
+      ports:
+      - protocol: TCP
+        port: 9000
+    # Allow MLFlow to access MinIO
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: mlflow
+      ports:
+      - protocol: TCP
+        port: 9000
+  egress:
+    # Allow DNS resolution only
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-modulo-etcd-netpol
+  namespace: rag-modulo
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-modulo
+      component: etcd
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow Milvus to access etcd
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: milvus
+      ports:
+      - protocol: TCP
+        port: 2379
+      - protocol: TCP
+        port: 2380
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow etcd cluster communication
+    - to:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: etcd
+      ports:
+      - protocol: TCP
+        port: 2379
+      - protocol: TCP
+        port: 2380
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rag-modulo-mlflow-netpol
+  namespace: rag-modulo
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-modulo
+      component: mlflow
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow backend to access MLFlow
+    - from:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: backend
+      ports:
+      - protocol: TCP
+        port: 5000
+    # Allow ingress for web UI
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+      - protocol: TCP
+        port: 5000
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow access to PostgreSQL
+    - to:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: postgres
+      ports:
+      - protocol: TCP
+        port: 5432
+    # Allow access to MinIO
+    - to:
+      - podSelector:
+          matchLabels:
+            app: rag-modulo
+            component: minio
+      ports:
+      - protocol: TCP
+        port: 9000

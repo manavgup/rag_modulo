@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: minio
+spec:
+  serviceName: minio-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-modulo
+      component: minio
+  template:
+    metadata:
+      labels:
+        app: rag-modulo
+        component: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_ROOT_USER
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_ROOT_PASSWORD
+        volumeMounts:
+        - name: minio-storage
+          mountPath: /data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: minio-storage
+        persistentVolumeClaim:
+          claimName: minio-storage
