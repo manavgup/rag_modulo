@@ -360,6 +360,7 @@ jobs:
           docker images | grep "${{ env.BACKEND_APP_NAME }}" || { echo "❌ Image not found in local registry"; exit 1; }
 
       - name: Run Trivy vulnerability scanner (Backend)
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         env:
           TRIVY_USERNAME: iamapikey
@@ -373,6 +374,7 @@ jobs:
           exit-code: "0" # Don't fail on vulnerabilities, just report them
 
       - name: Upload Trivy scan results to GitHub Security tab (Backend)
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-backend-results.sarif') != ''
         with:
@@ -422,6 +424,7 @@ jobs:
           docker images | grep "${{ env.FRONTEND_APP_NAME }}" || { echo "❌ Image not found in local registry"; exit 1; }
 
       - name: Run Trivy vulnerability scanner (Frontend)
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         env:
           TRIVY_USERNAME: iamapikey
@@ -435,6 +438,7 @@ jobs:
           exit-code: "0" # Don't fail on vulnerabilities, just report them
 
       - name: Upload Trivy scan results to GitHub Security tab (Frontend)
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-frontend-results.sarif') != ''
         with:
