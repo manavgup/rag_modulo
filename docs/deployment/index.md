@@ -13,6 +13,7 @@ This guide covers deploying RAG Modulo in various environments, from local devel
   - [AWS Deployment](#aws-deployment)
   - [Google Cloud Deployment](#google-cloud-deployment)
   - [Azure Deployment](#azure-deployment)
+- [CI/CD Workflow](#cicd-workflow)
 - [Configuration](#configuration)
 - [Monitoring](#monitoring)
 - [Troubleshooting](#troubleshooting)
@@ -261,6 +262,31 @@ The RAG Modulo application consists of multiple components deployed to IBM Cloud
 - **Milvus**: 0.5 CPU, 2GB RAM, scales 1 instance, port 19530
 
 For detailed instructions, see [IBM Cloud Code Engine Deployment Guide](ibm-cloud-code-engine.md).
+
+### CI/CD Workflow
+
+The deployment workflow provides automated CI/CD for IBM Cloud Code Engine deployments with comprehensive versioning, security scanning, and image management.
+
+**Key Features:**
+- ✅ **Unified Versioning**: `.env` → `Makefile` → `GitHub Actions` workflow
+- ✅ **Semantic Versioning**: Support for git tags (v1.0.0) and PROJECT_VERSION
+- ✅ **Image Tagging**: Commit SHA, version, and `latest` tags
+- ✅ **Security Scanning**: Automated Trivy vulnerability scanning
+- ✅ **Image Cleanup**: Automatic retention management
+- ✅ **Idempotent Deployments**: Safe to run multiple times
+- ✅ **Health Validation**: Built-in smoke tests
+
+**Quick Start:**
+```bash
+# Set version in .env
+echo "PROJECT_VERSION=0.8.0" >> .env
+
+# Or use GitHub Actions
+# 1. Go to Actions → "Deploy Complete RAG Modulo Application"
+# 2. Select environment and run workflow
+```
+
+For complete documentation, see [CI/CD Workflow and Versioning Guide](ci-cd-workflow.md).
 
 ### AWS Deployment
 

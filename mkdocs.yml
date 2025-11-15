@@ -156,6 +156,7 @@ nav:
     - Validate Phase 3 Performance: testing/validate-phase3-performance.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
+    - CI/CD Workflow: deployment/ci-cd-workflow.md
     - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
     - Production: deployment/production.md
     - Cloud Deployment: deployment/cloud.md
@@ -163,7 +164,6 @@ nav:
     - Monitoring: deployment/monitoring.md
     - Security: deployment/security.md
     - Terraform + Ansible Architecture: deployment/terraform-ansible-architecture.md
-    - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
     - Managed Services Strategy: deployment/managed-services.md
     - Ansible Automation: deployment/ansible-automation.md
     - Monitoring & Observability: deployment/monitoring-observability.md
