@@ -1098,7 +1098,8 @@ jobs:
               --cpu 0.5 \
               --memory 1G \
               --env REACT_APP_API_URL="$REACT_APP_API_URL" \
-              --env REACT_APP_WS_URL="$REACT_APP_WS_URL" 2>&1)
+              --env REACT_APP_WS_URL="$REACT_APP_WS_URL" \
+              --env BACKEND_URL="$BACKEND_URL" 2>&1)
           UPDATE_EXIT=$?
           set -e  # Re-enable exit on error
           
@@ -1114,7 +1115,7 @@ jobs:
               --port 3000 \
               --env REACT_APP_API_URL="$REACT_APP_API_URL" \
               --env REACT_APP_WS_URL="$REACT_APP_WS_URL" \
-              --env BACKEND_URL="$REACT_APP_API_URL" || { echo "❌ Failed to create app"; exit 1; }
+              --env BACKEND_URL="$BACKEND_URL" || { echo "❌ Failed to create app"; exit 1; }
             echo "✅ Frontend application created successfully"
           else
             if [ $UPDATE_EXIT -eq 0 ]; then
