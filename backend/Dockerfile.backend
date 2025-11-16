@@ -51,9 +51,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     xargs pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Clean up system Python installation
+# IMPORTANT: Preserve numpy._core.tests - it's a required module, not test code
 RUN find /usr/local -name "*.pyc" -delete && \
     find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "tests" -type d ! -path "*/numpy/*" -exec rm -rf {} + 2>/dev/null || true && \
     find /usr/local -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Final stage - clean runtime
