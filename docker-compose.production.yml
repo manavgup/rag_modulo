@@ -56,38 +56,61 @@ services:
     image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
     container_name: rag-modulo-frontend
     environment:
+      # BACKEND_URL: Used by nginx at runtime for proxy_pass in /api/ location
       - BACKEND_URL=http://backend:8000
+      # REACT_APP_BACKEND_URL: React build-time variable (already baked into image)
+      # Kept for consistency, but note: runtime changes have no effect on React bundle
+      - REACT_APP_BACKEND_URL=http://backend:8000
     ports:
       - "3000:8080"
     depends_on:
       - backend
     networks:
+      # Connected to both networks:
+      # - app-network: Communication with infrastructure (postgres, milvus, minio)
+      # - rag-network: Application-level network for frontend-backend communication
       - app-network
       - rag-network
 
 volumes:
+  # Using relative paths for better portability across environments
+  # Volumes are bind-mounted to ./volumes/ directory (created by make create-volumes)
   postgres_data:
     driver_opts:
       type: none
-      device: ${PWD}/volumes/postgres
+      device: ./volumes/postgres
       o: bind
   etcd_data:
     driver_opts:
       type: none
-      device: ${PWD}/volumes/etcd
+      device: ./volumes/etcd
       o: bind
   minio_data:
     driver_opts:
       type: none
-      device: ${PWD}/volumes/minio
+      device: ./volumes/minio
       o: bind
   milvus_data:
     driver_opts:
       type: none
-      device: ${PWD}/volumes/milvus
+      device: ./volumes/milvus
       o: bind
 
 networks:
+  # Network Architecture:
+  #
+  # app-network: Infrastructure network for services extended from docker-compose-infra.yml
+  #   - postgres, milvus-etcd, milvus-standalone, minio, mlflow-server
+  #   - These services maintain their original network configuration from infra file
+  #
+  # rag-network: Application network for RAG Modulo services
+  #   - backend, frontend
+  #
+  # Dual Network Membership (backend, frontend):
+  #   - Both backend and frontend connect to BOTH networks
+  #   - app-network: Required for backend to communicate with infrastructure (DB, vector store, storage)
+  #   - rag-network: Provides application-level isolation and frontend-backend communication
+  #   - This segmentation allows infrastructure services to be shared while keeping app services isolated
   rag-network:
     driver: bridge
   app-network:

@@ -80,6 +80,12 @@ COPY backend/cli/ ./cli/
 COPY backend/vectordbs/ ./vectordbs/
 
 # Create a non-root user and group
+# /data directory: Used for file storage operations by the RAG system
+#   - Document uploads and processing
+#   - Temporary file storage during ingestion
+#   - File metadata and cached artifacts
+# chmod 777: Required for Settings validation to create storage_path at startup
+#   Note: For production, consider mounting a dedicated volume with proper permissions
 RUN groupadd --gid 10001 backend && \
     useradd --uid 10001 -g backend -M -d /nonexistent backend && \
     mkdir -p /app/logs /data && \
