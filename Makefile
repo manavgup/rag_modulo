@@ -244,15 +244,15 @@ build-frontend:
 		$(CONTAINER_CLI) buildx build --load \
 			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/frontend:latest \
-			-f frontend/Dockerfile \
-			.; \
+			-f frontend/Dockerfile.frontend \
+			frontend/; \
 	else \
 		echo "Using standard Docker build..."; \
 		$(CONTAINER_CLI) build \
 			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/frontend:latest \
-			-f frontend/Dockerfile \
-			.; \
+			-f frontend/Dockerfile.frontend \
+			frontend/; \
 	fi
 	@echo "$(GREEN)✅ Frontend image built$(NC)"
 
@@ -416,8 +416,11 @@ coverage: venv
 
 create-volumes:
 	@echo "$(CYAN)📁 Creating volume directories...$(NC)"
-	@mkdir -p ./volumes/{postgres,etcd,minio,milvus,backend}
-	@chmod -R 777 ./volumes
+	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus ./volumes/backend
+	# Note: chmod 777 is for LOCAL DEVELOPMENT ONLY to avoid permission issues
+	# For production deployments, use proper user/group mapping with Docker user namespaces
+	# or run containers with specific UIDs/GIDs that match your infrastructure
+	@find ./volumes -maxdepth 1 -type d -exec chmod 777 {} \; 2>/dev/null || true
 	@echo "$(GREEN)✅ Volumes created$(NC)"
 
 prod-start: create-volumes
