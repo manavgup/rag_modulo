@@ -25,6 +25,19 @@ backend/.venv/
 coverage/
 *.log
 
+# Dev test script outputs
+backend/dev_tests/**/*.json
+backend/dev_tests/**/*.csv
+backend/dev_tests/**/*.txt
+backend/dev_tests/**/*.wav
+backend/dev_tests/**/*.mp3
+backend/dev_tests/**/*.pdf
+backend/dev_tests/**/output/
+backend/dev_tests/**/results/
+backend/dev_tests/**/__pycache__/
+!backend/dev_tests/README.md
+!backend/dev_tests/manual/README.md
+
 # Ignore OS generated files
 .DS_Store
 Thumbs.db
