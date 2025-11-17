@@ -8,6 +8,11 @@ services:
       file: docker-compose-infra.yml
       service: postgres
 
+  milvus-etcd:
+    extends:
+      file: docker-compose-infra.yml
+      service: milvus-etcd
+
   milvus-standalone:
     extends:
       file: docker-compose-infra.yml
@@ -17,6 +22,11 @@ services:
     extends:
       file: docker-compose-infra.yml
       service: minio
+
+  createbuckets:
+    extends:
+      file: docker-compose-infra.yml
+      service: createbuckets
 
   mlflow-server:
     extends:
@@ -38,6 +48,7 @@ services:
       - milvus-standalone
       - minio
     networks:
+      - app-network
       - rag-network
 
   # Production frontend
@@ -45,14 +56,39 @@ services:
     image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
     container_name: rag-modulo-frontend
     environment:
-      - REACT_APP_BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8000
     ports:
-      - "3000:3000"
+      - "3000:8080"
     depends_on:
       - backend
     networks:
+      - app-network
       - rag-network
+
+volumes:
+  postgres_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/postgres
+      o: bind
+  etcd_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/etcd
+      o: bind
+  minio_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/minio
+      o: bind
+  milvus_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/milvus
+      o: bind
 
 networks:
   rag-network:
+    driver: bridge
+  app-network:
     driver: bridge

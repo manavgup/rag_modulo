@@ -82,10 +82,10 @@ COPY backend/vectordbs/ ./vectordbs/
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \
     useradd --uid 10001 -g backend -M -d /nonexistent backend && \
-    mkdir -p /app/logs && \
-    chown -R backend:backend /app && \
+    mkdir -p /app/logs /data && \
+    chown -R backend:backend /app /data && \
     chmod -R 755 /app && \
-    chmod 777 /app/logs
+    chmod 777 /app/logs /data
 
 # Set environment variables
 ENV PYTHONPATH=/app:/app/vectordbs:/app/rag_solution:/app/core
