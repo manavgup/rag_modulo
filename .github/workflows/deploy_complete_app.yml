@@ -212,7 +212,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.codeengine
+          file: ./backend/Dockerfile.backend
           platforms: linux/amd64
           push: true
           tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
