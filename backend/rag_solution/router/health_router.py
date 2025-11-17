@@ -152,3 +152,45 @@ def health_check(
         raise HTTPException(status_code=503, detail=f"System unhealthy. Components: {', '.join(unhealthy_components)}")
 
     return {"status": "healthy", "components": components}
+
+
+@router.get(
+    "/health/ready",
+    summary="Readiness probe",
+    description="Lightweight readiness check for Kubernetes readiness probe",
+    response_model=dict,
+    responses={
+        200: {"description": "Application is ready to serve traffic"},
+        503: {"description": "Application is not ready"},
+    },
+)
+def readiness_check(db: Annotated[Session, Depends(get_db)]) -> dict[str, Any]:
+    """
+    Perform a lightweight readiness check for Kubernetes readiness probe.
+
+    This endpoint is optimized for fast response times and checks only
+    critical dependencies required to serve traffic (database connection).
+    Unlike /health, it doesn't check external services like vector DB or LLM providers.
+
+    Args:
+        db: The database session.
+
+    Returns:
+        dict: Readiness status
+
+    Raises:
+        HTTPException: If the application is not ready to serve traffic
+    """
+    # Check only critical database connection
+    datastore_status = check_datastore(db)
+
+    if datastore_status["status"] == "unhealthy":
+        raise HTTPException(
+            status_code=503,
+            detail=f"Application not ready: {datastore_status['message']}"
+        )
+
+    return {
+        "status": "ready",
+        "message": "Application is ready to serve traffic"
+    }

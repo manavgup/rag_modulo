@@ -1,0 +1,122 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-backend-netpol
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rag-modulo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: frontend
+      ports:
+      - protocol: TCP
+        port: 8000
+    {{- if .Values.ingress.enabled }}
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+      ports:
+      - protocol: TCP
+        port: 8000
+    {{- end }}
+  egress:
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: postgres
+      ports:
+      - protocol: TCP
+        port: 5432
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: milvus
+      ports:
+      - protocol: TCP
+        port: 19530
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: minio
+      ports:
+      - protocol: TCP
+        port: 9000
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: mlflow
+      ports:
+      - protocol: TCP
+        port: 5000
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: 443
+      - protocol: TCP
+        port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-frontend-netpol
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rag-modulo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from: []
+      ports:
+      - protocol: TCP
+        port: 8080
+  egress:
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    - to:
+      - podSelector:
+          matchLabels:
+            {{- include "rag-modulo.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backend
+      ports:
+      - protocol: TCP
+        port: 8000
+{{- end }}

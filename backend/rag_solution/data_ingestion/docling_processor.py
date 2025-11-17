@@ -6,6 +6,7 @@ layout analysis, and reading order detection.
 """
 
 # Standard library imports
+import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -119,8 +120,10 @@ class DoclingProcessor(BaseProcessor):
             if self.converter is None:
                 raise ImportError("Docling DocumentConverter not available")
 
-            # Convert document using Docling
-            result = self.converter.convert(file_path)
+            # Convert document using Docling (run in thread pool to avoid blocking event loop)
+            # Docling's AI models are CPU-intensive and can block the async event loop
+            logger.debug("Running Docling conversion in thread pool for: %s", file_path)
+            result = await asyncio.to_thread(self.converter.convert, file_path)
 
             # Extract metadata
             metadata = self._extract_docling_metadata(result.document, file_path)
@@ -393,10 +396,16 @@ class DoclingProcessor(BaseProcessor):
             # Try new API first (page_no), fallback to old API (page)
             page_no = getattr(item.prov[0], "page_no", None)
             if page_no is not None:
-                return int(page_no)
+                try:
+                    return int(page_no)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid page_no value: %s", page_no)
             page = getattr(item.prov[0], "page", None)
             if page is not None:
-                return int(page)
+                try:
+                    return int(page)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid page value: %s", page)
         return None
 
     def _table_to_text(self, table_data: dict) -> str:
