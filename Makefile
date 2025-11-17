@@ -447,6 +447,44 @@ prod-status:
 	@$(DOCKER_COMPOSE) -f docker-compose.production.yml ps
 
 # ============================================================================
+# IBM CLOUD CODE ENGINE DEPLOYMENT
+# ============================================================================
+# Note: These targets require IBM Cloud CLI (ibmcloud) installed on your Mac
+# Run these from your Mac workstation, not from the remote server
+
+.PHONY: ce-cleanup ce-deploy ce-deploy-full ce-logs ce-status
+
+ce-cleanup:
+	@echo "$(CYAN)🗑️  Cleaning up Code Engine resources...$(NC)"
+	@bash scripts/cleanup-code-engine.sh
+
+ce-push:
+	@echo "$(CYAN)📤 Pushing images to IBM Container Registry...$(NC)"
+	@bash scripts/build-and-push-for-local-testing.sh
+
+ce-deploy:
+	@echo "$(CYAN)🚀 Deploying to IBM Cloud Code Engine...$(NC)"
+	@bash scripts/deploy-to-code-engine.sh
+
+ce-deploy-full:
+	@echo "$(CYAN)🚀 Full deployment pipeline (Build → Test → Push → Deploy)...$(NC)"
+	@bash scripts/deploy-end-to-end.sh
+
+ce-deploy-quick:
+	@echo "$(CYAN)🚀 Quick deployment (Build → Push → Deploy, skip local test)...$(NC)"
+	@bash scripts/deploy-end-to-end.sh --skip-test
+
+ce-logs:
+	@echo "$(CYAN)📋 Fetching Code Engine logs...$(NC)"
+	@bash scripts/code-engine-logs.sh
+
+ce-status:
+	@echo "$(CYAN)📊 Code Engine Status$(NC)"
+	@bash -c 'source .secrets 2>/dev/null || true; \
+		ibmcloud ce project select --name $${CODE_ENGINE_PROJECT:-rag-modulo} 2>/dev/null && \
+		ibmcloud ce app list || echo "Run ce-deploy first"'
+
+# ============================================================================
 # UTILITIES
 # ============================================================================
 
