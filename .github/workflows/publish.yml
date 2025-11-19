@@ -10,6 +10,7 @@ on:
       - ".github/workflows/publish.yml"
       - "!**/*.md" # Exclude markdown files
       - "!**/docs/**" # Exclude documentation
+  workflow_dispatch: # Allow manual trigger
 
 permissions:
   contents: read
