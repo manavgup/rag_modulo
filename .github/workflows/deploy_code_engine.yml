@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_security_scan:
-        description: 'Skip security scanning (not recommended)'
+        description: "Skip security scanning (not recommended)"
         required: false
         default: false
         type: boolean
@@ -66,22 +66,22 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: "sarif"
+          output: "trivy-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
       - name: Run Trivy vulnerability scanner (table format)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
   deploy-to-code-engine:
     needs: [build-and-push-image, security-scan]

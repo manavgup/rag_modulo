@@ -8,14 +8,14 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'frontend/**'
-      - 'webui/**'
-      - '.github/workflows/07-frontend-lint.yml'
+      - "frontend/**"
+      - "webui/**"
+      - ".github/workflows/07-frontend-lint.yml"
   push:
     branches: [main]
     paths:
-      - 'frontend/**'
-      - 'webui/**'
+      - "frontend/**"
+      - "webui/**"
 
 # 🔄 Concurrency Control
 # Cancel outdated workflow runs when new commits are pushed
@@ -39,9 +39,9 @@ jobs:
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
 
       # 2️⃣ Install dependencies
       - name: 📥 Install dependencies

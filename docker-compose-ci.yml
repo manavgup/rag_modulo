@@ -18,7 +18,7 @@ services:
     image: postgres:13
     container_name: rag-postgres-test
     ports:
-      - "5433:5432"  # Different port to avoid conflict with dev
+      - "5433:5432" # Different port to avoid conflict with dev
     environment:
       POSTGRES_DB: test_rag_db
       POSTGRES_USER: ${COLLECTIONDB_USER:-test}
@@ -38,8 +38,8 @@ services:
     image: minio/minio:latest
     container_name: rag-minio-test
     ports:
-      - "9002:9001"  # Different console port
-      - "9100:9000"  # Different API port
+      - "9002:9001" # Different console port
+      - "9100:9000" # Different API port
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -84,7 +84,7 @@ services:
     container_name: rag-milvus-test
     command: ["milvus", "run", "standalone"]
     ports:
-      - "19531:19530"  # Different port to avoid conflict
+      - "19531:19530" # Different port to avoid conflict
     environment:
       ETCD_ENDPOINTS: milvus-etcd-test:2379
       MINIO_ADDRESS: minio-test:9000
@@ -133,7 +133,6 @@ volumes:
   etcd_test_data:
   minio_test_data:
   milvus_test_data:
-
 networks:
   test-network:
     driver: bridge

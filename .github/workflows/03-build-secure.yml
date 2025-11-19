@@ -12,8 +12,8 @@ on:
     # Always build and scan on merge to main
   schedule:
     # Weekly CVE scan every Tuesday at 6:17 PM UTC
-    - cron: '17 18 * * 2'
-  workflow_dispatch:  # Manual trigger option
+    - cron: "17 18 * * 2"
+  workflow_dispatch: # Manual trigger option
 
 # Cancel outdated workflow runs for the same PR
 concurrency:
@@ -22,7 +22,7 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write  # For SARIF uploads
+  security-events: write # For SARIF uploads
   actions: read
 
 jobs:
@@ -103,7 +103,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ hashFiles(format('{0}/poetry.lock', matrix.context), format('{0}/package-lock.json', matrix.context)) }}
+          key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ hashFiles(format('{0}/poetry.lock', matrix.context),
+            format('{0}/package-lock.json', matrix.context)) }}
           restore-keys: |
             ${{ runner.os }}-buildx-${{ matrix.service }}-
             ${{ runner.os }}-buildx-
@@ -142,8 +143,8 @@ jobs:
         uses: erzz/dockle-action@v1
         with:
           image: ${{ matrix.image_name }}:${{ github.sha }}
-          exit-code: '0'  # Don't fail, just report
-          failure-threshold: warn  # Correct parameter name
+          exit-code: "0" # Don't fail, just report
+          failure-threshold: warn # Correct parameter name
           report-format: sarif
           report-name: dockle-${{ matrix.service }}
 
@@ -171,10 +172,10 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-${{ matrix.service }}.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          exit-code: '0'  # Report but don't fail on vulnerabilities
+          format: "sarif"
+          output: "trivy-${{ matrix.service }}.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          exit-code: "0" # Report but don't fail on vulnerabilities
           ignore-unfixed: true
 
       - name: Check Trivy Output
@@ -200,9 +201,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
-          format: 'table'
-          severity: 'CRITICAL'
-          exit-code: '0'  # Don't fail the build, just report
+          format: "table"
+          severity: "CRITICAL"
+          exit-code: "0" # Don't fail the build, just report
           ignore-unfixed: true
 
       # ===== STAGE 4.5: Grype Vulnerability Scan (Backup Scanner) =====
@@ -270,12 +271,12 @@ jobs:
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
+          scan-type: "fs"
           scan-ref: ${{ matrix.context }}
-          format: 'sarif'
-          output: 'trivy-fs-${{ matrix.service }}.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          format: "sarif"
+          output: "trivy-fs-${{ matrix.service }}.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
 
       - name: Check Trivy Filesystem Output
         id: check-trivy-fs

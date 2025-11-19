@@ -1,0 +1,708 @@
+# RAG Modulo Helm Chart Values
+# Complete configuration for Kubernetes deployment with CloudNativePG and Milvus Operator
+
+# ============================================================================
+# IMAGE CONFIGURATION
+# ============================================================================
+image:
+  # Backend image (FastAPI application)
+  backend:
+    repository: ghcr.io/manavgup/rag_modulo/backend
+    tag: "0.8.0" # Synced with PROJECT_VERSION from .env
+    pullPolicy: IfNotPresent
+
+  # Frontend image (React with Carbon Design)
+  frontend:
+    repository: ghcr.io/manavgup/rag_modulo/frontend
+    tag: "0.8.0" # Synced with PROJECT_VERSION from .env
+    pullPolicy: IfNotPresent
+
+# Image pull secrets for private registries (IBM Container Registry)
+# Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>
+imagePullSecrets:
+  - name: icr-secret
+
+# ============================================================================
+# REPLICA COUNTS
+# ============================================================================
+replicaCount:
+  backend: 3 # High availability with 3 replicas
+  frontend: 2 # 2 replicas for frontend
+
+# ============================================================================
+# SERVICE CONFIGURATION
+# ============================================================================
+service:
+  backend:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    annotations: {}
+  frontend:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    annotations: {}
+# ============================================================================
+# INGRESS / ROUTE CONFIGURATION (OpenShift)
+# ============================================================================
+# For OpenShift: Uses Route
+# For Kubernetes: Uses Ingress
+ingress:
+  enabled: true
+  # OpenShift-specific (uses Route instead of Ingress)
+  route:
+    enabled: true # Set to true for ROKS/OpenShift
+    host: "" # Auto-generated from cluster ingress hostname
+    tls:
+      enabled: true
+      termination: edge # edge, passthrough, or reencrypt
+      insecureEdgeTerminationPolicy: Redirect
+  # Standard Kubernetes Ingress (for EKS, AKS, vanilla K8s)
+  kubernetes:
+    enabled: false # Set to true for non-OpenShift clusters
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: rag-modulo.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: frontend
+          - path: /api
+            pathType: Prefix
+            backend: backend # pragma: allowlist secret
+    tls:
+      - secretName: rag-modulo-tls
+        hosts:
+          - rag-modulo.example.com
+
+# ============================================================================
+# POSTGRESQL (CloudNativePG Operator)
+# ============================================================================
+postgresql:
+  enabled: true
+  # CloudNativePG Cluster configuration
+  cluster:
+    name: rag-modulo-postgres
+    instances: 3 # High availability with 3 instances
+    storage:
+      size: 20Gi
+      # Storage class varies by cloud:
+      # - ROKS: ocs-storagecluster-ceph-rbd (OpenShift Container Storage)
+      # - EKS: gp3 (AWS EBS)
+      # - AKS: managed-premium (Azure Disk)
+      storageClass: ocs-storagecluster-ceph-rbd
+
+    # PostgreSQL version
+    imageName: ghcr.io/cloudnative-pg/postgresql:16
+
+    # Backup configuration
+    backup:
+      enabled: true
+      # Backup to S3-compatible storage (IBM Cloud Object Storage, AWS S3, MinIO)
+      barmanObjectStore:
+        destinationPath: s3://rag-modulo-backups/postgres
+        s3Credentials:
+          accessKeyId:
+            name: postgres-backup-s3
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: postgres-backup-s3
+            key: SECRET_ACCESS_KEY
+        endpointURL: https://s3.us-south.cloud-object-storage.appdomain.cloud
+      retentionPolicy: "30d" # Keep backups for 30 days
+      schedule: "0 2 * * *" # Daily backup at 2 AM UTC
+
+    # Connection pooling with PgBouncer
+    pooler:
+      enabled: true
+      instances: 2
+      poolMode: session
+      parameters:
+        max_client_conn: "1000"
+        default_pool_size: "25"
+
+    # Monitoring
+    monitoring:
+      enabled: true
+      podMonitor:
+        enabled: true
+
+  # Database credentials (stored in Secret)
+  auth:
+    database: rag_modulo
+    username: rag_modulo_user
+    # Password generated or provided via existingSecret
+    existingSecret: "" # If empty, password is auto-generated
+
+# ============================================================================
+# MILVUS (Milvus Operator)
+# ============================================================================
+milvus:
+  enabled: true
+  # Milvus Cluster configuration
+  cluster:
+    name: rag-modulo-milvus
+    mode: cluster # cluster or standalone
+
+    # Milvus version
+    image:
+      repository: milvusdb/milvus
+      tag: v2.4.4
+
+    # Component replicas
+    replicas:
+      queryNode: 2
+      dataNode: 2
+      indexNode: 1
+      proxy: 2
+
+    # Storage configuration
+    storage:
+      # etcd for metadata
+      etcd:
+        endpoints:
+          - rag-modulo-etcd:2379
+        storageClass: ocs-storagecluster-ceph-rbd
+        size: 10Gi
+
+      # S3-compatible storage for vector data
+      s3:
+        enabled: true
+        endpoint: minio:9000
+        useSSL: false
+        bucketName: rag-modulo-milvus
+        accessKeyId:
+          name: milvus-s3
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: milvus-s3
+          key: SECRET_ACCESS_KEY
+
+    # Resource limits
+    resources:
+      queryNode:
+        limits:
+          cpu: "2"
+          memory: 4Gi
+        requests:
+          cpu: "1"
+          memory: 2Gi
+      dataNode:
+        limits:
+          cpu: "1"
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+      indexNode:
+        limits:
+          cpu: "2"
+          memory: 4Gi
+        requests:
+          cpu: "1"
+          memory: 2Gi
+      proxy:
+        limits:
+          cpu: "1"
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+
+# ============================================================================
+# ETCD (for Milvus)
+# ============================================================================
+etcd:
+  enabled: true
+  replicas: 3
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.5.9
+  storage:
+    size: 10Gi
+    storageClass: ocs-storagecluster-ceph-rbd
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# ============================================================================
+# MINIO (S3-compatible storage)
+# ============================================================================
+minio:
+  enabled: true
+  mode: distributed # distributed or standalone
+  replicas: 4 # Must be even number for distributed mode
+  image:
+    repository: minio/minio
+    tag: latest
+  storage:
+    size: 50Gi
+    storageClass: ocs-storagecluster-ceph-rbd
+  buckets:
+    - name: rag-modulo-milvus
+      policy: none
+      purge: false
+    - name: rag-modulo-mlflow
+      policy: none
+      purge: false
+    - name: rag-modulo-backups
+      policy: none
+      purge: false
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  # Credentials (stored in Secret)
+  auth:
+    rootUser: minioadmin
+    existingSecret: "" # If empty, uses rootUser/rootPassword
+
+# ============================================================================
+# MLFLOW (Experiment Tracking)
+# ============================================================================
+mlflow:
+  enabled: true
+  image:
+    repository: quay.io/mtykhenko/rag-modulo-mlflow
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 5000
+  storage:
+    # S3 backend for artifacts
+    s3:
+      endpoint: http://minio:9000
+      bucketName: rag-modulo-mlflow
+      accessKeyId:
+        name: mlflow-s3
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: mlflow-s3
+        key: SECRET_ACCESS_KEY
+    # PostgreSQL for backend store
+    backendStore:
+      database: rag_modulo # Reuses main PostgreSQL database
+  auth:
+    username: admin
+    existingSecret: "" # If empty, uses username/password
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# ============================================================================
+# BACKEND CONFIGURATION
+# ============================================================================
+backend:
+  # Resource limits
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: "1"
+      memory: 2Gi
+
+  # Environment variables (see configmap.yaml for full list)
+  env:
+    # LLM Configuration
+    LLM_PROVIDER: watsonx
+    RAG_LLM: ibm/granite-3-3-8b-instruct
+    MAX_NEW_TOKENS: "800"
+    MIN_NEW_TOKENS: "200"
+    TEMPERATURE: "0.7"
+    TOP_P: "0.95"
+    TOP_K: "5"
+    REPETITION_PENALTY: "1.1"
+
+    # Vector Database
+    VECTOR_DB: milvus
+    EMBEDDING_MODEL: ibm/slate-125m-english-rtrvr-v2
+    EMBEDDING_DIM: "768"
+
+    # Chunking
+    CHUNKING_STRATEGY: sentence
+    MIN_CHUNK_SIZE: "500"
+    MAX_CHUNK_SIZE: "750"
+    CHUNK_OVERLAP: "150"
+    USE_DOCLING_CHUNKER: "true"
+    CHUNKING_TOKENIZER_MODEL: ibm-granite/granite-embedding-english-r2
+
+    # Retrieval
+    RETRIEVAL_TYPE: vector
+    VECTOR_WEIGHT: "0.7"
+    KEYWORD_WEIGHT: "0.3"
+    RETRIEVAL_TOP_K: "20"
+
+    # Reranking
+    ENABLE_RERANKING: "true"
+    RERANKER_TYPE: cross-encoder
+    CROSS_ENCODER_MODEL: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+    # Docling
+    ENABLE_DOCLING: "true"
+    DOCLING_FALLBACK_ENABLED: "true"
+
+    # Application Settings
+    LOG_LEVEL: INFO
+    RUNTIME_EVAL: "false"
+    WEB_CONCURRENCY: "4"
+
+    # Development/Testing (disable in production)
+    SKIP_AUTH: "false"
+    DEVELOPMENT_MODE: "false"
+    TESTING: "false"
+
+  # Secrets (stored in Kubernetes Secret)
+  secrets:
+    # JWT secret for authentication
+    jwtSecretKey:
+      name: rag-modulo-secrets
+      key: JWT_SECRET_KEY
+
+    # WatsonX API credentials
+    watsonxApiKey:
+      name: rag-modulo-secrets
+      key: WATSONX_APIKEY
+    watsonxInstanceId:
+      name: rag-modulo-secrets
+      key: WATSONX_INSTANCE_ID
+
+    # OpenAI API key (optional)
+    openaiApiKey:
+      name: rag-modulo-secrets
+      key: OPENAI_API_KEY
+
+    # Anthropic API key (optional)
+    anthropicApiKey:
+      name: rag-modulo-secrets
+      key: ANTHROPIC_API_KEY
+
+    # ElevenLabs API key (optional, for podcast generation)
+    elevenlabsApiKey:
+      name: rag-modulo-secrets
+      key: ELEVENLABS_API_KEY
+
+    # IBM OIDC credentials
+    ibmClientId:
+      name: rag-modulo-secrets
+      key: IBM_CLIENT_ID
+    ibmClientSecret:
+      name: rag-modulo-secrets
+      key: IBM_CLIENT_SECRET
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: /api/health
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+  # Liveness probe
+  livenessProbe:
+    enabled: true
+    path: /api/health
+    initialDelaySeconds: 90
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+  # Readiness probe
+  readinessProbe:
+    enabled: true
+    path: /api/health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# ============================================================================
+# FRONTEND CONFIGURATION
+# ============================================================================
+frontend:
+  # Resource limits
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  # Environment variables
+  env:
+    # Backend URL (uses Kubernetes service DNS)
+    REACT_APP_BACKEND_URL: http://rag-modulo-backend:8000
+    REACT_APP_WS_URL: ws://rag-modulo-backend:8000/ws
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: /
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+  # Readiness probe
+  readinessProbe:
+    enabled: true
+    path: /
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# ============================================================================
+# AUTOSCALING (HPA)
+# ============================================================================
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  frontend:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ============================================================================
+# POD DISRUPTION BUDGET
+# ============================================================================
+podDisruptionBudget:
+  backend:
+    enabled: true
+    minAvailable: 2 # At least 2 backend pods must be available
+
+  frontend:
+    enabled: true
+    minAvailable: 1 # At least 1 frontend pod must be available
+
+# ============================================================================
+# NETWORK POLICIES
+# ============================================================================
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+# ============================================================================
+# SERVICE ACCOUNT
+# ============================================================================
+serviceAccount:
+  create: true
+  name: rag-modulo
+  annotations: {}
+# ============================================================================
+# RBAC
+# ============================================================================
+rbac:
+  create: true
+
+# ============================================================================
+# POD SECURITY CONTEXT
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# ============================================================================
+# CONTAINER SECURITY CONTEXT
+# ============================================================================
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false # Backend writes logs
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# ============================================================================
+# NODE AFFINITY / TOLERATIONS
+# ============================================================================
+# Uncomment to schedule pods on specific nodes
+# nodeSelector:
+#   workload: rag-modulo
+
+# tolerations:
+#   - key: "workload"
+#     operator: "Equal"
+#     value: "rag-modulo"
+#     effect: "NoSchedule"
+
+# affinity:
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#       - weight: 100
+#         podAffinityTerm:
+#           labelSelector:
+#             matchExpressions:
+#               - key: app
+#                 operator: In
+#                 values:
+#                   - rag-modulo-backend
+#           topologyKey: kubernetes.io/hostname
+
+# ============================================================================
+# MONITORING (Prometheus)
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+  prometheusRule:
+    enabled: true
+
+# ============================================================================
+# PERSISTENCE
+# ============================================================================
+persistence:
+  # Backend data volume (for file uploads, cache, etc.)
+  backend:
+    enabled: true
+    size: 20Gi
+    storageClass: ocs-storagecluster-ceph-rbd
+    accessMode: ReadWriteOnce
+    mountPath: /mnt/data
+
+# ============================================================================
+# EXTERNAL SECRETS (Optional)
+# ============================================================================
+# If using External Secrets Operator
+externalSecrets:
+  enabled: false
+  # backend: aws-secrets-manager, azure-key-vault, ibm-secrets-manager
+  backend: ibm-secrets-manager
+  secretStore:
+    name: ibm-secrets-manager
+    kind: SecretStore # or ClusterSecretStore
+  refreshInterval: 1h
+
+# ============================================================================
+# VECTOR DATABASE ABSTRACTION
+# ============================================================================
+# Allows switching between vector databases without code changes
+vectorDatabase:
+  # Options: milvus, qdrant, weaviate, elasticsearch, pinecone
+  type: milvus
+
+  # Milvus configuration (default)
+  milvus:
+    host: rag-modulo-milvus-proxy
+    port: 19530
+
+  # Qdrant configuration (alternative)
+  qdrant:
+    enabled: false
+    host: qdrant
+    port: 6333
+    grpcPort: 6334
+
+  # Weaviate configuration (alternative)
+  weaviate:
+    enabled: false
+    host: weaviate
+    port: 8080
+
+# ============================================================================
+# BACKUP AND DISASTER RECOVERY
+# ============================================================================
+backup:
+  enabled: true
+  # Velero backup annotations
+  velero:
+    enabled: true
+    schedule: "0 2 * * *" # Daily at 2 AM UTC
+    ttl: 720h # 30 days
+
+  # PostgreSQL backup (handled by CloudNativePG)
+  postgresql:
+    enabled: true
+    schedule: "0 2 * * *"
+    retention: "30d"
+
+  # Milvus backup
+  milvus:
+    enabled: true
+    schedule: "0 3 * * *"
+    retention: "30d"
+
+# ============================================================================
+# ANNOTATIONS
+# ============================================================================
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+deploymentAnnotations: {}
+# ============================================================================
+# LABELS
+# ============================================================================
+commonLabels:
+  app.kubernetes.io/name: rag-modulo
+  app.kubernetes.io/instance: "{{ .Release.Name }}"
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+
+# ============================================================================
+# CLOUD-SPECIFIC CONFIGURATIONS
+# ============================================================================
+cloud:
+  # Options: ibm, aws, azure, gcp
+  provider: ibm
+
+  # IBM Cloud specific
+  ibm:
+    region: us-south
+    resourceGroup: Default
+    # IBM Cloud Object Storage for backups
+    cos:
+      enabled: true
+      endpoint: s3.us-south.cloud-object-storage.appdomain.cloud
+      bucket: rag-modulo-backups
+
+  # AWS specific
+  aws:
+    region: us-east-1
+    # S3 for backups
+    s3:
+      enabled: false
+      bucket: rag-modulo-backups
+
+  # Azure specific
+  azure:
+    location: eastus
+    resourceGroup: rag-modulo-rg
+    # Azure Blob Storage for backups
+    blob:
+      enabled: false
+      storageAccount: ragmodulobackups
+      container: backups

@@ -6,13 +6,13 @@ name: Poetry Lock Validation
 on:
   pull_request:
     paths:
-      - 'pyproject.toml'
-      - 'poetry.lock'
+      - "pyproject.toml"
+      - "poetry.lock"
   push:
     branches: [main, develop]
     paths:
-      - 'pyproject.toml'
-      - 'poetry.lock'
+      - "pyproject.toml"
+      - "poetry.lock"
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Poetry
         uses: snok/install-poetry@v1

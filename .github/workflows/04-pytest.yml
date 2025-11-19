@@ -9,7 +9,6 @@ on:
     branches: [main]
   push:
     branches: [main]
-
 # 🔄 Concurrency Control
 # Cancel outdated workflow runs when new commits are pushed
 concurrency:
@@ -61,7 +60,7 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       # 3️⃣ Install Poetry package manager
       - name: 📦 Install Poetry

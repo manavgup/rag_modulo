@@ -27,7 +27,7 @@ rules:
 
   # Truthy values
   truthy:
-    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    allowed-values: ["true", "false", "yes", "no", "on", "off"]
     check-keys: false
 
   # Document start
@@ -44,7 +44,7 @@ rules:
   # Octal values
   octal-values:
     forbid-implicit-octal: true
-    forbid-explicit-octal: true  # Required by ansible-lint
+    forbid-explicit-octal: true # Required by ansible-lint
 
   # Quoted strings - disabled for flexibility with GitHub Actions workflows
   # GitHub Actions often uses both quoted and unquoted strings depending on context

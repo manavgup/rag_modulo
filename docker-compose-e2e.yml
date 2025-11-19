@@ -18,7 +18,7 @@ services:
     image: postgres:13
     container_name: rag-postgres-e2e
     ports:
-      - "5434:5432"  # Different port to avoid conflict
+      - "5434:5432" # Different port to avoid conflict
     environment:
       POSTGRES_DB: e2e_rag_db
       POSTGRES_USER: ${COLLECTIONDB_USER:-test}
@@ -38,8 +38,8 @@ services:
     image: minio/minio:latest
     container_name: rag-minio-e2e
     ports:
-      - "9003:9001"  # Different console port
-      - "9101:9000"  # Different API port
+      - "9003:9001" # Different console port
+      - "9101:9000" # Different API port
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -84,7 +84,7 @@ services:
     container_name: rag-milvus-e2e
     command: ["milvus", "run", "standalone"]
     ports:
-      - "19532:19530"  # Different port to avoid conflict
+      - "19532:19530" # Different port to avoid conflict
     environment:
       ETCD_ENDPOINTS: milvus-etcd-e2e:2379
       MINIO_ADDRESS: minio-e2e:9000
@@ -132,7 +132,7 @@ services:
     command: ["sh", "-c", "env && uvicorn main:app --host 0.0.0.0 --port 8000"]
     container_name: rag-backend-e2e
     ports:
-      - "8001:8000"  # Different port to avoid conflict with dev backend
+      - "8001:8000" # Different port to avoid conflict with dev backend
     environment:
       # Database configuration
       COLLECTIONDB_HOST: postgres-e2e
@@ -185,7 +185,6 @@ volumes:
   etcd_e2e_data:
   minio_e2e_data:
   milvus_e2e_data:
-
 networks:
   e2e-network:
     driver: bridge

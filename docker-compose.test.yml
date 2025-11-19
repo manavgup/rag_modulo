@@ -220,7 +220,6 @@ services:
       # Mount test outputs (writable)
       - test-results:/app/test-results
     command: ["pytest", "-v", "-s", "tests/integration/", "--junit-xml=/app/test-results/junit.xml"]
-
 # ============================================================================
 # Ephemeral Volumes (Cleaned with docker-compose down -v)
 # ============================================================================

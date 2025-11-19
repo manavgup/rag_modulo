@@ -2,15 +2,14 @@ name: Development Environment CI
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - '.devcontainer/**'
-      - 'docker-compose.dev.yml'
-      - 'docker-compose.hotreload.yml'
+      - ".devcontainer/**"
+      - "docker-compose.dev.yml"
+      - "docker-compose.hotreload.yml"
       # Removed 'backend/**' and 'tests/**' to prevent duplicate builds
       # This workflow tests dev container setup, not feature changes
   workflow_dispatch:
-
 jobs:
   test-dev-environment:
     runs-on: ubuntu-latest

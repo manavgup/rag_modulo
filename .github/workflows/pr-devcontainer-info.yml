@@ -3,7 +3,6 @@ name: PR Dev Container Info
 on:
   pull_request:
     types: [opened, reopened]
-
 jobs:
   devcontainer-info:
     runs-on: ubuntu-latest
