@@ -5,22 +5,22 @@ on:
   workflow_dispatch:
     inputs:
       state:
-        description: 'Issue state to analyze'
+        description: "Issue state to analyze"
         required: false
-        default: 'open'
+        default: "open"
         type: choice
         options:
           - open
           - closed
           - all
       limit:
-        description: 'Number of issues to analyze (max 50)'
+        description: "Number of issues to analyze (max 50)"
         required: false
-        default: '20'
+        default: "20"
         type: string
   schedule:
     # Run weekly on Monday at 9 AM UTC
-    - cron: '0 9 * * 1'
+    - cron: "0 9 * * 1"
 
 jobs:
   triage-issues:

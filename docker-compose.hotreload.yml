@@ -5,7 +5,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev  # Use development Dockerfile
+      dockerfile: Dockerfile.dev # Use development Dockerfile
       tags:
         - rag-modulo/backend:dev-hotreload
         - rag-modulo/backend:dev
@@ -26,11 +26,11 @@ services:
       # Development-specific overrides for hot reloading
       - SKIP_AUTH=true
       - COLLECTIONDB_HOST=postgres
-      - WEB_CONCURRENCY=1  # Single worker for development
+      - WEB_CONCURRENCY=1 # Single worker for development
       - RUNTIME_EVAL=false
       - PYTHONPATH=/app
       - DEVELOPMENT_MODE=true
-      - UVICORN_RELOAD=true  # Explicit reload flag
+      - UVICORN_RELOAD=true # Explicit reload flag
     env_file:
       - .env
     volumes:
@@ -54,7 +54,7 @@ services:
   frontend-dev:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev  # Optimized dev Dockerfile
+      dockerfile: Dockerfile.dev # Optimized dev Dockerfile
       tags:
         - rag-modulo/frontend:dev-hotreload
         - rag-modulo/frontend:dev
@@ -69,14 +69,14 @@ services:
     environment:
       # Optimized React development environment
       - REACT_APP_BACKEND_URL=
-      - CHOKIDAR_USEPOLLING=true  # Enable file watching polling
-      - FAST_REFRESH=true         # Enable React Fast Refresh
-      - WATCHPACK_POLLING=true    # Enable webpack polling
+      - CHOKIDAR_USEPOLLING=true # Enable file watching polling
+      - FAST_REFRESH=true # Enable React Fast Refresh
+      - WATCHPACK_POLLING=true # Enable webpack polling
       - WDS_SOCKET_HOST=localhost # WebSocket host for HMR
-      - WDS_SOCKET_PORT=3000      # WebSocket port for HMR
+      - WDS_SOCKET_PORT=3000 # WebSocket port for HMR
       - REACT_APP_FAST_REFRESH=true
-      - GENERATE_SOURCEMAP=true   # Source maps for debugging
-      - DANGEROUSLY_DISABLE_HOST_CHECK=true  # Bypass host check for local dev with proxy
+      - GENERATE_SOURCEMAP=true # Source maps for debugging
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true # Bypass host check for local dev with proxy
     volumes:
       # Mount entire source directory for comprehensive hot reloading
       - ./frontend/src:/app/src
@@ -97,7 +97,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
-      start_period: 60s  # Increased for initial build
+      start_period: 60s # Increased for initial build
       retries: 3
 
   # Production frontend (commented out in development)

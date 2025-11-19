@@ -3,8 +3,8 @@ name: Weekly Security Audit
 on:
   schedule:
     # Every Monday at 2:00 AM UTC
-    - cron: '0 2 * * 1'
-  workflow_dispatch:  # Manual trigger option
+    - cron: "0 2 * * 1"
+  workflow_dispatch: # Manual trigger option
 
 permissions:
   contents: read
@@ -61,24 +61,24 @@ jobs:
       - name: 🔍 Trivy - Deep Vulnerability Scan (All Severities)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ matrix.image_name }}:audit'
-          format: 'sarif'
-          output: 'trivy-${{ matrix.service }}-results.sarif'
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-          exit-code: '0'  # Don't fail, just report
+          image-ref: "${{ matrix.image_name }}:audit"
+          format: "sarif"
+          output: "trivy-${{ matrix.service }}-results.sarif"
+          severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
+          exit-code: "0" # Don't fail, just report
 
       - name: 📤 Upload Trivy Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: 'trivy-${{ matrix.service }}-results.sarif'
+          sarif_file: "trivy-${{ matrix.service }}-results.sarif"
 
       - name: 🔍 Trivy - Generate Detailed Report
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ matrix.image_name }}:audit'
-          format: 'json'
-          output: 'trivy-${{ matrix.service }}-detailed.json'
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          image-ref: "${{ matrix.image_name }}:audit"
+          format: "json"
+          output: "trivy-${{ matrix.service }}-detailed.json"
+          severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
 
       - name: 🐳 Dockle - Best Practices Audit
         run: |
@@ -100,9 +100,9 @@ jobs:
       - name: 📦 Generate SBOM (Software Bill of Materials)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ matrix.image_name }}:audit'
-          format: 'cyclonedx'
-          output: 'sbom-${{ matrix.service }}.json'
+          image-ref: "${{ matrix.image_name }}:audit"
+          format: "cyclonedx"
+          output: "sbom-${{ matrix.service }}.json"
 
       - name: 📤 Upload Security Reports as Artifacts
         uses: actions/upload-artifact@v4

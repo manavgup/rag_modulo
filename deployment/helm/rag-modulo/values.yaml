@@ -8,13 +8,13 @@ image:
   # Backend image (FastAPI application)
   backend:
     repository: ghcr.io/manavgup/rag_modulo/backend
-    tag: "0.8.0"  # Synced with PROJECT_VERSION from .env
+    tag: "0.8.0" # Synced with PROJECT_VERSION from .env
     pullPolicy: IfNotPresent
 
   # Frontend image (React with Carbon Design)
   frontend:
     repository: ghcr.io/manavgup/rag_modulo/frontend
-    tag: "0.8.0"  # Synced with PROJECT_VERSION from .env
+    tag: "0.8.0" # Synced with PROJECT_VERSION from .env
     pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries (IBM Container Registry)
@@ -26,8 +26,8 @@ imagePullSecrets:
 # REPLICA COUNTS
 # ============================================================================
 replicaCount:
-  backend: 3   # High availability with 3 replicas
-  frontend: 2  # 2 replicas for frontend
+  backend: 3 # High availability with 3 replicas
+  frontend: 2 # 2 replicas for frontend
 
 # ============================================================================
 # SERVICE CONFIGURATION
@@ -38,13 +38,11 @@ service:
     port: 8000
     targetPort: 8000
     annotations: {}
-
   frontend:
     type: ClusterIP
     port: 8080
     targetPort: 8080
     annotations: {}
-
 # ============================================================================
 # INGRESS / ROUTE CONFIGURATION (OpenShift)
 # ============================================================================
@@ -54,15 +52,15 @@ ingress:
   enabled: true
   # OpenShift-specific (uses Route instead of Ingress)
   route:
-    enabled: true  # Set to true for ROKS/OpenShift
-    host: ""  # Auto-generated from cluster ingress hostname
+    enabled: true # Set to true for ROKS/OpenShift
+    host: "" # Auto-generated from cluster ingress hostname
     tls:
       enabled: true
-      termination: edge  # edge, passthrough, or reencrypt
+      termination: edge # edge, passthrough, or reencrypt
       insecureEdgeTerminationPolicy: Redirect
   # Standard Kubernetes Ingress (for EKS, AKS, vanilla K8s)
   kubernetes:
-    enabled: false  # Set to true for non-OpenShift clusters
+    enabled: false # Set to true for non-OpenShift clusters
     className: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -74,7 +72,7 @@ ingress:
             backend: frontend
           - path: /api
             pathType: Prefix
-            backend: backend  # pragma: allowlist secret
+            backend: backend # pragma: allowlist secret
     tls:
       - secretName: rag-modulo-tls
         hosts:
@@ -88,7 +86,7 @@ postgresql:
   # CloudNativePG Cluster configuration
   cluster:
     name: rag-modulo-postgres
-    instances: 3  # High availability with 3 instances
+    instances: 3 # High availability with 3 instances
     storage:
       size: 20Gi
       # Storage class varies by cloud:
@@ -114,8 +112,8 @@ postgresql:
             name: postgres-backup-s3
             key: SECRET_ACCESS_KEY
         endpointURL: https://s3.us-south.cloud-object-storage.appdomain.cloud
-      retentionPolicy: "30d"  # Keep backups for 30 days
-      schedule: "0 2 * * *"   # Daily backup at 2 AM UTC
+      retentionPolicy: "30d" # Keep backups for 30 days
+      schedule: "0 2 * * *" # Daily backup at 2 AM UTC
 
     # Connection pooling with PgBouncer
     pooler:
@@ -137,7 +135,7 @@ postgresql:
     database: rag_modulo
     username: rag_modulo_user
     # Password generated or provided via existingSecret
-    existingSecret: ""  # If empty, password is auto-generated
+    existingSecret: "" # If empty, password is auto-generated
 
 # ============================================================================
 # MILVUS (Milvus Operator)
@@ -147,7 +145,7 @@ milvus:
   # Milvus Cluster configuration
   cluster:
     name: rag-modulo-milvus
-    mode: cluster  # cluster or standalone
+    mode: cluster # cluster or standalone
 
     # Milvus version
     image:
@@ -239,8 +237,8 @@ etcd:
 # ============================================================================
 minio:
   enabled: true
-  mode: distributed  # distributed or standalone
-  replicas: 4  # Must be even number for distributed mode
+  mode: distributed # distributed or standalone
+  replicas: 4 # Must be even number for distributed mode
   image:
     repository: minio/minio
     tag: latest
@@ -267,7 +265,7 @@ minio:
   # Credentials (stored in Secret)
   auth:
     rootUser: minioadmin
-    existingSecret: ""  # If empty, uses rootUser/rootPassword
+    existingSecret: "" # If empty, uses rootUser/rootPassword
 
 # ============================================================================
 # MLFLOW (Experiment Tracking)
@@ -293,10 +291,10 @@ mlflow:
         key: SECRET_ACCESS_KEY
     # PostgreSQL for backend store
     backendStore:
-      database: rag_modulo  # Reuses main PostgreSQL database
+      database: rag_modulo # Reuses main PostgreSQL database
   auth:
     username: admin
-    existingSecret: ""  # If empty, uses username/password
+    existingSecret: "" # If empty, uses username/password
   resources:
     limits:
       cpu: 500m
@@ -494,11 +492,11 @@ autoscaling:
 podDisruptionBudget:
   backend:
     enabled: true
-    minAvailable: 2  # At least 2 backend pods must be available
+    minAvailable: 2 # At least 2 backend pods must be available
 
   frontend:
     enabled: true
-    minAvailable: 1  # At least 1 frontend pod must be available
+    minAvailable: 1 # At least 1 frontend pod must be available
 
 # ============================================================================
 # NETWORK POLICIES
@@ -516,7 +514,6 @@ serviceAccount:
   create: true
   name: rag-modulo
   annotations: {}
-
 # ============================================================================
 # RBAC
 # ============================================================================
@@ -538,7 +535,7 @@ podSecurityContext:
 # ============================================================================
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false  # Backend writes logs
+  readOnlyRootFilesystem: false # Backend writes logs
   runAsNonRoot: true
   runAsUser: 1000
   capabilities:
@@ -605,7 +602,7 @@ externalSecrets:
   backend: ibm-secrets-manager
   secretStore:
     name: ibm-secrets-manager
-    kind: SecretStore  # or ClusterSecretStore
+    kind: SecretStore # or ClusterSecretStore
   refreshInterval: 1h
 
 # ============================================================================
@@ -642,8 +639,8 @@ backup:
   # Velero backup annotations
   velero:
     enabled: true
-    schedule: "0 2 * * *"  # Daily at 2 AM UTC
-    ttl: 720h  # 30 days
+    schedule: "0 2 * * *" # Daily at 2 AM UTC
+    ttl: 720h # 30 days
 
   # PostgreSQL backup (handled by CloudNativePG)
   postgresql:
@@ -666,7 +663,6 @@ podAnnotations:
   prometheus.io/path: "/metrics"
 
 deploymentAnnotations: {}
-
 # ============================================================================
 # LABELS
 # ============================================================================

@@ -2,14 +2,13 @@ name: Codespace Testing
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'backend/**'
-      - 'tests/**'
+      - "backend/**"
+      - "tests/**"
       # Temporarily disabled for .devcontainer changes until Codespaces are available
       # - '.devcontainer/**'
   workflow_dispatch:
-
 jobs:
   codespace-testing:
     runs-on: ubuntu-latest

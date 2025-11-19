@@ -16,12 +16,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'deployment/terraform/**/*.tf'
-      - 'deployment/ansible/**/*.yml'
-      - '!deployment/**/*.md'
-      - '.github/workflows/terraform-ansible-validation.yml'
+      - "deployment/terraform/**/*.tf"
+      - "deployment/ansible/**/*.yml"
+      - "!deployment/**/*.md"
+      - ".github/workflows/terraform-ansible-validation.yml"
   workflow_dispatch:
-
 # Cancel outdated workflow runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -57,12 +56,12 @@ jobs:
       - name: 🐍 Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: 🔧 Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '1.5.0'
+          terraform_version: "1.5.0"
 
       - name: 🧹 Free Up Disk Space
         run: |
@@ -143,7 +142,7 @@ jobs:
       - name: 🐍 Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: 🧹 Free Up Disk Space
         run: |
@@ -242,7 +241,7 @@ jobs:
       - name: 🐍 Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: 🔧 Install Dependencies
         run: |

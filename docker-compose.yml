@@ -19,7 +19,7 @@ services:
       milvus-standalone:
         condition: service_healthy
       mlflow-server:
-       condition: service_started
+        condition: service_started
     environment:
       - COLLECTIONDB_HOST=postgres
       - WEB_CONCURRENCY=4

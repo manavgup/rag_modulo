@@ -5,8 +5,8 @@ name: Main - Integration Tests & Build
 
 on:
   push:
-    branches: [main]  # Only on merge to main
-  workflow_dispatch:  # Manual trigger
+    branches: [main] # Only on merge to main
+  workflow_dispatch: # Manual trigger
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -72,10 +72,10 @@ jobs:
     env:
       # Essential environment variables for current atomic tests
       # TODO: Remove these once issue #172 (test isolation) is fixed
-      JWT_SECRET_KEY: test-secret-key-for-ci  # pragma: allowlist secret
+      JWT_SECRET_KEY: test-secret-key-for-ci # pragma: allowlist secret
       RAG_LLM: openai
       WATSONX_INSTANCE_ID: test-instance-id
-      WATSONX_APIKEY: test-api-key  # pragma: allowlist secret
+      WATSONX_APIKEY: test-api-key # pragma: allowlist secret
       WATSONX_URL: https://test.watsonx.com
       # Additional variables needed by tests
       VECTOR_DB: milvus
@@ -89,7 +89,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
@@ -117,15 +117,15 @@ jobs:
 
       - name: Check formatting
         run: make format-check
-        continue-on-error: true  # Don't fail on format issues initially
+        continue-on-error: true # Don't fail on format issues initially
 
       - name: Run linting (Ruff + MyPy)
         run: make lint
-        continue-on-error: true  # Don't fail on lint issues initially
+        continue-on-error: true # Don't fail on lint issues initially
 
       - name: Run security checks
         run: make security-check
-        continue-on-error: true  # Don't fail on security issues initially
+        continue-on-error: true # Don't fail on security issues initially
 
       - name: Run unit tests with coverage
         run: |
@@ -136,7 +136,7 @@ jobs:
             --cov-fail-under=60 \
             --maxfail=5 \
             --tb=short
-        continue-on-error: true  # Don't fail on coverage threshold initially
+        continue-on-error: true # Don't fail on coverage threshold initially
 
   # NOTE: Build job removed - now handled by 03-build-secure.yml workflow
   # This eliminates duplicate builds (was building in both ci.yml and 03-build-secure.yml)

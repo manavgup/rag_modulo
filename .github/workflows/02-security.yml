@@ -6,11 +6,10 @@ name: Security Scan
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
-
 # 🔄 Concurrency Control
 # Cancel outdated workflow runs when new commits are pushed
 concurrency:
@@ -30,7 +29,7 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Need full history to scan all commits
+          fetch-depth: 0 # Need full history to scan all commits
 
       # 1️⃣ Run Gitleaks to detect secrets in git history
       - name: 🔍 Run Gitleaks
@@ -48,7 +47,7 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Need full history for differential scanning
+          fetch-depth: 0 # Need full history for differential scanning
 
       # 1️⃣ Run TruffleHog to detect verified secrets
       - name: 🔍 Run TruffleHog
@@ -57,7 +56,7 @@ jobs:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified  # Only flag verified secrets
+          extra_args: --only-verified # Only flag verified secrets
 
   # 🚀 CI/CD OPTIMIZATION: Trivy filesystem scans (NO Docker build required!)
   # This replaces slow Docker builds on PRs while maintaining security coverage
@@ -71,12 +70,12 @@ jobs:
       - name: 🔍 Scan Python dependencies (pyproject.toml, poetry.lock)
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: 'backend/'
-          format: 'sarif'
-          output: 'trivy-backend-deps.sarif'
-          severity: 'CRITICAL,HIGH'
-          scanners: 'vuln'  # Only vulnerabilities, not misconfigurations
+          scan-type: "fs"
+          scan-ref: "backend/"
+          format: "sarif"
+          output: "trivy-backend-deps.sarif"
+          severity: "CRITICAL,HIGH"
+          scanners: "vuln" # Only vulnerabilities, not misconfigurations
 
       - name: 📤 Upload Trivy Backend SARIF
         uses: github/codeql-action/upload-sarif@v4
@@ -95,12 +94,12 @@ jobs:
       - name: 🔍 Scan Node dependencies (package.json, package-lock.json)
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: 'frontend/'
-          format: 'sarif'
-          output: 'trivy-frontend-deps.sarif'
-          severity: 'CRITICAL,HIGH'
-          scanners: 'vuln'
+          scan-type: "fs"
+          scan-ref: "frontend/"
+          format: "sarif"
+          output: "trivy-frontend-deps.sarif"
+          severity: "CRITICAL,HIGH"
+          scanners: "vuln"
 
       - name: 📤 Upload Trivy Frontend SARIF
         uses: github/codeql-action/upload-sarif@v4

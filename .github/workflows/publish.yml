@@ -5,11 +5,11 @@ on:
     branches: [main]
     paths:
       # Only trigger builds when code/dependencies change
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/publish.yml'
-      - '!**/*.md'  # Exclude markdown files
-      - '!**/docs/**'  # Exclude documentation
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/publish.yml"
+      - "!**/*.md" # Exclude markdown files
+      - "!**/docs/**" # Exclude documentation
 
 permissions:
   contents: read
@@ -39,8 +39,10 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile.frontend
           push: true
+          platforms: linux/amd64
           tags: |
             ghcr.io/manavgup/rag_modulo/frontend:1.0.${{ github.run_number }}
+            ghcr.io/manavgup/rag_modulo/frontend:0.8.0
             ghcr.io/manavgup/rag_modulo/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -48,11 +50,13 @@ jobs:
       - name: Build and push backend
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: .
           file: ./backend/Dockerfile.backend
           push: true
+          platforms: linux/amd64
           tags: |
             ghcr.io/manavgup/rag_modulo/backend:1.0.${{ github.run_number }}
+            ghcr.io/manavgup/rag_modulo/backend:0.8.0
             ghcr.io/manavgup/rag_modulo/backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
