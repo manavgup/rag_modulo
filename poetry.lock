@@ -7681,6 +7681,7 @@ filelock = "*"
 huggingface-hub = ">=0.34.0,<1.0"
 numpy = ">=1.17"
 packaging = ">=20.0"
+Pillow = {version = ">=10.0.1,<=15.0", optional = true, markers = "extra == \"vision\""}
 pyyaml = ">=5.1"
 regex = "!=2019.12.17"
 requests = "*"
@@ -8409,4 +8410,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "5405e4177a64674b506d5ab663dc5d5b5bbe0425e13a1e156a4c506beb1b43d0"
+content-hash = "d0bf5b1322717aa95d606ffcf094ee3607ae20799f49a34d7ffa0acd4c455968"
