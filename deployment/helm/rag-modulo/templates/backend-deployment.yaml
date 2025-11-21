@@ -31,11 +31,71 @@ spec:
         - name: http
           containerPort: {{ .Values.service.backend.targetPort }}
           protocol: TCP
+        envFrom:
+        # Inject all non-sensitive configuration from ConfigMap
+        - configMapRef:
+            name: {{ .Release.Name }}-backend-config
         env:
+        # Override specific values
         - name: PORT
           value: "{{ .Values.service.backend.targetPort }}"
         - name: ENVIRONMENT
           value: "production"
+        # Inject sensitive credentials from Secrets
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.jwtSecretKey.name }}
+              key: {{ .Values.backend.secrets.jwtSecretKey.key }}
+        - name: WATSONX_APIKEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.watsonxApiKey.name }}
+              key: {{ .Values.backend.secrets.watsonxApiKey.key }}
+        - name: WATSONX_INSTANCE_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.watsonxInstanceId.name }}
+              key: {{ .Values.backend.secrets.watsonxInstanceId.key }}
+        - name: COLLECTIONDB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.cluster.name }}-app
+              key: password
+        - name: MILVUS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: milvus-credentials
+              key: password
+              optional: true
+        {{- if .Values.backend.secrets.openaiApiKey }}
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.openaiApiKey.name }}
+              key: {{ .Values.backend.secrets.openaiApiKey.key }}
+        {{- end }}
+        {{- if .Values.backend.secrets.anthropicApiKey }}
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.anthropicApiKey.name }}
+              key: {{ .Values.backend.secrets.anthropicApiKey.key }}
+        {{- end }}
+        {{- if .Values.backend.secrets.ibmClientId }}
+        - name: IBM_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.ibmClientId.name }}
+              key: {{ .Values.backend.secrets.ibmClientId.key }}
+        {{- end }}
+        {{- if .Values.backend.secrets.ibmClientSecret }}
+        - name: IBM_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.backend.secrets.ibmClientSecret.name }}
+              key: {{ .Values.backend.secrets.ibmClientSecret.key }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /health

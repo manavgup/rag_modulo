@@ -318,54 +318,61 @@ backend:
       memory: 2Gi
 
   # Environment variables (see configmap.yaml for full list)
+  # NOTE: Empty strings ("") = use config.py defaults (backend/core/config.py)
+  # Only override when deployment requires non-default values
   env:
-    # LLM Configuration
-    LLM_PROVIDER: watsonx
-    RAG_LLM: ibm/granite-3-3-8b-instruct
-    MAX_NEW_TOKENS: "800"
-    MIN_NEW_TOKENS: "200"
-    TEMPERATURE: "0.7"
-    TOP_P: "0.95"
-    TOP_K: "5"
-    REPETITION_PENALTY: "1.1"
+    # LLM Configuration - All empty = use config.py defaults
+    LLM_PROVIDER: "" # Empty = use config.py default (watsonx)
+    WATSONX_URL: "" # Empty = use config.py default (https://us-south.ml.cloud.ibm.com)
+    RAG_LLM: "" # Empty = use config.py default (ibm/granite-3-3-8b-instruct)
+    MAX_NEW_TOKENS: "" # Empty = use config.py default (1024)
+    MIN_NEW_TOKENS: "" # Empty = use config.py default (100)
+    TEMPERATURE: "" # Empty = use config.py default (0.7)
+    TOP_P: "" # Empty = use config.py default (0.95)
+    TOP_K: "" # Empty = use config.py default (5)
+    REPETITION_PENALTY: "" # Empty = use config.py default (1.1)
 
-    # Vector Database
-    VECTOR_DB: milvus
-    EMBEDDING_MODEL: ibm/slate-125m-english-rtrvr-v2
-    EMBEDDING_DIM: "768"
+    # Vector Database - Empty = use config.py defaults
+    VECTOR_DB: "" # Empty = use config.py default (milvus)
+    MILVUS_PORT: "" # Empty = use config.py default (19530)
+    EMBEDDING_MODEL: "" # Empty = use config.py default (sentence-transformers/all-minilm-l6-v2)
+    EMBEDDING_DIM: "" # Empty = use config.py default (384)
 
-    # Chunking
-    CHUNKING_STRATEGY: sentence
-    MIN_CHUNK_SIZE: "500"
-    MAX_CHUNK_SIZE: "750"
-    CHUNK_OVERLAP: "150"
-    USE_DOCLING_CHUNKER: "true"
-    CHUNKING_TOKENIZER_MODEL: ibm-granite/granite-embedding-english-r2
+    # Database Configuration - Empty = use config.py defaults
+    COLLECTIONDB_PORT: "" # Empty = use config.py default (5432)
 
-    # Retrieval
-    RETRIEVAL_TYPE: vector
-    VECTOR_WEIGHT: "0.7"
-    KEYWORD_WEIGHT: "0.3"
-    RETRIEVAL_TOP_K: "20"
+    # Chunking - Empty = use config.py defaults
+    CHUNKING_STRATEGY: "" # Empty = use config.py default (sentence)
+    MIN_CHUNK_SIZE: "" # Empty = use config.py default (200)
+    MAX_CHUNK_SIZE: "" # Empty = use config.py default (300)
+    CHUNK_OVERLAP: "" # Empty = use config.py default (40)
+    USE_DOCLING_CHUNKER: "" # Empty = use config.py default (false)
+    CHUNKING_TOKENIZER_MODEL: "" # Empty = use config.py default (ibm-granite/granite-embedding-english-r2)
 
-    # Reranking
-    ENABLE_RERANKING: "true"
-    RERANKER_TYPE: cross-encoder
-    CROSS_ENCODER_MODEL: cross-encoder/ms-marco-MiniLM-L-6-v2
+    # Retrieval - Empty = use config.py defaults
+    RETRIEVAL_TYPE: "" # Empty = use config.py default (vector)
+    VECTOR_WEIGHT: "" # Empty = use config.py default (0.7)
+    KEYWORD_WEIGHT: "" # Empty = use config.py default (0.3)
+    RETRIEVAL_TOP_K: "" # Empty = use config.py default (20)
 
-    # Docling
-    ENABLE_DOCLING: "true"
-    DOCLING_FALLBACK_ENABLED: "true"
+    # Reranking - Empty = use config.py defaults
+    ENABLE_RERANKING: "" # Empty = use config.py default (true)
+    RERANKER_TYPE: "" # Empty = use config.py default (cross-encoder)
+    CROSS_ENCODER_MODEL: "" # Empty = use config.py default (cross-encoder/ms-marco-MiniLM-L-6-v2)
 
-    # Application Settings
-    LOG_LEVEL: INFO
-    RUNTIME_EVAL: "false"
-    WEB_CONCURRENCY: "4"
+    # Docling - Empty = use config.py defaults
+    ENABLE_DOCLING: "" # Empty = use config.py default (false)
+    DOCLING_FALLBACK_ENABLED: "" # Empty = use config.py default (true)
 
-    # Development/Testing (disable in production)
-    SKIP_AUTH: "false"
-    DEVELOPMENT_MODE: "false"
-    TESTING: "false"
+    # Application Settings - Empty = use config.py defaults
+    LOG_LEVEL: "" # Empty = use config.py default (INFO)
+    RUNTIME_EVAL: "" # Empty = use config.py default (false)
+    WEB_CONCURRENCY: "" # Empty = use config.py default (4)
+
+    # Development/Testing (override for deployment security)
+    SKIP_AUTH: "false" # Must be false in production
+    DEVELOPMENT_MODE: "false" # Must be false in production
+    TESTING: "false" # Must be false in production
 
   # Secrets (stored in Kubernetes Secret)
   secrets:
