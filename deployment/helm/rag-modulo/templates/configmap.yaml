@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-backend-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-backend
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: backend
+data:
+  # ============================================================================
+  # LLM CONFIGURATION
+  # ============================================================================
+  # LLM Provider: watsonx (default), openai, anthropic
+  LLM_PROVIDER: {{ .Values.backend.env.LLM_PROVIDER | default "watsonx" | quote }}
+
+  # WatsonX Configuration
+  WATSONX_URL: {{ .Values.backend.env.WATSONX_URL | default "https://us-south.ml.cloud.ibm.com" | quote }}
+  RAG_LLM: {{ .Values.backend.env.RAG_LLM | default "ibm/granite-3-3-8b-instruct" | quote }}
+
+  # LLM Generation Parameters
+  MAX_NEW_TOKENS: {{ .Values.backend.env.MAX_NEW_TOKENS | default "1024" | quote }}
+  MIN_NEW_TOKENS: {{ .Values.backend.env.MIN_NEW_TOKENS | default "100" | quote }}
+  TEMPERATURE: {{ .Values.backend.env.TEMPERATURE | default "0.7" | quote }}
+  TOP_P: {{ .Values.backend.env.TOP_P | default "0.95" | quote }}
+  TOP_K: {{ .Values.backend.env.TOP_K | default "5" | quote }}
+  REPETITION_PENALTY: {{ .Values.backend.env.REPETITION_PENALTY | default "1.1" | quote }}
+
+  # ============================================================================
+  # VECTOR DATABASE CONFIGURATION
+  # ============================================================================
+  VECTOR_DB: {{ .Values.backend.env.VECTOR_DB | default "milvus" | quote }}
+
+  # Milvus Configuration
+  MILVUS_HOST: {{ .Values.vectorDatabase.milvus.host | default "rag-modulo-milvus-proxy" | quote }}
+  MILVUS_PORT: {{ .Values.backend.env.MILVUS_PORT | default "19530" | quote }}
+  MILVUS_USER: {{ "root" | quote }}
+
+  # ============================================================================
+  # EMBEDDING CONFIGURATION
+  # ============================================================================
+  EMBEDDING_MODEL: {{ .Values.backend.env.EMBEDDING_MODEL | default "sentence-transformers/all-minilm-l6-v2" | quote }}
+  EMBEDDING_DIM: {{ .Values.backend.env.EMBEDDING_DIM | default "384" | quote }}
+
+  # ============================================================================
+  # DATABASE CONFIGURATION
+  # ============================================================================
+  COLLECTIONDB_HOST: {{ .Values.postgresql.cluster.name | default "rag-modulo-postgres-rw" | quote }}
+  COLLECTIONDB_PORT: {{ .Values.backend.env.COLLECTIONDB_PORT | default "5432" | quote }}
+  COLLECTIONDB_NAME: {{ .Values.postgresql.auth.database | default "rag_modulo" | quote }}
+  COLLECTIONDB_USER: {{ .Values.postgresql.auth.username | default "rag_modulo_user" | quote }}
+
+  # ============================================================================
+  # CHUNKING CONFIGURATION
+  # ============================================================================
+  CHUNKING_STRATEGY: {{ .Values.backend.env.CHUNKING_STRATEGY | default "sentence" | quote }}
+  MIN_CHUNK_SIZE: {{ .Values.backend.env.MIN_CHUNK_SIZE | default "200" | quote }}
+  MAX_CHUNK_SIZE: {{ .Values.backend.env.MAX_CHUNK_SIZE | default "300" | quote }}
+  CHUNK_OVERLAP: {{ .Values.backend.env.CHUNK_OVERLAP | default "40" | quote }}
+  USE_DOCLING_CHUNKER: {{ .Values.backend.env.USE_DOCLING_CHUNKER | default "false" | quote }}
+  CHUNKING_TOKENIZER_MODEL: {{ .Values.backend.env.CHUNKING_TOKENIZER_MODEL | default "ibm-granite/granite-embedding-english-r2" | quote }}
+
+  # ============================================================================
+  # RETRIEVAL CONFIGURATION
+  # ============================================================================
+  RETRIEVAL_TYPE: {{ .Values.backend.env.RETRIEVAL_TYPE | default "vector" | quote }}
+  VECTOR_WEIGHT: {{ .Values.backend.env.VECTOR_WEIGHT | default "0.7" | quote }}
+  KEYWORD_WEIGHT: {{ .Values.backend.env.KEYWORD_WEIGHT | default "0.3" | quote }}
+  RETRIEVAL_TOP_K: {{ .Values.backend.env.RETRIEVAL_TOP_K | default "20" | quote }}
+
+  # ============================================================================
+  # RERANKING CONFIGURATION
+  # ============================================================================
+  ENABLE_RERANKING: {{ .Values.backend.env.ENABLE_RERANKING | default "true" | quote }}
+  RERANKER_TYPE: {{ .Values.backend.env.RERANKER_TYPE | default "llm" | quote }}
+  CROSS_ENCODER_MODEL: {{ .Values.backend.env.CROSS_ENCODER_MODEL | default "cross-encoder/ms-marco-MiniLM-L-6-v2" | quote }}
+
+  # ============================================================================
+  # DOCLING CONFIGURATION
+  # ============================================================================
+  ENABLE_DOCLING: {{ .Values.backend.env.ENABLE_DOCLING | default "false" | quote }}
+  DOCLING_FALLBACK_ENABLED: {{ .Values.backend.env.DOCLING_FALLBACK_ENABLED | default "true" | quote }}
+
+  # ============================================================================
+  # APPLICATION SETTINGS
+  # ============================================================================
+  LOG_LEVEL: {{ .Values.backend.env.LOG_LEVEL | default "INFO" | quote }}
+  RUNTIME_EVAL: {{ .Values.backend.env.RUNTIME_EVAL | default "false" | quote }}
+  WEB_CONCURRENCY: {{ .Values.backend.env.WEB_CONCURRENCY | default "4" | quote }}
+
+  # ============================================================================
+  # DEVELOPMENT/TESTING (disable in production)
+  # ============================================================================
+  SKIP_AUTH: {{ .Values.backend.env.SKIP_AUTH | default "false" | quote }}
+  DEVELOPMENT_MODE: {{ .Values.backend.env.DEVELOPMENT_MODE | default "false" | quote }}
+  TESTING: {{ .Values.backend.env.TESTING | default "false" | quote }}
