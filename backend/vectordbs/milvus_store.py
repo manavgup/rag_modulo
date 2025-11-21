@@ -74,14 +74,34 @@ class MilvusStore(VectorStore):
         self.search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
 
     def _connect(self, attempts: int = 3) -> None:
-        """Connect to Milvus with retry logic."""
+        """Connect to Milvus with retry logic and connection reuse.
+
+        This method reuses existing connections when possible to avoid connection
+        churn in Kubernetes environments where multiple requests may create new
+        MilvusStore instances.
+        """
         host = self.settings.milvus_host or "localhost"
         port = self.settings.milvus_port or 19530
 
-        # Disconnect any existing connection first to avoid using cached connection with old host
+        # Check if we already have a valid connection to the same host:port
+        try:
+            existing_addr = connections.get_connection_addr("default")
+            if existing_addr and existing_addr.get("host") == host and existing_addr.get("port") == str(port):
+                # Verify the connection is still alive with a quick operation
+                try:
+                    utility.list_collections()
+                    logging.debug("Reusing existing Milvus connection to %s:%s", host, port)
+                    return
+                except MilvusException:
+                    # Connection is stale, need to reconnect
+                    logging.info("Existing Milvus connection is stale, reconnecting...")
+        except Exception:
+            pass  # No existing connection or error checking, continue with new connection
+
+        # Only disconnect if connecting to a different host:port or if existing connection is invalid
         try:
             connections.disconnect("default")
-            logging.info("Disconnected existing Milvus connection")
+            logging.debug("Disconnected existing Milvus connection")
         except Exception:
             pass  # No existing connection, continue
 
@@ -94,8 +114,9 @@ class MilvusStore(VectorStore):
                 logging.error("Failed to connect to Milvus at %s:%s: %s", host, port, str(e))
                 if attempt < attempts - 1:
                     logging.info("Retrying connection to Milvus... (Attempt %d/%d)", attempt + 2, attempts)
-                    time.sleep(10)
-                raise VectorStoreError(f"Failed to connect to Milvus after {attempts} attempts") from e
+                    time.sleep(2)  # Reduced from 10s to 2s for faster recovery in K8s
+                else:
+                    raise VectorStoreError(f"Failed to connect to Milvus after {attempts} attempts") from e
 
     def _get_collection(self, collection_name: str) -> Collection:
         """Retrieve a collection from Milvus.

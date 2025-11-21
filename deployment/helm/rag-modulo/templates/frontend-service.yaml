@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-frontend
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+  - port: {{ .Values.service.frontend.port }}
+    targetPort: {{ .Values.service.frontend.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .Release.Name }}-frontend
