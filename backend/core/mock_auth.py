@@ -148,7 +148,15 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
 
         return user.id
 
-    except (ValueError, KeyError, AttributeError) as e:
-        logger.error("Failed to ensure mock user exists: %s", str(e))
+    except Exception as e:
+        # Catch all exceptions to ensure mock user creation doesn't crash the app
+        # This includes ValidationError (missing LLM providers), LLMProviderError,
+        # ValueError, KeyError, AttributeError, etc.
+        logger.warning(
+            "Failed to ensure mock user exists via UserService: %s. "
+            "Falling back to mock user ID. Some features may be limited until "
+            "LLM providers are configured.",
+            str(e),
+        )
         # Fallback to the mock user ID from IdentityService if creation fails
         return IdentityService.get_mock_user_id()
