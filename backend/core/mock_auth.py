@@ -9,6 +9,7 @@ import os
 from typing import Any
 from uuid import UUID
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
@@ -124,12 +125,20 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
         user_key: Key for different mock users (currently unused)
 
     Returns:
-        UUID: The user's ID
+        UUID: The user's ID. On success, returns the database user ID.
+              On failure (e.g., no LLM providers configured), falls back to
+              IdentityService.get_mock_user_id() which returns a static UUID.
 
     Note:
         This method now uses the same code path as OIDC users (get_or_create_user)
         instead of having separate logic for mock users. This ensures consistent
         behavior across all authentication methods.
+
+        When fallback is triggered:
+        - The returned UUID is NOT in the database
+        - API endpoints requiring a full user record will fail with appropriate errors
+        - Basic health checks and unauthenticated endpoints will work
+        - Full functionality is restored once LLM providers are configured
     """
     try:
         user_service = UserService(db, settings)
@@ -148,7 +157,29 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
 
         return user.id
 
-    except (ValueError, KeyError, AttributeError) as e:
-        logger.error("Failed to ensure mock user exists: %s", str(e))
+    except (ValidationError, ValueError, KeyError, AttributeError) as e:
+        # Expected errors during fresh deployments:
+        # - ValidationError: Missing LLM providers or failed user recovery
+        # - ValueError: Invalid configuration values
+        # - KeyError: Missing required configuration keys
+        # - AttributeError: Missing model attributes during initialization
+        logger.warning(
+            "Failed to ensure mock user exists via UserService: %s. "
+            "Falling back to mock user ID. Some features may be limited until "
+            "LLM providers are configured.",
+            str(e),
+        )
         # Fallback to the mock user ID from IdentityService if creation fails
+        # Note: This UUID is NOT in the database - API endpoints requiring
+        # a full user record will fail with appropriate errors
+        return IdentityService.get_mock_user_id()
+
+    except Exception as e:
+        # Catch unexpected errors to prevent startup crashes, but log as error
+        # for visibility since these indicate bugs rather than configuration issues
+        logger.error(
+            "Unexpected error ensuring mock user exists: %s. Falling back to mock user ID. Please report this issue.",
+            str(e),
+            exc_info=True,
+        )
         return IdentityService.get_mock_user_id()
