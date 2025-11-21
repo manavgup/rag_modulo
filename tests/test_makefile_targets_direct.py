@@ -195,10 +195,10 @@ class TestMakefileTargetsDirect:
 
         assert result["success"], f"make help failed: {result['stderr']}"
         # Check for new visual help format
-        assert "RAG Modulo - Streamlined Development Guide" in result["stdout"]
-        assert "Quick Start" in result["stdout"]
-        assert "check-docker" in result["stdout"]
+        assert "RAG Modulo - Complete Workflow Guide" in result["stdout"]
+        assert "WORKFLOW 1: Local Development" in result["stdout"]
         assert "local-dev-setup" in result["stdout"]
+        assert "Testing:" in result["stdout"]
 
     @pytest.mark.skip(reason="info target removed in streamlined Makefile (Issue #348)")
     def test_make_info(self, direct_makefile_tester):
