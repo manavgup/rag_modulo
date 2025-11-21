@@ -49,8 +49,26 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m
 
+# Platform detection for multi-architecture builds
+PLATFORM := $(shell uname -m)
+UNAME_S := $(shell uname -s)
+
+ifeq ($(PLATFORM),arm64)
+    DOCKER_PLATFORM := linux/arm64
+    IS_MAC_ARM := yes
+    PLATFORM_WARNING := "$(YELLOW)⚠️  Running on ARM64 (Mac). Some services (Milvus/MLFlow) may have compatibility issues.$(NC)"
+else ifeq ($(PLATFORM),x86_64)
+    DOCKER_PLATFORM := linux/amd64
+    IS_MAC_ARM := no
+    PLATFORM_WARNING := ""
+else
+    DOCKER_PLATFORM := linux/$(PLATFORM)
+    IS_MAC_ARM := no
+    PLATFORM_WARNING := ""
+endif
+
 .DEFAULT_GOAL := help
-.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration test-integration-ci test-e2e test-e2e-ci test-e2e-local-parallel test-e2e-ci-parallel test-all test-all-ci lint format quick-check security-check pre-commit-run clean
+.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all build-multiarch-backend build-multiarch-frontend build-multiarch-all build-amd64-backend build-amd64-frontend build-amd64-all build-arm64-backend build-arm64-frontend build-arm64-all dev-full-build dev-full-start dev-full-stop dev-full-restart dev-full-logs dev-full-status dev-full-build-multiarch push-backend push-frontend push-all build-push-backend build-push-frontend build-push-all build-multiarch-push-backend build-multiarch-push-frontend build-multiarch-push-all deploy-pull-images deploy-remote prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration test-integration-ci test-e2e test-e2e-ci test-e2e-local-parallel test-e2e-ci-parallel test-all test-all-ci lint format quick-check security-check pre-commit-run clean clean-all
 
 # ============================================================================
 # VIRTUAL ENVIRONMENT
@@ -258,6 +276,379 @@ build-frontend:
 
 build-all: build-backend build-frontend
 	@echo "$(GREEN)✅ All images built successfully$(NC)"
+
+# ============================================================================
+# CLOUD DEPLOYMENT BUILDS (AMD64 for ROKS/EKS/AKS/GKE)
+# ============================================================================
+# Build AMD64 images for cloud deployment (Linux servers)
+# NOTE: Slow on Mac ARM (QEMU cross-compilation), fast on GitHub Actions
+# RECOMMENDED: Use GitHub Actions for cloud builds, local only for testing
+# ============================================================================
+
+build-cloud-backend:
+	@echo "$(CYAN)🔨 Building backend for AMD64 (cloud deployment)...$(NC)"
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo "$(YELLOW)⚠️  Cross-compiling ARM64→AMD64 (slow, ~10-15 min)$(NC)"; \
+		echo "$(YELLOW)💡 Tip: Push code to git and let GitHub Actions build (1-2 min)$(NC)"; \
+	fi
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/amd64 \
+		--load \
+		-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
+		-t $(GHCR_REPO)/backend:latest \
+		-f backend/Dockerfile.backend \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		.
+	@echo "$(GREEN)✅ AMD64 backend built$(NC)"
+
+build-cloud-frontend:
+	@echo "$(CYAN)🔨 Building frontend for AMD64 (cloud deployment)...$(NC)"
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo "$(YELLOW)⚠️  Cross-compiling ARM64→AMD64 (slow, ~5-8 min)$(NC)"; \
+		echo "$(YELLOW)💡 Tip: Push code to git and let GitHub Actions build (1-2 min)$(NC)"; \
+	fi
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/amd64 \
+		--load \
+		-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
+		-t $(GHCR_REPO)/frontend:latest \
+		-f frontend/Dockerfile.frontend \
+		frontend/
+	@echo "$(GREEN)✅ AMD64 frontend built$(NC)"
+
+build-cloud-all: build-cloud-backend build-cloud-frontend
+	@echo "$(GREEN)✅ All AMD64 images built$(NC)"
+	@echo "$(CYAN)💡 Ready to push to GHCR: make push-all$(NC)"
+
+# Backward compatibility (deprecated)
+build-multiarch-backend: build-cloud-backend
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-backend' instead$(NC)"
+
+build-multiarch-frontend: build-cloud-frontend
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-frontend' instead$(NC)"
+
+build-multiarch-all: build-cloud-all
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-all' instead$(NC)"
+
+# Explicit architecture builds
+build-amd64-backend:
+	@echo "$(CYAN)🔨 Building backend for AMD64 explicitly...$(NC)"
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/amd64 \
+		--load \
+		-t $(GHCR_REPO)/backend:$(PROJECT_VERSION)-amd64 \
+		-f backend/Dockerfile.backend \
+		.
+	@echo "$(GREEN)✅ AMD64 backend built$(NC)"
+
+build-amd64-frontend:
+	@echo "$(CYAN)🔨 Building frontend for AMD64 explicitly...$(NC)"
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/amd64 \
+		--load \
+		-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION)-amd64 \
+		-f frontend/Dockerfile.frontend \
+		frontend/
+	@echo "$(GREEN)✅ AMD64 frontend built$(NC)"
+
+build-amd64-all: build-amd64-backend build-amd64-frontend
+	@echo "$(GREEN)✅ All AMD64 images built$(NC)"
+
+build-arm64-backend:
+	@echo "$(CYAN)🔨 Building backend for ARM64 explicitly...$(NC)"
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/arm64 \
+		--load \
+		-t $(GHCR_REPO)/backend:$(PROJECT_VERSION)-arm64 \
+		-f backend/Dockerfile.backend \
+		.
+	@echo "$(GREEN)✅ ARM64 backend built$(NC)"
+
+build-arm64-frontend:
+	@echo "$(CYAN)🔨 Building frontend for ARM64 explicitly...$(NC)"
+	$(CONTAINER_CLI) buildx build \
+		--platform linux/arm64 \
+		--load \
+		-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION)-arm64 \
+		-f frontend/Dockerfile.frontend \
+		frontend/
+	@echo "$(GREEN)✅ ARM64 frontend built$(NC)"
+
+build-arm64-all: build-arm64-backend build-arm64-frontend
+	@echo "$(GREEN)✅ All ARM64 images built$(NC)"
+
+# ============================================================================
+# FULL CONTAINERIZED STACK (Workflow 2)
+# ============================================================================
+# Run everything in containers (production-like testing locally)
+# ============================================================================
+
+dev-full-build:
+	@echo "$(CYAN)🔨 Building full stack (native architecture)...$(NC)"
+	@echo "$(YELLOW)💡 Fast build for local testing only$(NC)"
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo $(PLATFORM_WARNING); \
+	fi
+	$(MAKE) build-backend
+	$(MAKE) build-frontend
+	@echo "$(GREEN)✅ Full stack built for native architecture$(NC)"
+
+dev-full-start: dev-full-build create-volumes
+	@echo "$(CYAN)🚀 Starting full containerized stack...$(NC)"
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo "$(YELLOW)⚠️  ARM64 detected: Using hybrid mode (infra separately, apps containerized)$(NC)"; \
+		echo "$(YELLOW)💡 Starting infrastructure containers...$(NC)"; \
+		$(MAKE) local-dev-infra; \
+		echo "$(YELLOW)💡 Checking infrastructure health (Postgres, MinIO, MLFlow)...$(NC)"; \
+		if ! docker ps --filter "name=postgres" --filter "health=healthy" | grep -q postgres; then \
+			echo "$(RED)❌ PostgreSQL not healthy. Run 'docker ps' to debug.$(NC)"; \
+			exit 1; \
+		fi; \
+		if ! docker ps --filter "name=minio" --filter "health=healthy" | grep -q minio; then \
+			echo "$(RED)❌ MinIO not healthy. Run 'docker ps' to debug.$(NC)"; \
+			exit 1; \
+		fi; \
+		if ! docker ps --filter "name=mlflow" | grep -q mlflow; then \
+			echo "$(RED)❌ MLFlow not running. Run 'docker ps' to debug.$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(GREEN)✅ Infrastructure healthy (Milvus check skipped on ARM64)$(NC)"; \
+		echo "$(YELLOW)💡 Starting backend container (ARM64, no deps)...$(NC)"; \
+		$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml up -d --no-deps backend; \
+		echo "$(YELLOW)💡 Starting frontend container (ARM64, no deps)...$(NC)"; \
+		$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml up -d --no-deps frontend; \
+	else \
+		echo "$(CYAN)💡 AMD64/x86 detected: Starting full stack...$(NC)"; \
+		BACKEND_IMAGE=$(GHCR_REPO)/backend:latest \
+		FRONTEND_IMAGE=$(GHCR_REPO)/frontend:latest \
+		$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml up -d; \
+	fi
+	@echo "$(GREEN)✅ Full stack running in containers$(NC)"
+	@echo "$(CYAN)💡 Services:$(NC)"
+	@echo "  Frontend:  http://localhost:3000"
+	@echo "  Backend:   http://localhost:8000"
+	@echo "  MLFlow:    http://localhost:5001"
+	@echo "$(CYAN)📋 Logs:$(NC) make dev-full-logs"
+	@echo "$(CYAN)🛑 Stop:$(NC) make dev-full-stop"
+
+dev-full-stop:
+	@echo "$(CYAN)🛑 Stopping full containerized stack...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml down
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo "$(YELLOW)💡 Stopping infrastructure containers (ARM64 hybrid mode)...$(NC)"; \
+		$(MAKE) local-dev-stop; \
+	fi
+	@echo "$(GREEN)✅ Full stack stopped$(NC)"
+
+dev-full-restart: dev-full-stop dev-full-start
+
+dev-full-logs:
+	@$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml logs -f
+
+dev-full-status:
+	@echo "$(CYAN)📊 Full Stack Status$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.fullstack.yml ps
+
+dev-full-build-multiarch:
+	@echo "$(CYAN)🔨 Building full stack (native + AMD64)...$(NC)"
+	@echo "$(YELLOW)⚠️  Slower build - includes cross-compilation for deployment$(NC)"
+	$(MAKE) build-backend
+	$(MAKE) build-multiarch-backend
+	$(MAKE) build-frontend
+	$(MAKE) build-multiarch-frontend
+	@echo "$(GREEN)✅ Multi-arch images built (native + AMD64)$(NC)"
+
+# ============================================================================
+# PUSH & DEPLOY (Workflow 4)
+# ============================================================================
+# Push images to GHCR and deploy workflows
+# ============================================================================
+
+push-backend:
+	@echo "$(CYAN)📤 Pushing backend to GHCR...$(NC)"
+	@if [ -z "$(GHCR_TOKEN)" ] || [ -z "$(GHCR_USER)" ]; then \
+		echo "$(RED)❌ GHCR_TOKEN and GHCR_USER must be set$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Logging in to GHCR...$(NC)"
+	@echo "$(GHCR_TOKEN)" | $(CONTAINER_CLI) login ghcr.io -u $(GHCR_USER) --password-stdin
+	@$(CONTAINER_CLI) push $(GHCR_REPO)/backend:$(PROJECT_VERSION)
+	@$(CONTAINER_CLI) push $(GHCR_REPO)/backend:latest
+	@echo "$(GREEN)✅ Backend pushed to GHCR$(NC)"
+
+push-frontend:
+	@echo "$(CYAN)📤 Pushing frontend to GHCR...$(NC)"
+	@if [ -z "$(GHCR_TOKEN)" ] || [ -z "$(GHCR_USER)" ]; then \
+		echo "$(RED)❌ GHCR_TOKEN and GHCR_USER must be set$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Logging in to GHCR...$(NC)"
+	@echo "$(GHCR_TOKEN)" | $(CONTAINER_CLI) login ghcr.io -u $(GHCR_USER) --password-stdin
+	@$(CONTAINER_CLI) push $(GHCR_REPO)/frontend:$(PROJECT_VERSION)
+	@$(CONTAINER_CLI) push $(GHCR_REPO)/frontend:latest
+	@echo "$(GREEN)✅ Frontend pushed to GHCR$(NC)"
+
+push-all: push-backend push-frontend
+	@echo "$(GREEN)✅ All images pushed to GHCR$(NC)"
+
+# Combined build + push workflows
+build-push-backend: build-backend push-backend
+	@echo "$(GREEN)✅ Backend built and pushed$(NC)"
+
+build-push-frontend: build-frontend push-frontend
+	@echo "$(GREEN)✅ Frontend built and pushed$(NC)"
+
+build-push-all: build-all push-all
+	@echo "$(GREEN)✅ All images built and pushed$(NC)"
+
+# Cloud build + push workflows (AMD64 for deployment)
+build-cloud-push-backend: build-cloud-backend push-backend
+	@echo "$(GREEN)✅ AMD64 backend built and pushed to GHCR$(NC)"
+	@echo "$(CYAN)💡 Ready to deploy: make deploy-roks-app$(NC)"
+
+build-cloud-push-frontend: build-cloud-frontend push-frontend
+	@echo "$(GREEN)✅ AMD64 frontend built and pushed to GHCR$(NC)"
+	@echo "$(CYAN)💡 Ready to deploy: make deploy-roks-app$(NC)"
+
+build-cloud-push-all: build-cloud-all push-all
+	@echo "$(GREEN)✅ AMD64 images built and pushed to GHCR$(NC)"
+	@echo "$(CYAN)💡 Ready to deploy to any cloud:$(NC)"
+	@echo "  - ROKS:   make deploy-roks-app"
+	@echo "  - EKS:    make deploy-eks-app  (coming soon)"
+	@echo "  - AKS:    make deploy-aks-app  (coming soon)"
+	@echo "  - GKE:    make deploy-gke-app  (coming soon)"
+
+# Backward compatibility (deprecated)
+build-multiarch-push-backend: build-cloud-push-backend
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-push-backend' instead$(NC)"
+
+build-multiarch-push-frontend: build-cloud-push-frontend
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-push-frontend' instead$(NC)"
+
+build-multiarch-push-all: build-cloud-push-all
+	@echo "$(YELLOW)⚠️  DEPRECATED: Use 'make build-cloud-push-all' instead$(NC)"
+
+# Deploy workflows
+deploy-pull-images:
+	@echo "$(CYAN)📥 Pulling images from GHCR...$(NC)"
+	@if [ -z "$(GHCR_TOKEN)" ] || [ -z "$(GHCR_USER)" ]; then \
+		echo "$(RED)❌ GHCR_TOKEN and GHCR_USER must be set$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Logging in to GHCR...$(NC)"
+	@echo "$(GHCR_TOKEN)" | $(CONTAINER_CLI) login ghcr.io -u $(GHCR_USER) --password-stdin
+	@$(CONTAINER_CLI) pull $(GHCR_REPO)/backend:latest
+	@$(CONTAINER_CLI) pull $(GHCR_REPO)/frontend:latest
+	@echo "$(GREEN)✅ Images pulled from GHCR$(NC)"
+
+deploy-remote: deploy-pull-images
+	@echo "$(CYAN)🚀 Deploying pulled images...$(NC)"
+	@BACKEND_IMAGE=$(GHCR_REPO)/backend:latest \
+	 FRONTEND_IMAGE=$(GHCR_REPO)/frontend:latest \
+	 $(MAKE) dev-full-start
+	@echo "$(GREEN)✅ Deployment complete$(NC)"
+
+# ============================================================================
+# CLOUD-AGNOSTIC DEPLOYMENT SYSTEM (Issue #647)
+# ============================================================================
+# Configuration variables (can be overridden)
+# Usage: make deploy-roks-app TARGET_ENV=dev
+#        make k8s-deploy-app CLOUD=ibm TARGET_ENV=staging
+CLOUD ?= ibm                      # ibm|aws|azure|gcp
+PLATFORM ?= kubernetes             # kubernetes|serverless
+TARGET_ENV ?= dev                 # dev|staging|prod
+DEPLOY_REGION ?= us-south         # Cloud-specific region
+HELM_TIMEOUT ?= 10m               # Helm deployment timeout
+
+# Cloud-specific configuration
+ifeq ($(CLOUD),ibm)
+  TF_DIR := deployment/terraform/environments/ibm
+  K8S_PLATFORM := roks
+  SERVERLESS_PLATFORM := code-engine
+endif
+# Add AWS, Azure, GCP configurations as needed (Phase 2-3 of Issue #647)
+
+## Kubernetes - App-Only Deployment (Cloud-Agnostic)
+# Deploys applications to any Kubernetes cluster using Helm
+# Automatically configures for ROKS (Routes) or vanilla K8s (Ingress)
+k8s-deploy-app:
+	@echo "$(CYAN)🚀 Deploying apps to $(CLOUD) $(K8S_PLATFORM) ($(TARGET_ENV))...$(NC)"
+	@echo "$(YELLOW)💡 Using Helm for cloud-agnostic deployment$(NC)"
+	@if ! command -v helm &> /dev/null; then \
+		echo "$(RED)❌ Helm not found. Install: brew install helm$(NC)"; \
+		exit 1; \
+	fi
+	@if ! command -v kubectl &> /dev/null; then \
+		echo "$(RED)❌ kubectl not found. Install: brew install kubectl$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)📦 Deploying RAG Modulo v$(PROJECT_VERSION)...$(NC)"
+	@helm upgrade --install rag-modulo deployment/helm/rag-modulo/ \
+		--namespace rag-modulo \
+		--create-namespace \
+		--set image.backend.repository=$(GHCR_REPO)/backend \
+		--set image.backend.tag=$(PROJECT_VERSION) \
+		--set image.frontend.repository=$(GHCR_REPO)/frontend \
+		--set image.frontend.tag=$(PROJECT_VERSION) \
+		--set ingress.route.enabled=$(shell [ "$(K8S_PLATFORM)" = "roks" ] && echo "true" || echo "false") \
+		--set ingress.kubernetes.enabled=$(shell [ "$(K8S_PLATFORM)" != "roks" ] && echo "true" || echo "false") \
+		--timeout $(HELM_TIMEOUT) \
+		--wait
+	@echo "$(GREEN)✅ Apps deployed successfully$(NC)"
+	@echo "$(CYAN)📊 Checking deployment status...$(NC)"
+	@$(MAKE) k8s-status
+
+## Kubernetes - Status & Monitoring
+k8s-status:
+	@echo "$(CYAN)📊 Deployment Status (namespace: rag-modulo)$(NC)"
+	@echo ""
+	@echo "$(CYAN)Pods:$(NC)"
+	@kubectl get pods -n rag-modulo -o wide || echo "$(YELLOW)⚠️  No pods found. Is the cluster accessible?$(NC)"
+	@echo ""
+	@echo "$(CYAN)Services:$(NC)"
+	@kubectl get svc -n rag-modulo || true
+	@echo ""
+	@echo "$(CYAN)Endpoints:$(NC)"
+	@kubectl get routes -n rag-modulo 2>/dev/null || kubectl get ingress -n rag-modulo 2>/dev/null || echo "$(YELLOW)⚠️  No routes/ingress found$(NC)"
+
+k8s-logs:
+	@echo "$(CYAN)📜 Tailing backend logs (last 50 lines)...$(NC)"
+	@echo "$(YELLOW)💡 Press Ctrl+C to stop$(NC)"
+	@kubectl logs -f -n rag-modulo -l app=backend --tail=50 || \
+		echo "$(RED)❌ Failed to get logs. Check if pods are running: make k8s-status$(NC)"
+
+k8s-delete:
+	@echo "$(RED)🗑️  Deleting RAG Modulo from Kubernetes...$(NC)"
+	@read -p "Are you sure? This will remove all apps (infrastructure stays). (yes/no): " confirm && \
+		[ "$$confirm" = "yes" ] || (echo "Cancelled" && exit 1)
+	@helm uninstall rag-modulo -n rag-modulo || echo "$(YELLOW)⚠️  Helm release not found$(NC)"
+	@kubectl delete namespace rag-modulo --wait || echo "$(YELLOW)⚠️  Namespace not found$(NC)"
+	@echo "$(GREEN)✅ Apps deleted$(NC)"
+
+## IBM Cloud - ROKS Shortcuts
+deploy-roks-app:
+	@echo "$(CYAN)🚀 IBM ROKS - App Deployment (Quick Update)$(NC)"
+	@echo "$(YELLOW)Prerequisites:$(NC)"
+	@echo "  1. ROKS cluster is running (provisioned via Terraform or IBM Cloud Console)"
+	@echo "  2. kubectl configured to access cluster (ibmcloud ks cluster config)"
+	@echo "  3. Images pushed to GHCR (make build-multiarch-push-all)"
+	@echo ""
+	@$(MAKE) k8s-deploy-app CLOUD=ibm PLATFORM=kubernetes TARGET_ENV=$(TARGET_ENV)
+	@echo ""
+	@echo "$(GREEN)✅ ROKS deployment complete!$(NC)"
+	@echo "$(CYAN)💡 Next steps:$(NC)"
+	@echo "  - View status:  make k8s-status"
+	@echo "  - View logs:    make k8s-logs"
+	@echo "  - Get routes:   kubectl get routes -n rag-modulo"
+
+deploy-roks-full:
+	@echo "$(CYAN)🚀 IBM ROKS - Full Deployment (Infrastructure + Apps)$(NC)"
+	@echo "$(RED)⚠️  Not implemented yet - see Issue #647 Phase 1$(NC)"
+	@echo "$(YELLOW)For now:$(NC)"
+	@echo "  1. Provision ROKS cluster via IBM Cloud Console or Terraform"
+	@echo "  2. Configure kubectl: ibmcloud ks cluster config --cluster <cluster-name>"
+	@echo "  3. Deploy apps: make deploy-roks-app"
+	@exit 1
 
 # ============================================================================
 # TESTING
@@ -491,60 +882,70 @@ check-docker:
 help:
 	@echo ""
 	@echo "$(CYAN)╔══════════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(CYAN)║         RAG Modulo - Streamlined Development Guide          ║$(NC)"
+	@echo "$(CYAN)║         RAG Modulo - Complete Workflow Guide                ║$(NC)"
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
-	@echo "$(CYAN)🚀 Quick Start (Local Development - RECOMMENDED):$(NC)"
-	@echo "  $(GREEN)make local-dev-setup$(NC)      Install dependencies (backend + frontend)"
-	@echo "  $(GREEN)make local-dev-infra$(NC)      Start infrastructure (Postgres, Milvus, etc.)"
-	@echo "  $(GREEN)make local-dev-backend$(NC)    Start backend with hot-reload (Terminal 1)"
-	@echo "  $(GREEN)make local-dev-frontend$(NC)   Start frontend with HMR (Terminal 2)"
-	@echo "  $(GREEN)make local-dev-all$(NC)        Start everything in background"
-	@echo "  $(GREEN)make local-dev-status$(NC)     Check status of local services"
-	@echo "  $(GREEN)make local-dev-stop$(NC)       Stop all local services"
+	@echo "$(CYAN)🚀 WORKFLOW 1: Local Development (Hot Reload - Fastest)$(NC)"
+	@echo "  $(GREEN)make local-dev-setup$(NC)       Install dependencies"
+	@echo "  $(GREEN)make local-dev-infra$(NC)       Start infrastructure only"
+	@echo "  $(GREEN)make local-dev-backend$(NC)     Uvicorn hot reload (Terminal 1)"
+	@echo "  $(GREEN)make local-dev-frontend$(NC)    Vite HMR (Terminal 2)"
+	@echo "  $(GREEN)make local-dev-all$(NC)         Start all in background"
+	@echo "  $(GREEN)make local-dev-status$(NC)      Check status"
+	@echo "  $(GREEN)make local-dev-stop$(NC)        Stop all services"
 	@echo ""
-	@echo "$(CYAN)🐍 Virtual Environment:$(NC)"
-	@echo "  $(GREEN)make venv$(NC)                 Create Python virtual environment"
-	@echo "  $(GREEN)make clean-venv$(NC)           Remove virtual environment"
+	@echo "$(CYAN)🐳 WORKFLOW 2: Full Containerized Stack (Production-like Testing)$(NC)"
+	@echo "  $(GREEN)make dev-full-build$(NC)        Build images (native arch, fast)"
+	@echo "  $(GREEN)make dev-full-start$(NC)        Start full stack in containers"
+	@echo "  $(GREEN)make dev-full-stop$(NC)         Stop container stack"
+	@echo "  $(GREEN)make dev-full-logs$(NC)         View container logs"
+	@echo "  $(GREEN)make dev-full-status$(NC)       Check container status"
+	@echo "  $(GREEN)make dev-full-build-multiarch$(NC)  Build native + AMD64 (slower)"
+	@if [ "$(IS_MAC_ARM)" = "yes" ]; then \
+		echo "  $(YELLOW)⚠️  ARM64 Mac: Use Workflow 1 for faster dev iteration$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)🔨 WORKFLOW 3: Multi-Architecture Builds$(NC)"
+	@echo "  $(GREEN)make build-all$(NC)             Build for native architecture"
+	@echo "  $(GREEN)make build-multiarch-all$(NC)   Build AMD64 (for Linux deployment)"
+	@echo "  $(GREEN)make build-amd64-all$(NC)       Explicitly build AMD64"
+	@echo "  $(GREEN)make build-arm64-all$(NC)       Explicitly build ARM64"
+	@echo ""
+	@echo "$(CYAN)📤 WORKFLOW 4: Push & Deploy to GHCR$(NC)"
+	@echo "  $(GREEN)make push-all$(NC)              Push images to GHCR"
+	@echo "  $(GREEN)make build-push-all$(NC)        Build + push (native arch)"
+	@echo "  $(GREEN)make build-multiarch-push-all$(NC)  Build AMD64 + push to GHCR"
+	@echo "  $(GREEN)make deploy-pull-images$(NC)    Pull images from GHCR"
+	@echo "  $(GREEN)make deploy-remote$(NC)         Pull + deploy locally"
+	@echo "  $(YELLOW)💡 Requires: GHCR_TOKEN and GHCR_USER env vars$(NC)"
 	@echo ""
 	@echo "$(CYAN)🧪 Testing:$(NC)"
-	@echo "  $(GREEN)make test-atomic$(NC)          Fast atomic tests (no DB)"
-	@echo "  $(GREEN)make test-unit-fast$(NC)       Unit tests (mocked dependencies)"
-	@echo "  $(GREEN)make test-integration$(NC)     Integration tests (requires infra)"
-	@echo "  $(GREEN)make test-e2e$(NC)             End-to-end tests (full system)"
-	@echo "  $(GREEN)make test-all$(NC)             Run all tests"
-	@echo "  $(GREEN)make coverage$(NC)             Generate coverage report"
+	@echo "  $(GREEN)make test-atomic$(NC)           Fast schema tests (no DB, ~5s)"
+	@echo "  $(GREEN)make test-unit-fast$(NC)        Unit tests (~30s)"
+	@echo "  $(GREEN)make test-integration$(NC)      Integration tests (~2min)"
+	@echo "  $(GREEN)make test-e2e$(NC)              End-to-end tests (~5min)"
+	@echo "  $(GREEN)make test-all$(NC)              Run all tests"
+	@echo "  $(GREEN)make coverage$(NC)              Generate coverage report"
 	@echo ""
 	@echo "$(CYAN)🎨 Code Quality:$(NC)"
-	@echo "  $(GREEN)make pre-commit-run$(NC)       Run all pre-commit checks (format + lint + type)"
-	@echo "  $(GREEN)make quick-check$(NC)          Fast lint + format check"
-	@echo "  $(GREEN)make lint$(NC)                 Run all linters (ruff + mypy)"
-	@echo "  $(GREEN)make format$(NC)               Auto-format code"
-	@echo "  $(GREEN)make security-check$(NC)       Security scanning (bandit + safety)"
+	@echo "  $(GREEN)make pre-commit-run$(NC)        All pre-commit checks"
+	@echo "  $(GREEN)make quick-check$(NC)           Fast lint + format check"
+	@echo "  $(GREEN)make lint$(NC)                  Ruff + MyPy"
+	@echo "  $(GREEN)make format$(NC)                Auto-format code"
+	@echo "  $(GREEN)make security-check$(NC)        Security scanning"
 	@echo ""
-	@echo "$(CYAN)🐳 Production Deployment:$(NC)"
-	@echo "  $(GREEN)make build-backend$(NC)        Build backend Docker image"
-	@echo "  $(GREEN)make build-frontend$(NC)       Build frontend Docker image"
-	@echo "  $(GREEN)make build-all$(NC)            Build all images"
-	@echo "  $(GREEN)make prod-start$(NC)           Start production environment"
-	@echo "  $(GREEN)make prod-stop$(NC)            Stop production environment"
-	@echo "  $(GREEN)make prod-restart$(NC)         Restart production"
-	@echo "  $(GREEN)make prod-status$(NC)          Show production status"
-	@echo "  $(GREEN)make prod-logs$(NC)            View production logs"
+	@echo "$(CYAN)🏭 Production:$(NC)"
+	@echo "  $(GREEN)make prod-start$(NC)            Start production environment"
+	@echo "  $(GREEN)make prod-stop$(NC)             Stop production"
+	@echo "  $(GREEN)make prod-logs$(NC)             View production logs"
 	@echo ""
-	@echo "$(CYAN)🛠️  Utilities:$(NC)"
-	@echo "  $(GREEN)make clean$(NC)                Clean cache files"
-	@echo "  $(GREEN)make clean-all$(NC)            Deep clean (containers + volumes)"
-	@echo "  $(GREEN)make check-docker$(NC)         Verify Docker installation"
-	@echo "  $(GREEN)make logs$(NC)                 View infrastructure logs"
+	@echo "$(CYAN)💡 Common Workflows:$(NC)"
+	@echo "  Daily dev:          $(GREEN)make local-dev-all$(NC) (hot reload, fastest)"
+	@echo "  Container testing:  $(GREEN)make dev-full-start$(NC) (production-like)"
+	@echo "  Mac → Linux deploy: $(GREEN)make build-multiarch-push-all$(NC)"
+	@echo "  Pull & run:         $(GREEN)make deploy-remote$(NC)"
 	@echo ""
 	@echo "$(CYAN)📚 Documentation:$(NC)"
 	@echo "  Full docs: https://manavgup.github.io/rag_modulo"
 	@echo "  API docs:  http://localhost:8000/docs (when backend running)"
-	@echo ""
-	@echo "$(CYAN)💡 Pro Tips:$(NC)"
-	@echo "  • Use local development for fastest iteration (no container rebuilds)"
-	@echo "  • Run $(GREEN)make pre-commit-run$(NC) before committing (format + lint + type)"
-	@echo "  • Use $(GREEN)make prod-start$(NC) for production-like testing"
-	@echo "  • Check $(GREEN)make local-dev-status$(NC) to verify services"
 	@echo ""

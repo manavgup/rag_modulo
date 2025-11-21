@@ -19,8 +19,9 @@ image:
 
 # Image pull secrets for private registries (IBM Container Registry)
 # Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>
-imagePullSecrets:
-  - name: icr-secret
+# Disabled for GHCR public images
+imagePullSecrets: []
+  # - name: icr-secret
 
 # ============================================================================
 # REPLICA COUNTS

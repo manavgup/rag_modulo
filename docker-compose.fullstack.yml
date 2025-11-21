@@ -1,0 +1,70 @@
+# Full containerized stack for local testing
+# Uses built images (no hot reload, production-like environment)
+include:
+  - path:
+      - docker-compose-infra.yml
+
+name: ${PROJECT_NAME:-rag-modulo}
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:latest}
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_started
+    environment:
+      - COLLECTIONDB_HOST=postgres
+      - WEB_CONCURRENCY=4
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
+      - RUNTIME_EVAL=${RUNTIME_EVAL:-false}
+      - SKIP_AUTH=${SKIP_AUTH:-false}
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-false}
+      - TESTING=${TESTING:-false}
+    env_file:
+      - .env
+    volumes:
+      - backend_data:/mnt/data
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
+    networks:
+      - app-network
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  backend_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/backend
+      o: bind

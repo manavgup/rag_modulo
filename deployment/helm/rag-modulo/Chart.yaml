@@ -1,0 +1,16 @@
+apiVersion: v2
+name: rag-modulo
+description: RAG Modulo - Modular Retrieval-Augmented Generation Platform
+type: application
+version: 0.8.0
+appVersion: "0.8.0"
+keywords:
+  - rag
+  - llm
+  - vector-database
+  - ai
+maintainers:
+  - name: RAG Modulo Team
+home: https://github.com/manavgup/rag_modulo
+sources:
+  - https://github.com/manavgup/rag_modulo

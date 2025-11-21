@@ -1,0 +1,51 @@
+{{- if .Values.ingress.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Release.Name }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-frontend
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  {{- if .Values.ingress.route.host }}
+  host: {{ .Values.ingress.route.host }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ .Release.Name }}-frontend
+    weight: 100
+  port:
+    targetPort: http
+  {{- if .Values.ingress.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.ingress.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.ingress.route.tls.insecureEdgeTerminationPolicy }}
+  {{- end }}
+  wildcardPolicy: None
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Release.Name }}-backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-backend
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  {{- if .Values.ingress.route.host }}
+  host: {{ .Values.ingress.route.host | replace "frontend" "backend" }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ .Release.Name }}-backend
+    weight: 100
+  port:
+    targetPort: http
+  {{- if .Values.ingress.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.ingress.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.ingress.route.tls.insecureEdgeTerminationPolicy }}
+  {{- end }}
+  wildcardPolicy: None
+{{- end }}
