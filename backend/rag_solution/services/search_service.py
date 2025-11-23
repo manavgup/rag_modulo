@@ -358,12 +358,64 @@ class SearchService:
         - " AND " artifacts from query rewriting
         - Duplicate consecutive words
         - Leading/trailing whitespace
+
+        Converts:
+        - HTML formatting to Markdown (tables, bold, italic, links, lists, etc.)
+
+        This ensures proper rendering in the React frontend which uses ReactMarkdown.
+        Issue #655: Support all HTML formatting types, not just tables.
         """
         # pylint: disable=import-outside-toplevel
-        # Justification: Lazy import to avoid loading re module unless needed
+        # Justification: Lazy import to avoid loading modules unless needed
         import re
 
+        import html2text
+
         cleaned = answer.strip()
+
+        # Convert HTML to Markdown if HTML tags detected
+        # This handles ALL HTML formatting: tables, bold, italic, links, lists, headings, code blocks, etc.
+        if "<" in cleaned and ">" in cleaned:
+            # Check for common HTML tags
+            html_patterns = [
+                r"<table",
+                r"<div",
+                r"<p>",
+                r"<b>",
+                r"<strong>",
+                r"<em>",
+                r"<i>",
+                r"<a\s",
+                r"<ul>",
+                r"<ol>",
+                r"<li>",
+                r"<h[1-6]>",
+                r"<code>",
+                r"<pre>",
+                r"<blockquote>",
+                r"<img\s",
+                r"<br",
+                r"<hr",
+            ]
+
+            has_html = any(re.search(pattern, cleaned, re.IGNORECASE) for pattern in html_patterns)
+
+            if has_html:
+                # Configure html2text for clean Markdown conversion
+                h = html2text.HTML2Text()
+                h.body_width = 0  # Don't wrap lines
+                h.unicode_snob = True  # Use Unicode characters
+                h.ignore_links = False  # Keep links
+                h.ignore_images = False  # Keep images
+                h.ignore_emphasis = False  # Keep bold/italic
+                h.skip_internal_links = False  # Keep all links
+                h.inline_links = True  # Use inline link format [text](url)
+                h.protect_links = True  # Don't mangle URLs
+                h.wrap_links = False  # Don't wrap links
+                h.wrap_lists = False  # Don't wrap lists
+
+                # Convert HTML to Markdown
+                cleaned = h.handle(cleaned)
 
         # Remove " AND " artifacts that come from query rewriting
         # Handle both middle "AND" and trailing "AND"
