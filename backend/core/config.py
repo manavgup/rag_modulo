@@ -151,6 +151,9 @@ class Settings(BaseSettings):
     keyword_weight: Annotated[float, Field(default=0.3, alias="KEYWORD_WEIGHT")]
     hybrid_weight: Annotated[float, Field(default=0.5, alias="HYBRID_WEIGHT")]
 
+    # Generation settings
+    generation_top_k: Annotated[int, Field(default=5, alias="GENERATION_TOP_K")]  # Number of sources to display
+
     # Reranking settings
     enable_reranking: Annotated[bool, Field(default=True, alias="ENABLE_RERANKING")]
     reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple, cross-encoder
