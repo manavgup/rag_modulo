@@ -225,11 +225,46 @@ class PromptTemplateService:
             raise ValidationError(f"Failed to format prompt: {e!s}") from e
 
     def _format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
-        """Internal method to format prompt with a template object."""
+        """Internal method to format prompt with a template object.
+
+        For RAG_QUERY templates, automatically appends Markdown formatting instructions
+        to ensure well-structured, readable responses.
+
+        Issue #655: Add explicit Markdown formatting requests to improve LLM output structure.
+        """
         parts = []
+
+        # Add system prompt if present
         if template.system_prompt:
             parts.append(str(template.system_prompt))
+
+        # Add Markdown formatting instructions for RAG_QUERY templates
+        if template.template_type == PromptTemplateType.RAG_QUERY:
+            markdown_instructions = (
+                "\n\nIMPORTANT - Response Formatting Requirements:\n"
+                "Format your response in clean, well-structured Markdown:\n"
+                "- Use ## for main sections and ### for subsections\n"
+                "- Separate paragraphs with blank lines for better readability\n"
+                "- Keep paragraphs concise (2-4 sentences maximum)\n"
+                "- Use bullet points (-) for lists of items\n"
+                "- Use numbered lists (1., 2., 3.) for sequential steps\n"
+                "- Use **bold** for key concepts and important terms\n"
+                "- Use *italic* for emphasis or definitions\n"
+                "- Format tables using Markdown table syntax with | separators\n"
+                "- Add blank lines before and after tables, lists, and code blocks\n"
+                "\nExample structure:\n"
+                "## Main Topic\n\n"
+                "Brief introduction paragraph.\n\n"
+                "### Key Points\n\n"
+                "- First important point\n"
+                "- Second important point\n\n"
+                "Explanatory paragraph with **key terms** highlighted."
+            )
+            parts.append(markdown_instructions)
+
+        # Add formatted template
         parts.append(template.template_format.format(**variables))
+
         return "\n\n".join(parts)
 
     # Legacy method for backward compatibility - will be deprecated
