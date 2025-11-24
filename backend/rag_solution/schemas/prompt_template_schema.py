@@ -13,23 +13,8 @@ DEFAULT_STRUCTURED_OUTPUT_TEMPLATE = """Question: {question}
 Context Documents:
 {context}
 
-FORMATTING REQUIREMENTS:
-- Use Markdown formatting for your answer (NO HTML)
-- For quantitative data (revenue, statistics, year-over-year changes), use Markdown tables
-- Use **bold** for key findings and important numbers
-- Use bullet lists (- item) for multiple distinct points
-- Keep paragraphs concise (3-4 sentences maximum)
-
-MARKDOWN TABLE EXAMPLE:
-| Year | Revenue | Change    |
-|------|---------|-----------|
-| 2019 | $1.2B   | -         |
-| 2020 | $975M   | -19.8%    |
-| 2021 | $774M   | -20.6%    |
-| 2023 | $61.9B  | +3.0%     |
-
 Please provide a structured answer with:
-1. A clear, concise Markdown-formatted answer to the question
+1. A clear, concise answer to the question
 2. A confidence score (0.0-1.0) based on the quality and relevance of the sources
 3. Citations to specific documents that support your answer
    - Include the document_id, title, and excerpt from the document
