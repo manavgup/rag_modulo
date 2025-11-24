@@ -224,11 +224,148 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to format prompt: {e!s}") from e
 
+    def _classify_query_type(self, question: str) -> str:
+        """Classify query to select appropriate few-shot example.
+
+        Args:
+            question: The user's question text
+
+        Returns:
+            Query type: 'quantitative', 'conceptual', 'sequential', or 'general'
+        """
+        question_lower = question.lower()
+
+        # Quantitative patterns (tables for data/metrics)
+        if any(
+            kw in question_lower
+            for kw in [
+                "revenue",
+                "change",
+                "trend",
+                "statistics",
+                "numbers",
+                "compare",
+                "vs",
+                "versus",
+                "difference",
+                "growth",
+                "sales",
+                "profit",
+                "loss",
+                "increase",
+                "decrease",
+                "year",
+                "quarter",
+                "month",
+                "period",
+            ]
+        ):
+            return "quantitative"
+
+        # Conceptual patterns (bullets for definitions/lists)
+        if any(
+            kw in question_lower
+            for kw in [
+                "what is",
+                "what are",
+                "define",
+                "explain",
+                "benefits",
+                "advantages",
+                "features",
+                "list",
+                "types of",
+                "kinds of",
+                "categories",
+                "components",
+            ]
+        ):
+            return "conceptual"
+
+        # Sequential patterns (numbered lists for processes)
+        if any(
+            kw in question_lower
+            for kw in [
+                "how to",
+                "steps",
+                "process",
+                "procedure",
+                "guide",
+                "instructions",
+                "setup",
+                "install",
+                "configure",
+                "deploy",
+                "implement",
+                "create",
+            ]
+        ):
+            return "sequential"
+
+        return "general"
+
+    def _get_few_shot_example(self, query_type: str) -> str:
+        """Get appropriate few-shot example based on query type.
+
+        Args:
+            query_type: The classified query type
+
+        Returns:
+            Formatted few-shot example or empty string for general queries
+        """
+        if query_type == "quantitative":
+            return """Example Q: "How did company revenue change from 2019 to 2023?"
+Example A:
+
+## Revenue Analysis
+
+| Year | Revenue | Change    |
+|------|---------|-----------|
+| 2019 | $1.2B   | -         |
+| 2020 | $975M   | -19.8%    |
+| 2021 | $774M   | -20.6%    |
+| 2023 | $61.9B  | +3.0%     |
+
+Revenue declined during 2019-2021, then grew significantly in 2023."""
+
+        elif query_type == "conceptual":
+            return """Example Q: "What are the key benefits of machine learning?"
+Example A:
+
+## Key Benefits
+
+- **Automation**: Reduces manual work and repetitive tasks
+- **Accuracy**: Improves prediction quality with more data
+- **Scalability**: Efficiently handles large datasets
+- **Adaptability**: Learns and improves from new patterns"""
+
+        elif query_type == "sequential":
+            return """Example Q: "How do I deploy the application to production?"
+Example A:
+
+## Deployment Steps
+
+1. **Test**: Run full test suite to ensure quality
+2. **Build**: Create Docker images for all services
+3. **Push**: Upload images to container registry
+4. **Deploy**: Apply Kubernetes manifests to cluster
+5. **Verify**: Check pod status and run smoke tests"""
+
+        return ""  # No example for general queries
+
     def _format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
         """Internal method to format prompt with a template object."""
         parts = []
         if template.system_prompt:
             parts.append(str(template.system_prompt))
+
+        # Add query-aware few-shot example for RAG_QUERY templates
+        if template.template_type == PromptTemplateType.RAG_QUERY and "question" in variables:
+            query_type = self._classify_query_type(variables["question"])
+            few_shot_example = self._get_few_shot_example(query_type)
+            if few_shot_example:
+                parts.append(few_shot_example)
+
         parts.append(template.template_format.format(**variables))
         return "\n\n".join(parts)
 
