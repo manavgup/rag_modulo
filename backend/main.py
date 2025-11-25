@@ -45,6 +45,7 @@ from rag_solution.router.token_warning_router import router as token_warning_rou
 from rag_solution.router.user_router import router as user_router
 from rag_solution.router.voice_router import router as voice_router
 from rag_solution.router.websocket_router import router as websocket_router
+from rag_solution.router.mcp_router import router as mcp_router
 
 # Services
 from rag_solution.services.system_initialization_service import SystemInitializationService
@@ -222,6 +223,7 @@ app.include_router(search_router)
 app.include_router(token_warning_router)
 app.include_router(voice_router)
 app.include_router(websocket_router)
+app.include_router(mcp_router)
 
 
 # Root endpoint

@@ -138,6 +138,28 @@ services:
     networks:
       - app-network
 
+  # MCP Context Forge Gateway (optional)
+  # Uncomment to enable self-hosted MCP Gateway for tool invocation
+  # See: https://github.com/IBM/mcp-context-forge for more info
+  # mcp-gateway:
+  #   container_name: mcp-gateway
+  #   image: ghcr.io/ibm/mcp-context-forge:latest
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     MCP_PORT: 8080
+  #     MCP_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  #     # Add tool-specific configuration here
+  #     # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 10s
+  #   networks:
+  #     - app-network
+
 volumes:
   postgres_data:
     driver_opts:

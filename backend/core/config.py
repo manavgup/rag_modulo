@@ -104,6 +104,26 @@ class Settings(BaseSettings):
     cot_reasoning_strategy: Annotated[str, Field(default="decomposition", alias="COT_REASONING_STRATEGY")]
     cot_token_budget_multiplier: Annotated[float, Field(default=2.0, alias="COT_TOKEN_BUDGET_MULTIPLIER")]
 
+    # MCP Gateway Integration settings
+    # URL of the MCP Context Forge Gateway (set to empty to disable MCP features)
+    mcp_gateway_url: Annotated[str, Field(default="http://localhost:8080", alias="MCP_GATEWAY_URL")]
+    # API key for MCP Gateway authentication (optional, depends on gateway configuration)
+    mcp_gateway_api_key: Annotated[str | None, Field(default=None, alias="MCP_GATEWAY_API_KEY")]
+    # Default timeout for MCP tool invocations (seconds)
+    mcp_gateway_timeout: Annotated[float, Field(default=30.0, alias="MCP_GATEWAY_TIMEOUT")]
+    # Timeout for MCP Gateway health checks (seconds)
+    mcp_gateway_health_timeout: Annotated[float, Field(default=5.0, alias="MCP_GATEWAY_HEALTH_TIMEOUT")]
+    # Enable/disable MCP Gateway integration
+    mcp_enabled: Annotated[bool, Field(default=False, alias="MCP_ENABLED")]
+    # Maximum concurrent tool invocations during enrichment
+    mcp_max_concurrent_tools: Annotated[int, Field(default=3, alias="MCP_MAX_CONCURRENT_TOOLS")]
+    # Overall timeout for enrichment process (seconds)
+    mcp_enrichment_timeout: Annotated[float, Field(default=60.0, alias="MCP_ENRICHMENT_TIMEOUT")]
+    # Circuit breaker failure threshold
+    mcp_circuit_breaker_threshold: Annotated[int, Field(default=5, alias="MCP_CIRCUIT_BREAKER_THRESHOLD")]
+    # Circuit breaker recovery timeout (seconds)
+    mcp_circuit_breaker_recovery: Annotated[float, Field(default=60.0, alias="MCP_CIRCUIT_BREAKER_RECOVERY")]
+
     # Embedding settings
     embedding_model: Annotated[
         str,
