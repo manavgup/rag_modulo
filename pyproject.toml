@@ -5,7 +5,7 @@ description = "A modular, agentic RAG which allows selection of embeddings, vect
 authors = [
     {name = "Manav Gupta", email = "manavgup@ca.ibm.com"}
 ]
-license = {text = "MIT"}
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -28,14 +28,14 @@ dependencies = [
     "aiofiles",
     "python-docx",
     "openpyxl>=3.1.2",
-    "starlette>=0.36.3",
+    "starlette>=0.41.3",  # Security: CVE-2025-62727 DoS fix
     "setuptools>=75.1.0",
     "tenacity>=8.5.0",
     "pyjwt",
     "passlib",
     "anthropic",
     "openai",
-    "authlib",
+    "authlib>=1.3.3",  # Security: CVE-2025-59420, CVE-2025-61920, CVE-2025-62706
     "httpx",
     "itsdangerous>=2.1.2",
     "ibm-watsonx-ai>=1.1.22",

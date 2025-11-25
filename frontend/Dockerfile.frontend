@@ -1,5 +1,8 @@
-# Use a smaller base image for Node.js
-FROM node:18-alpine AS builder
+# Use Node.js LTS with Alpine 3.19 for latest security patches
+FROM node:20-alpine3.19 AS builder
+
+# Security: Update Alpine packages immediately
+RUN apk update && apk upgrade --no-cache
 
 ENV NODE_ENV=production
 # Set the working directory
@@ -22,8 +25,11 @@ COPY default.conf ./
 # Build the application
 RUN npm run build
 
-# Use a smaller image for the runtime
-FROM nginx:alpine
+# Use nginx with Alpine 3.19 for latest security patches
+FROM nginx:alpine3.19
+
+# Security: Update Alpine packages
+RUN apk update && apk upgrade --no-cache
 
 # Copy the build artifacts to the nginx html directory
 COPY --from=builder /app/build /usr/share/nginx/html
