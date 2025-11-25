@@ -2,6 +2,7 @@
 # pylint: disable=too-many-lines
 # Justification: Search service orchestrates multiple complex search paths
 
+import re
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -41,6 +42,13 @@ if TYPE_CHECKING:
     from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
 logger = get_logger("services.search")
+
+# Pre-compiled regex pattern for HTML tag detection (optimized for performance)
+# Matches common HTML tags: table, div, p, b, strong, em, i, a, ul, ol, li, h1-h6, code, pre, blockquote, img, br, hr
+_HTML_TAG_PATTERN = re.compile(
+    r"<(?:table|div|p|b|strong|em|i|a\s|ul|ol|li|h[1-6]|code|pre|blockquote|img\s|br|hr)",
+    re.IGNORECASE,
+)
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -352,37 +360,102 @@ class SearchService:
 
     def _clean_generated_answer(self, answer: str) -> str:
         """
-        Clean generated answer by removing artifacts and duplicates.
+        Clean generated answer by removing artifacts and duplicates while preserving Markdown.
 
         Removes:
         - " AND " artifacts from query rewriting
-        - Duplicate consecutive words
+        - Duplicate consecutive words (except in Markdown headers)
         - Leading/trailing whitespace
+
+        Converts:
+        - HTML formatting to Markdown (tables, bold, italic, links, lists, etc.)
+
+        Preserves:
+        - Markdown headers (##, ###, etc.)
+        - Markdown formatting (bold, italic, lists, code blocks, etc.)
+
+        This ensures proper rendering in the React frontend which uses ReactMarkdown.
+        Issue #655: Support all HTML formatting types, not just tables.
         """
         # pylint: disable=import-outside-toplevel
-        # Justification: Lazy import to avoid loading re module unless needed
-        import re
+        # Justification: Lazy import to avoid loading html2text unless needed
+        import html2text
 
         cleaned = answer.strip()
 
-        # Remove " AND " artifacts that come from query rewriting
+        # Convert HTML to Markdown if HTML tags detected
+        # Optimized: Use single pre-compiled regex pattern instead of 20+ searches
+        if "<" in cleaned and ">" in cleaned and _HTML_TAG_PATTERN.search(cleaned):
+            try:
+                # Configure html2text for clean Markdown conversion
+                h = html2text.HTML2Text()
+                h.body_width = 0  # Don't wrap lines
+                h.unicode_snob = True  # Use Unicode characters
+                h.ignore_links = False  # Keep links
+                h.ignore_images = False  # Keep images
+                h.ignore_emphasis = False  # Keep bold/italic
+                h.skip_internal_links = False  # Keep all links
+                h.inline_links = True  # Use inline link format [text](url)
+                h.protect_links = True  # Don't mangle URLs
+                h.wrap_links = False  # Don't wrap links
+                h.wrap_lists = False  # Don't wrap lists
+
+                # Convert HTML to Markdown
+                cleaned = h.handle(cleaned)
+            except Exception as e:
+                # If HTML conversion fails, log warning and continue with original text
+                logger.warning("Failed to convert HTML to Markdown: %s", e)
+                # Continue with original cleaned text (HTML tags will remain but ReactMarkdown handles them safely)
+
+        # STEP 1: Protect Markdown headers and formatting before cleaning
+        # Extract and protect Markdown headers (##, ###, etc.)
+        markdown_header_pattern = re.compile(r"^(#{1,6}\s+.+)$", re.MULTILINE)
+        markdown_headers = markdown_header_pattern.findall(cleaned)
+        header_placeholders = {}
+
+        # Replace all occurrences of each header to handle duplicates correctly
+        for i, header in enumerate(markdown_headers):
+            placeholder = f"__MDHEADER_{i}__"
+            header_placeholders[placeholder] = header
+            # Replace all occurrences of this header (not just first)
+            cleaned = cleaned.replace(header, placeholder)
+
+        # STEP 2: Remove " AND " artifacts that come from query rewriting
         # Handle both middle "AND" and trailing "AND"
         cleaned = re.sub(r"\s+AND\s+", " ", cleaned)  # Middle ANDs
         cleaned = re.sub(r"\s+AND$", "", cleaned)  # Trailing AND
 
-        # Remove duplicate consecutive words
-        words = cleaned.split()
-        deduplicated_words = []
-        prev_word = None
+        # STEP 3: Remove duplicate consecutive words (but NOT in protected headers)
+        lines = cleaned.split("\n")
+        processed_lines = []
 
-        for word in words:
-            if not prev_word or word.lower() != prev_word.lower():
-                deduplicated_words.append(word)
-            prev_word = word
+        for line in lines:
+            # Skip deduplication for lines with header placeholders
+            if any(placeholder in line for placeholder in header_placeholders):
+                processed_lines.append(line)
+                continue
 
-        # Join back and clean up any multiple spaces
-        result = " ".join(deduplicated_words)
-        result = re.sub(r"\s+", " ", result).strip()
+            # Process regular lines
+            words = line.split()
+            deduplicated_words = []
+            prev_word = None
+
+            for word in words:
+                if not prev_word or word.lower() != prev_word.lower():
+                    deduplicated_words.append(word)
+                prev_word = word  # Always update prev_word for next iteration
+
+            processed_lines.append(" ".join(deduplicated_words))
+
+        result = "\n".join(processed_lines)
+
+        # STEP 4: Restore Markdown headers
+        for placeholder, header in header_placeholders.items():
+            result = result.replace(placeholder, header)
+
+        # STEP 5: Clean up any multiple spaces (but preserve newlines)
+        result = re.sub(r" +", " ", result)  # Multiple spaces to single space
+        result = result.strip()
 
         return result
 

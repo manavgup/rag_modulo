@@ -730,7 +730,32 @@ const LightweightSearchInterface: React.FC = () => {
                         <div className="max-w-3xl">
                           <div className="prose max-w-none text-gray-900">
                             {message.type === 'assistant' ? (
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h2: ({node, ...props}) => <h2 className="text-2xl font-bold mt-6 mb-4 text-gray-900" {...props} />,
+                                  h3: ({node, ...props}) => <h3 className="text-xl font-semibold mt-5 mb-3 text-gray-800" {...props} />,
+                                  p: ({node, ...props}) => <p className="mb-4 leading-relaxed text-gray-700" {...props} />,
+                                  ul: ({node, ...props}) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props} />,
+                                  ol: ({node, ...props}) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props} />,
+                                  li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
+                                  strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
+                                  em: ({node, ...props}) => <em className="italic text-gray-700" {...props} />,
+                                  table: ({node, ...props}) => (
+                                    <div className="overflow-x-auto my-6">
+                                      <table className="min-w-full border-collapse border border-gray-300" {...props} />
+                                    </div>
+                                  ),
+                                  thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
+                                  th: ({node, ...props}) => <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-900" {...props} />,
+                                  td: ({node, ...props}) => <td className="border border-gray-300 px-4 py-2 text-gray-700" {...props} />,
+                                  code: ({node, inline, ...props}: any) =>
+                                    inline ?
+                                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800" {...props} /> :
+                                      <code className="block bg-gray-900 text-gray-100 p-4 rounded my-4 overflow-x-auto font-mono text-sm" {...props} />,
+                                  blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-600" {...props} />,
+                                }}
+                              >
                                 {message.content}
                               </ReactMarkdown>
                             ) : (
@@ -746,6 +771,7 @@ const LightweightSearchInterface: React.FC = () => {
                               stepsCount={message.cot_output?.steps?.length || message.cot_output?.total_steps}
                               tokenCount={message.metadata?.token_analysis?.total_this_turn || message.token_warning?.current_tokens}
                               responseTime={message.metadata?.execution_time}
+                              messageContent={message.content}
                               onSourcesClick={() => toggleSources(message.id)}
                               onCitationsClick={() => toggleCitations(message.id)}
                               onStepsClick={() => toggleCoT(message.id)}

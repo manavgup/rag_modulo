@@ -159,7 +159,7 @@ class Settings(BaseSettings):
     reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple, cross-encoder
     reranker_top_k: Annotated[
         int | None, Field(default=5, alias="RERANKER_TOP_K")
-    ]  # Default 5 for optimal quality/speed
+    ]  # Number of top results to return after reranking
     reranker_batch_size: Annotated[int, Field(default=10, alias="RERANKER_BATCH_SIZE")]
     reranker_score_scale: Annotated[int, Field(default=10, alias="RERANKER_SCORE_SCALE")]  # 0-10 scoring scale
     reranker_prompt_template_name: Annotated[

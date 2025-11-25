@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Connect, Time, ChartColumn, BookmarkFilled } from '@carbon/icons-react';
+import CopyButton from '../common/CopyButton';
 
 interface MessageMetadataFooterProps {
   sourcesCount?: number;
@@ -7,6 +8,7 @@ interface MessageMetadataFooterProps {
   stepsCount?: number;
   tokenCount?: number;
   responseTime?: number;
+  messageContent?: string;
   onSourcesClick?: () => void;
   onCitationsClick?: () => void;
   onStepsClick?: () => void;
@@ -30,6 +32,7 @@ const MessageMetadataFooter: React.FC<MessageMetadataFooterProps> = ({
   stepsCount,
   tokenCount,
   responseTime,
+  messageContent,
   onSourcesClick,
   onCitationsClick,
   onStepsClick,
@@ -45,6 +48,10 @@ const MessageMetadataFooter: React.FC<MessageMetadataFooterProps> = ({
   return (
     <div className="message-metadata-footer">
       <div className="metadata-items">
+        {/* Copy button - always show if we have message content */}
+        {messageContent && (
+          <CopyButton content={messageContent} size="sm" />
+        )}
         {sourcesCount > 0 && (
           <button
             className="metadata-item metadata-sources metadata-clickable"

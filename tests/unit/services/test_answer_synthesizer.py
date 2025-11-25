@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
+
 from rag_solution.schemas.chain_of_thought_schema import ReasoningStep, SynthesisResult
 from rag_solution.services.answer_synthesizer import AnswerSynthesizer
 
@@ -38,17 +39,14 @@ class TestAnswerSynthesizer:
         """Create sample reasoning steps."""
         return [
             ReasoningStep(
-                step_number=1,
-                question="First step question",
-                intermediate_answer="First answer",
-                confidence_score=0.8
+                step_number=1, question="First step question", intermediate_answer="First answer", confidence_score=0.8
             ),
             ReasoningStep(
                 step_number=2,
                 question="Second step question",
                 intermediate_answer="Second answer",
-                confidence_score=0.9
-            )
+                confidence_score=0.9,
+            ),
         ]
 
     def test_init_with_llm_service(self, mock_llm_service: Mock, mock_settings: Mock) -> None:
@@ -70,9 +68,7 @@ class TestAnswerSynthesizer:
 
     def test_synthesize_no_intermediate_answers(self, synthesizer: AnswerSynthesizer) -> None:
         """Test synthesis with steps but no intermediate answers."""
-        steps = [
-            ReasoningStep(step_number=1, question="test question", intermediate_answer="", confidence_score=0.5)
-        ]
+        steps = [ReasoningStep(step_number=1, question="test question", intermediate_answer="", confidence_score=0.5)]
         result = synthesizer.synthesize("test question", steps)
         assert result == "Unable to synthesize an answer from the reasoning steps."
 
@@ -80,39 +76,57 @@ class TestAnswerSynthesizer:
         """Test synthesis with single intermediate answer."""
         steps = [
             ReasoningStep(
-                step_number=1,
-                question="test question",
-                intermediate_answer="Single answer",
-                confidence_score=0.8
+                step_number=1, question="test question", intermediate_answer="Single answer", confidence_score=0.8
             )
         ]
         result = synthesizer.synthesize("test question", steps)
         assert result == "Single answer"
 
-    def test_synthesize_multiple_answers(self, synthesizer: AnswerSynthesizer, sample_reasoning_steps: list[ReasoningStep]) -> None:
+    def test_synthesize_multiple_answers(
+        self, synthesizer: AnswerSynthesizer, sample_reasoning_steps: list[ReasoningStep]
+    ) -> None:
         """Test synthesis with multiple intermediate answers."""
         result = synthesizer.synthesize("test question", sample_reasoning_steps)
-        expected = "Based on the analysis of test question: First answer Additionally, second answer"
-        assert result == expected
+        # Expect Markdown-formatted output with headers
+        assert "## Answer to: test question" in result
+        assert "### Step 1: First step question" in result
+        assert "### Step 2: Second step question" in result
+        assert "First answer" in result
+        assert "Second answer" in result
+        assert "### Summary" in result
 
     def test_synthesize_three_answers(self, synthesizer: AnswerSynthesizer) -> None:
         """Test synthesis with three intermediate answers."""
         steps = [
             ReasoningStep(step_number=1, question="test1", intermediate_answer="First", confidence_score=0.8),
             ReasoningStep(step_number=2, question="test2", intermediate_answer="Second", confidence_score=0.9),
-            ReasoningStep(step_number=3, question="test3", intermediate_answer="Third", confidence_score=0.7)
+            ReasoningStep(step_number=3, question="test3", intermediate_answer="Third", confidence_score=0.7),
         ]
         result = synthesizer.synthesize("test question", steps)
-        expected = "Based on the analysis of test question: First Furthermore, second Additionally, third"
-        assert result == expected
+        # Expect Markdown-formatted output with headers
+        assert "## Answer to: test question" in result
+        assert "### Step 1: test1" in result
+        assert "### Step 2: test2" in result
+        assert "### Step 3: test3" in result
+        assert "First" in result
+        assert "Second" in result
+        assert "Third" in result
+        assert "### Summary" in result
 
     @pytest.mark.asyncio
-    async def test_synthesize_answer_success(self, synthesizer: AnswerSynthesizer, sample_reasoning_steps: list[ReasoningStep]) -> None:
+    async def test_synthesize_answer_success(
+        self, synthesizer: AnswerSynthesizer, sample_reasoning_steps: list[ReasoningStep]
+    ) -> None:
         """Test synthesize_answer method with successful synthesis."""
         result = await synthesizer.synthesize_answer("test question", sample_reasoning_steps)
 
         assert isinstance(result, SynthesisResult)
-        assert result.final_answer == "Based on the analysis of test question: First answer Additionally, second answer"
+        # Expect Markdown-formatted output with headers
+        assert "## Answer to: test question" in result.final_answer
+        assert "### Step 1: First step question" in result.final_answer
+        assert "### Step 2: Second step question" in result.final_answer
+        assert "First answer" in result.final_answer
+        assert "Second answer" in result.final_answer
         assert abs(result.total_confidence - 0.85) < 0.001  # (0.8 + 0.9) / 2
 
     @pytest.mark.asyncio
@@ -208,7 +222,7 @@ class TestAnswerSynthesizer:
         steps = [
             ReasoningStep(step_number=1, question="test1", intermediate_answer="", confidence_score=0.8),
             ReasoningStep(step_number=2, question="test2", intermediate_answer="Valid answer", confidence_score=0.9),
-            ReasoningStep(step_number=3, question="test3", intermediate_answer="", confidence_score=0.7)
+            ReasoningStep(step_number=3, question="test3", intermediate_answer="", confidence_score=0.7),
         ]
         result = synthesizer.synthesize("test question", steps)
         assert result == "Valid answer"  # Should only use non-empty answers
@@ -217,7 +231,7 @@ class TestAnswerSynthesizer:
         """Test synthesis with steps containing None intermediate answers."""
         steps = [
             ReasoningStep(step_number=1, question="test1", intermediate_answer=None, confidence_score=0.8),
-            ReasoningStep(step_number=2, question="test2", intermediate_answer="Valid answer", confidence_score=0.9)
+            ReasoningStep(step_number=2, question="test2", intermediate_answer="Valid answer", confidence_score=0.9),
         ]
         result = synthesizer.synthesize("test question", steps)
         assert result == "Valid answer"  # Should only use non-None answers

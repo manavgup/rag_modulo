@@ -245,8 +245,19 @@ class ChainOfThoughtService:
             logger.warning("LLM service %s does not have generate_text_with_usage method", type(llm_service))
             return f"Based on the context, {question.lower().replace('?', '')}...", None
 
-        # Create a proper prompt with context
-        prompt = f"Question: {question}\n\nContext: {' '.join(context)}\n\nAnswer:"
+        # Create a proper prompt with context and request Markdown formatting
+        prompt = f"""Question: {question}
+
+Context: {" ".join(context)}
+
+Please provide a detailed answer using proper Markdown formatting:
+- Use ## for main headers
+- Use ### for sub-headers
+- Use bullet points (-) for lists
+- Use **bold** for emphasis
+- Use tables when presenting data
+
+Answer:"""
 
         try:
             from rag_solution.schemas.llm_usage_schema import ServiceType
@@ -461,6 +472,14 @@ class ChainOfThoughtService:
 
         # Synthesize final answer
         final_answer = self.answer_synthesizer.synthesize(cot_input.question, reasoning_steps)
+
+        # DEBUG: Log final answer before returning
+        logger.info("🔍 COT_SERVICE: Final answer length: %d chars", len(final_answer))
+        logger.debug("🔍 COT_SERVICE: First 200 chars: %s", final_answer[:200])
+        if "##" in final_answer or "###" in final_answer:
+            logger.info("✅ COT_SERVICE: Markdown headers present in final answer")
+        else:
+            logger.warning("⚠️ COT_SERVICE: NO Markdown headers in final answer")
 
         # Generate source summary
         source_summary = self.source_attribution_service.aggregate_sources_across_steps(reasoning_steps)
