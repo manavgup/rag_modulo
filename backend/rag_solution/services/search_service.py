@@ -2,6 +2,7 @@
 # pylint: disable=too-many-lines
 # Justification: Search service orchestrates multiple complex search paths
 
+import re
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -41,6 +42,13 @@ if TYPE_CHECKING:
     from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
 logger = get_logger("services.search")
+
+# Pre-compiled regex pattern for HTML tag detection (optimized for performance)
+# Matches common HTML tags: table, div, p, b, strong, em, i, a, ul, ol, li, h1-h6, code, pre, blockquote, img, br, hr
+_HTML_TAG_PATTERN = re.compile(
+    r"<(?:table|div|p|b|strong|em|i|a\s|ul|ol|li|h[1-6]|code|pre|blockquote|img\s|br|hr)",
+    re.IGNORECASE,
+)
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -370,69 +378,40 @@ class SearchService:
         Issue #655: Support all HTML formatting types, not just tables.
         """
         # pylint: disable=import-outside-toplevel
-        # Justification: Lazy import to avoid loading modules unless needed
-        import re
-
+        # Justification: Lazy import to avoid loading html2text unless needed
         import html2text
 
         cleaned = answer.strip()
 
         # Convert HTML to Markdown if HTML tags detected
-        # This handles ALL HTML formatting: tables, bold, italic, links, lists, headings, code blocks, etc.
-        if "<" in cleaned and ">" in cleaned:
-            # Check for common HTML tags
-            html_patterns = [
-                r"<table",
-                r"<div",
-                r"<p>",
-                r"<b>",
-                r"<strong>",
-                r"<em>",
-                r"<i>",
-                r"<a\s",
-                r"<ul>",
-                r"<ol>",
-                r"<li>",
-                r"<h[1-6]>",
-                r"<code>",
-                r"<pre>",
-                r"<blockquote>",
-                r"<img\s",
-                r"<br",
-                r"<hr",
-            ]
+        # Optimized: Use single pre-compiled regex pattern instead of 20+ searches
+        if "<" in cleaned and ">" in cleaned and _HTML_TAG_PATTERN.search(cleaned):
+            # Configure html2text for clean Markdown conversion
+            h = html2text.HTML2Text()
+            h.body_width = 0  # Don't wrap lines
+            h.unicode_snob = True  # Use Unicode characters
+            h.ignore_links = False  # Keep links
+            h.ignore_images = False  # Keep images
+            h.ignore_emphasis = False  # Keep bold/italic
+            h.skip_internal_links = False  # Keep all links
+            h.inline_links = True  # Use inline link format [text](url)
+            h.protect_links = True  # Don't mangle URLs
+            h.wrap_links = False  # Don't wrap links
+            h.wrap_lists = False  # Don't wrap lists
 
-            has_html = any(re.search(pattern, cleaned, re.IGNORECASE) for pattern in html_patterns)
-
-            if has_html:
-                # Configure html2text for clean Markdown conversion
-                h = html2text.HTML2Text()
-                h.body_width = 0  # Don't wrap lines
-                h.unicode_snob = True  # Use Unicode characters
-                h.ignore_links = False  # Keep links
-                h.ignore_images = False  # Keep images
-                h.ignore_emphasis = False  # Keep bold/italic
-                h.skip_internal_links = False  # Keep all links
-                h.inline_links = True  # Use inline link format [text](url)
-                h.protect_links = True  # Don't mangle URLs
-                h.wrap_links = False  # Don't wrap links
-                h.wrap_lists = False  # Don't wrap lists
-
-                # Convert HTML to Markdown
-                cleaned = h.handle(cleaned)
+            # Convert HTML to Markdown
+            cleaned = h.handle(cleaned)
 
         # STEP 1: Protect Markdown headers and formatting before cleaning
         # Extract and protect Markdown headers (##, ###, etc.)
-        markdown_header_pattern = r"^(#{1,6}\s+.+)$"
-        markdown_headers = re.findall(markdown_header_pattern, cleaned, re.MULTILINE)
+        markdown_header_pattern = re.compile(r"^(#{1,6}\s+.+)$", re.MULTILINE)
+        markdown_headers = markdown_header_pattern.findall(cleaned)
         header_placeholders = {}
 
         for i, header in enumerate(markdown_headers):
             placeholder = f"__MDHEADER_{i}__"
             header_placeholders[placeholder] = header
             cleaned = cleaned.replace(header, placeholder, 1)  # Replace only first occurrence
-
-        logger.debug("Protected %d Markdown headers", len(header_placeholders))
 
         # STEP 2: Remove " AND " artifacts that come from query rewriting
         # Handle both middle "AND" and trailing "AND"
@@ -457,9 +436,7 @@ class SearchService:
             for word in words:
                 if not prev_word or word.lower() != prev_word.lower():
                     deduplicated_words.append(word)
-                    prev_word = word
-                else:
-                    prev_word = word
+                prev_word = word  # Always update prev_word for next iteration
 
             processed_lines.append(" ".join(deduplicated_words))
 
@@ -468,8 +445,6 @@ class SearchService:
         # STEP 4: Restore Markdown headers
         for placeholder, header in header_placeholders.items():
             result = result.replace(placeholder, header)
-
-        logger.debug("Restored %d Markdown headers", len(header_placeholders))
 
         # STEP 5: Clean up any multiple spaces (but preserve newlines)
         result = re.sub(r" +", " ", result)  # Multiple spaces to single space
@@ -653,25 +628,8 @@ class SearchService:
         # Convert SearchContext to SearchOutput
         logger.debug("Converting SearchContext to SearchOutput")
 
-        # DEBUG: Log answer BEFORE cleaning
-        raw_answer = result_context.generated_answer or ""
-        logger.info("🔍 SEARCH_SERVICE: Raw answer length: %d chars", len(raw_answer))
-        logger.debug("🔍 SEARCH_SERVICE: Raw answer first 200 chars: %s", raw_answer[:200])
-        if "##" in raw_answer or "###" in raw_answer:
-            logger.info("✅ SEARCH_SERVICE: Markdown headers present BEFORE cleaning")
-        else:
-            logger.warning("⚠️ SEARCH_SERVICE: NO Markdown headers BEFORE cleaning")
-
         # Clean the generated answer
-        cleaned_answer = self._clean_generated_answer(raw_answer)
-
-        # DEBUG: Log answer AFTER cleaning
-        logger.info("🔍 SEARCH_SERVICE: Cleaned answer length: %d chars", len(cleaned_answer))
-        logger.debug("🔍 SEARCH_SERVICE: Cleaned answer first 200 chars: %s", cleaned_answer[:200])
-        if "##" in cleaned_answer or "###" in cleaned_answer:
-            logger.info("✅ SEARCH_SERVICE: Markdown headers PRESERVED after cleaning")
-        else:
-            logger.error("❌ SEARCH_SERVICE: Markdown headers LOST during cleaning!")
+        cleaned_answer = self._clean_generated_answer(result_context.generated_answer or "")
 
         # Build SearchOutput from context
         # Convert cot_output from ChainOfThoughtOutput to dict if present

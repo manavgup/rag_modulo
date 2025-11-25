@@ -1,7 +1,8 @@
 """Tests for Markdown preservation in search service."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from sqlalchemy.orm import Session
 
 from core.config import Settings
@@ -295,6 +296,190 @@ Content here."""
         result = search_service._clean_generated_answer(input_text)
 
         assert "## Final Header" in result
+
+
+class TestHTMLToMarkdownConversion:
+    """Test suite for HTML-to-Markdown conversion functionality."""
+
+    def test_html_table_conversion(self, search_service):
+        """Test that HTML tables are converted to Markdown."""
+        input_text = """<table>
+<tr><th>Year</th><th>Revenue</th></tr>
+<tr><td>2019</td><td>$1.2B</td></tr>
+<tr><td>2020</td><td>$975M</td></tr>
+</table>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML table to Markdown
+        assert "<table>" not in result
+        assert "|" in result or "Year" in result or "Revenue" in result
+
+    def test_html_lists_conversion(self, search_service):
+        """Test that HTML lists are converted to Markdown."""
+        input_text = """<ul>
+<li>First item</li>
+<li>Second item</li>
+<li>Third item</li>
+</ul>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML list to Markdown
+        assert "<ul>" not in result
+        assert "<li>" not in result
+        assert "-" in result or "First item" in result
+
+    def test_html_ordered_list_conversion(self, search_service):
+        """Test that HTML ordered lists are converted to Markdown."""
+        input_text = """<ol>
+<li>Step one</li>
+<li>Step two</li>
+<li>Step three</li>
+</ol>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML ordered list to Markdown
+        assert "<ol>" not in result
+        assert "<li>" not in result
+        assert "1." in result or "Step one" in result
+
+    def test_html_links_conversion(self, search_service):
+        """Test that HTML links are converted to Markdown."""
+        input_text = """<p>Visit <a href="https://example.com">our website</a> for more info.</p>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML link to Markdown
+        assert "<a" not in result
+        assert "<p>" not in result
+        assert "our website" in result or "https://example.com" in result
+
+    def test_html_bold_italic_conversion(self, search_service):
+        """Test that HTML bold and italic are converted to Markdown."""
+        input_text = """<p>This is <strong>bold</strong> and <em>italic</em> text.</p>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML formatting to Markdown
+        assert "<strong>" not in result
+        assert "<em>" not in result
+        assert "<p>" not in result
+        assert "bold" in result
+        assert "italic" in result
+
+    def test_html_headings_conversion(self, search_service):
+        """Test that HTML headings are converted to Markdown."""
+        input_text = """<h1>Main Title</h1>
+<h2>Section Title</h2>
+<h3>Subsection Title</h3>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML headings to Markdown
+        assert "<h1>" not in result
+        assert "<h2>" not in result
+        assert "<h3>" not in result
+        assert "Main Title" in result
+        assert "Section Title" in result
+        assert "Subsection Title" in result
+
+    def test_html_code_blocks_conversion(self, search_service):
+        """Test that HTML code blocks are converted to Markdown."""
+        input_text = """<pre><code>def hello():
+    print("Hello, World!")
+</code></pre>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML code to Markdown
+        assert "<pre>" not in result
+        assert "<code>" not in result
+        assert "def hello()" in result
+
+    def test_malformed_html_handling(self, search_service):
+        """Test that malformed HTML is handled gracefully."""
+        input_text = """<p>Unclosed paragraph
+<div>Nested <span>content</div>
+<table><tr><td>Cell</td></tr>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should not crash and should process what it can
+        assert isinstance(result, str)
+        assert "Cell" in result or "content" in result
+
+    def test_nested_html_structures(self, search_service):
+        """Test that nested HTML structures are converted correctly."""
+        input_text = """<div>
+<h2>Section</h2>
+<ul>
+<li>Item 1</li>
+<li>Item 2</li>
+</ul>
+<p>Paragraph with <strong>bold</strong> text.</p>
+</div>"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert nested HTML to Markdown
+        assert "<div>" not in result
+        assert "<h2>" not in result
+        assert "<ul>" not in result
+        assert "Section" in result
+        assert "Item" in result or "bold" in result
+
+    def test_html_with_markdown_mixed(self, search_service):
+        """Test that existing Markdown is preserved when HTML is converted."""
+        input_text = """## Existing Markdown Header
+
+<p>HTML paragraph with <strong>bold</strong> text.</p>
+
+### Another Markdown Header
+
+More Markdown content."""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Markdown headers should be preserved
+        assert "## Existing Markdown Header" in result
+        assert "### Another Markdown Header" in result
+        # HTML should be converted
+        assert "<p>" not in result
+        assert "<strong>" not in result
+
+    def test_html_images_conversion(self, search_service):
+        """Test that HTML images are converted to Markdown."""
+        input_text = """<img src="image.png" alt="Description" />"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert HTML image to Markdown
+        assert "<img" not in result
+        assert "image.png" in result or "Description" in result
+
+    def test_no_html_no_conversion(self, search_service):
+        """Test that plain text without HTML is not modified unnecessarily."""
+        input_text = """This is plain text without any HTML tags.
+It should remain mostly unchanged."""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should preserve content
+        assert "plain text" in result
+        assert "HTML tags" in result or "unchanged" in result
+
+    def test_html_br_tags_conversion(self, search_service):
+        """Test that HTML line breaks are handled."""
+        input_text = """Line 1<br>Line 2<br/>Line 3"""
+
+        result = search_service._clean_generated_answer(input_text)
+
+        # Should convert line breaks
+        assert "<br" not in result
+        assert "Line 1" in result
+        assert "Line 2" in result
 
 
 if __name__ == "__main__":
