@@ -98,8 +98,11 @@ More content."""
         result = search_service._clean_generated_answer(input_text)
 
         # Should remove consecutive duplicates
-        assert "is is" not in result
-        assert "test test test" not in result
+        # Use word boundary check to avoid false positives (e.g., "is" in "This")
+        assert not re.search(r"\bis\s+is\b", result), f"Found duplicate 'is is' in: {result}"
+        assert not re.search(r"\btest\s+test\s+test\b", result), f"Found duplicate 'test test test' in: {result}"
+        # Verify the expected output
+        assert "This is a test" in result or result == "This is a test"
 
     def test_clean_generated_answer_preserves_markdown_with_duplicates(self, search_service):
         """Test that Markdown headers are preserved even with duplicate words."""

@@ -67,15 +67,6 @@ class AnswerSynthesizer:
                     synthesis_parts.append(f" Furthermore, {answer.lower()}")
 
         result = "\n".join(synthesis_parts)
-
-        # DEBUG: Log synthesized answer with Markdown
-        logger.info("🔍 ANSWER_SYNTHESIZER: Synthesized answer length: %d chars", len(result))
-        logger.debug("🔍 ANSWER_SYNTHESIZER: First 200 chars: %s", result[:200])
-        if "##" in result or "###" in result:
-            logger.info("✅ ANSWER_SYNTHESIZER: Markdown headers detected in synthesized answer")
-        else:
-            logger.warning("⚠️ ANSWER_SYNTHESIZER: NO Markdown headers in synthesized answer")
-
         return result
 
     async def synthesize_answer(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> SynthesisResult:
