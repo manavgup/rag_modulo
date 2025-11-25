@@ -386,21 +386,26 @@ class SearchService:
         # Convert HTML to Markdown if HTML tags detected
         # Optimized: Use single pre-compiled regex pattern instead of 20+ searches
         if "<" in cleaned and ">" in cleaned and _HTML_TAG_PATTERN.search(cleaned):
-            # Configure html2text for clean Markdown conversion
-            h = html2text.HTML2Text()
-            h.body_width = 0  # Don't wrap lines
-            h.unicode_snob = True  # Use Unicode characters
-            h.ignore_links = False  # Keep links
-            h.ignore_images = False  # Keep images
-            h.ignore_emphasis = False  # Keep bold/italic
-            h.skip_internal_links = False  # Keep all links
-            h.inline_links = True  # Use inline link format [text](url)
-            h.protect_links = True  # Don't mangle URLs
-            h.wrap_links = False  # Don't wrap links
-            h.wrap_lists = False  # Don't wrap lists
+            try:
+                # Configure html2text for clean Markdown conversion
+                h = html2text.HTML2Text()
+                h.body_width = 0  # Don't wrap lines
+                h.unicode_snob = True  # Use Unicode characters
+                h.ignore_links = False  # Keep links
+                h.ignore_images = False  # Keep images
+                h.ignore_emphasis = False  # Keep bold/italic
+                h.skip_internal_links = False  # Keep all links
+                h.inline_links = True  # Use inline link format [text](url)
+                h.protect_links = True  # Don't mangle URLs
+                h.wrap_links = False  # Don't wrap links
+                h.wrap_lists = False  # Don't wrap lists
 
-            # Convert HTML to Markdown
-            cleaned = h.handle(cleaned)
+                # Convert HTML to Markdown
+                cleaned = h.handle(cleaned)
+            except Exception as e:
+                # If HTML conversion fails, log warning and continue with original text
+                logger.warning("Failed to convert HTML to Markdown: %s", e)
+                # Continue with original cleaned text (HTML tags will remain but ReactMarkdown handles them safely)
 
         # STEP 1: Protect Markdown headers and formatting before cleaning
         # Extract and protect Markdown headers (##, ###, etc.)
@@ -408,10 +413,12 @@ class SearchService:
         markdown_headers = markdown_header_pattern.findall(cleaned)
         header_placeholders = {}
 
+        # Replace all occurrences of each header to handle duplicates correctly
         for i, header in enumerate(markdown_headers):
             placeholder = f"__MDHEADER_{i}__"
             header_placeholders[placeholder] = header
-            cleaned = cleaned.replace(header, placeholder, 1)  # Replace only first occurrence
+            # Replace all occurrences of this header (not just first)
+            cleaned = cleaned.replace(header, placeholder)
 
         # STEP 2: Remove " AND " artifacts that come from query rewriting
         # Handle both middle "AND" and trailing "AND"

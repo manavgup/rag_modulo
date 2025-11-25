@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Copy, Checkmark } from '@carbon/icons-react';
 
 interface CopyButtonProps {
@@ -21,10 +21,26 @@ const CopyButton: React.FC<CopyButtonProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const iconSize = size === 'sm' ? 16 : size === 'md' ? 20 : 24;
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleCopy = async () => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     try {
       // Try modern Clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -33,7 +49,10 @@ const CopyButton: React.FC<CopyButtonProps> = ({
         setError(false);
 
         // Reset after 2 seconds
-        setTimeout(() => setCopied(false), 2000);
+        timeoutRef.current = setTimeout(() => {
+          setCopied(false);
+          timeoutRef.current = null;
+        }, 2000);
       } else {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
@@ -50,7 +69,10 @@ const CopyButton: React.FC<CopyButtonProps> = ({
           if (successful) {
             setCopied(true);
             setError(false);
-            setTimeout(() => setCopied(false), 2000);
+            timeoutRef.current = setTimeout(() => {
+              setCopied(false);
+              timeoutRef.current = null;
+            }, 2000);
           } else {
             throw new Error('Copy command failed');
           }
@@ -61,7 +83,10 @@ const CopyButton: React.FC<CopyButtonProps> = ({
     } catch (err) {
       console.error('Failed to copy:', err);
       setError(true);
-      setTimeout(() => setError(false), 2000);
+      timeoutRef.current = setTimeout(() => {
+        setError(false);
+        timeoutRef.current = null;
+      }, 2000);
     }
   };
 

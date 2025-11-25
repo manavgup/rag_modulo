@@ -60,8 +60,10 @@ class AnswerSynthesizer:
             synthesis_parts.append("### Summary\n")
             synthesis_parts.append(f"Based on the analysis above, {intermediate_answers[0]}")
 
-            for i, answer in enumerate(intermediate_answers[1:], 1):
-                if i == len(intermediate_answers) - 1:
+            remaining_answers = intermediate_answers[1:]
+            for i, answer in enumerate(remaining_answers):
+                if i == len(remaining_answers) - 1:
+                    # Last item in remaining answers
                     synthesis_parts.append(f" Additionally, {answer.lower()}")
                 else:
                     synthesis_parts.append(f" Furthermore, {answer.lower()}")
