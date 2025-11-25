@@ -21,7 +21,7 @@ image:
 # Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>
 # Disabled for GHCR public images
 imagePullSecrets: []
-  # - name: icr-secret
+# - name: icr-secret
 
 # ============================================================================
 # REPLICA COUNTS
@@ -75,7 +75,7 @@ ingress:
             pathType: Prefix
             backend: backend # pragma: allowlist secret
     tls:
-      - secretName: rag-modulo-tls
+      - secretName: rag-modulo-tls # pragma: allowlist secret
         hosts:
           - rag-modulo.example.com
 
