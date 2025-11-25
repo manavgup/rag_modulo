@@ -352,15 +352,19 @@ class SearchService:
 
     def _clean_generated_answer(self, answer: str) -> str:
         """
-        Clean generated answer by removing artifacts and duplicates.
+        Clean generated answer by removing artifacts and duplicates while preserving Markdown.
 
         Removes:
         - " AND " artifacts from query rewriting
-        - Duplicate consecutive words
+        - Duplicate consecutive words (except in Markdown headers)
         - Leading/trailing whitespace
 
         Converts:
         - HTML formatting to Markdown (tables, bold, italic, links, lists, etc.)
+
+        Preserves:
+        - Markdown headers (##, ###, etc.)
+        - Markdown formatting (bold, italic, lists, code blocks, etc.)
 
         This ensures proper rendering in the React frontend which uses ReactMarkdown.
         Issue #655: Support all HTML formatting types, not just tables.
@@ -417,24 +421,59 @@ class SearchService:
                 # Convert HTML to Markdown
                 cleaned = h.handle(cleaned)
 
-        # Remove " AND " artifacts that come from query rewriting
+        # STEP 1: Protect Markdown headers and formatting before cleaning
+        # Extract and protect Markdown headers (##, ###, etc.)
+        markdown_header_pattern = r"^(#{1,6}\s+.+)$"
+        markdown_headers = re.findall(markdown_header_pattern, cleaned, re.MULTILINE)
+        header_placeholders = {}
+
+        for i, header in enumerate(markdown_headers):
+            placeholder = f"__MDHEADER_{i}__"
+            header_placeholders[placeholder] = header
+            cleaned = cleaned.replace(header, placeholder, 1)  # Replace only first occurrence
+
+        logger.debug("Protected %d Markdown headers", len(header_placeholders))
+
+        # STEP 2: Remove " AND " artifacts that come from query rewriting
         # Handle both middle "AND" and trailing "AND"
         cleaned = re.sub(r"\s+AND\s+", " ", cleaned)  # Middle ANDs
         cleaned = re.sub(r"\s+AND$", "", cleaned)  # Trailing AND
 
-        # Remove duplicate consecutive words
-        words = cleaned.split()
-        deduplicated_words = []
-        prev_word = None
+        # STEP 3: Remove duplicate consecutive words (but NOT in protected headers)
+        lines = cleaned.split("\n")
+        processed_lines = []
 
-        for word in words:
-            if not prev_word or word.lower() != prev_word.lower():
-                deduplicated_words.append(word)
-            prev_word = word
+        for line in lines:
+            # Skip deduplication for lines with header placeholders
+            if any(placeholder in line for placeholder in header_placeholders):
+                processed_lines.append(line)
+                continue
 
-        # Join back and clean up any multiple spaces
-        result = " ".join(deduplicated_words)
-        result = re.sub(r"\s+", " ", result).strip()
+            # Process regular lines
+            words = line.split()
+            deduplicated_words = []
+            prev_word = None
+
+            for word in words:
+                if not prev_word or word.lower() != prev_word.lower():
+                    deduplicated_words.append(word)
+                    prev_word = word
+                else:
+                    prev_word = word
+
+            processed_lines.append(" ".join(deduplicated_words))
+
+        result = "\n".join(processed_lines)
+
+        # STEP 4: Restore Markdown headers
+        for placeholder, header in header_placeholders.items():
+            result = result.replace(placeholder, header)
+
+        logger.debug("Restored %d Markdown headers", len(header_placeholders))
+
+        # STEP 5: Clean up any multiple spaces (but preserve newlines)
+        result = re.sub(r" +", " ", result)  # Multiple spaces to single space
+        result = result.strip()
 
         return result
 
@@ -614,8 +653,25 @@ class SearchService:
         # Convert SearchContext to SearchOutput
         logger.debug("Converting SearchContext to SearchOutput")
 
+        # DEBUG: Log answer BEFORE cleaning
+        raw_answer = result_context.generated_answer or ""
+        logger.info("🔍 SEARCH_SERVICE: Raw answer length: %d chars", len(raw_answer))
+        logger.debug("🔍 SEARCH_SERVICE: Raw answer first 200 chars: %s", raw_answer[:200])
+        if "##" in raw_answer or "###" in raw_answer:
+            logger.info("✅ SEARCH_SERVICE: Markdown headers present BEFORE cleaning")
+        else:
+            logger.warning("⚠️ SEARCH_SERVICE: NO Markdown headers BEFORE cleaning")
+
         # Clean the generated answer
-        cleaned_answer = self._clean_generated_answer(result_context.generated_answer or "")
+        cleaned_answer = self._clean_generated_answer(raw_answer)
+
+        # DEBUG: Log answer AFTER cleaning
+        logger.info("🔍 SEARCH_SERVICE: Cleaned answer length: %d chars", len(cleaned_answer))
+        logger.debug("🔍 SEARCH_SERVICE: Cleaned answer first 200 chars: %s", cleaned_answer[:200])
+        if "##" in cleaned_answer or "###" in cleaned_answer:
+            logger.info("✅ SEARCH_SERVICE: Markdown headers PRESERVED after cleaning")
+        else:
+            logger.error("❌ SEARCH_SERVICE: Markdown headers LOST during cleaning!")
 
         # Build SearchOutput from context
         # Convert cot_output from ChainOfThoughtOutput to dict if present
