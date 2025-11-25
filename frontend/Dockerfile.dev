@@ -1,5 +1,9 @@
 # Development Dockerfile for React with optimized hot reloading
-FROM node:18-alpine
+# Security: Use Node.js LTS with Alpine 3.19 for latest security patches
+FROM node:20-alpine3.19
+
+# Security: Update Alpine packages immediately
+RUN apk update && apk upgrade --no-cache
 
 # Set working directory
 WORKDIR /app
