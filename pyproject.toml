@@ -5,7 +5,7 @@ description = "A modular, agentic RAG which allows selection of embeddings, vect
 authors = [
     {name = "Manav Gupta", email = "manavgup@ca.ibm.com"}
 ]
-license = {text = "MIT"}
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
