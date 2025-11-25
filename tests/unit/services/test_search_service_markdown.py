@@ -1,5 +1,6 @@
 """Tests for Markdown preservation in search service."""
 
+import re
 from unittest.mock import Mock
 
 import pytest
