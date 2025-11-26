@@ -80,7 +80,6 @@
   "overrides": {
     "nth-check": ">=2.0.1",
     "postcss": ">=8.4.31",
-    "webpack-dev-server": ">=5.0.4",
     "glob": ">=10.3.10",
     "js-yaml": ">=4.1.0"
   }
