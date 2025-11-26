@@ -1,0 +1,48 @@
+{{- if .Values.milvus.enabled }}
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-milvus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: milvus
+spec:
+  mode: standalone
+
+  # External dependencies
+  dependencies:
+    etcd:
+      external: true
+      endpoints:
+        - etcd.{{ .Release.Namespace }}.svc.cluster.local:2379
+
+    storage:
+      type: MinIO
+      external: true
+      endpoint: minio.{{ .Release.Namespace }}.svc.cluster.local:9000
+      secretRef: minio-credentials
+
+  # Component configuration
+  components:
+    image: milvusdb/milvus:v2.6.5
+    imagePullPolicy: IfNotPresent
+
+    standalone:
+      replicas: 1
+      resources:
+        limits:
+          cpu: "1"
+          memory: 2Gi
+        requests:
+          cpu: 200m
+          memory: 512Mi
+
+  # Milvus configuration
+  config:
+    minio:
+      bucketName: rag-modulo-milvus
+      rootPath: milvus/data
+      useSSL: false
+      useIAM: false
+{{- end }}

@@ -1,0 +1,105 @@
+{{- if and .Values.postgresql.enabled (not .Values.postgresql.useCloudNativePG) }}
+---
+# Simple PostgreSQL StatefulSet (no operator required)
+# Use this for quick deployments when CloudNativePG operator is not installed
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.postgresql.cluster.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  serviceName: {{ .Values.postgresql.cluster.name }}
+  replicas: 1  # Single instance for simplicity
+  selector:
+    matchLabels:
+      app: {{ .Values.postgresql.cluster.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.postgresql.cluster.name }}
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.cluster.name }}-credentials
+              key: database
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.cluster.name }}-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.cluster.name }}-credentials
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.postgresql.cluster.storage.storageClass }}
+      storageClassName: {{ .Values.postgresql.cluster.storage.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.postgresql.cluster.storage.size }}
+---
+# PostgreSQL Service (read-write)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgresql.cluster.name }}-rw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: {{ .Values.postgresql.cluster.name }}
+{{- end }}
