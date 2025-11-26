@@ -67,7 +67,7 @@ class AgentRepository:
                 owner_user_id=owner_user_id,
                 team_id=agent_input.team_id,
                 capabilities=capabilities,
-                metadata=agent_input.metadata or {},
+                agent_metadata=agent_input.metadata or {},
                 status=AgentStatus.ACTIVE,
             )
             self.db.add(agent)

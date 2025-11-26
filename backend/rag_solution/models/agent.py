@@ -57,7 +57,7 @@ class Agent(Base):
         owner_user_id: UUID of the user who owns this agent
         team_id: Optional team association
         capabilities: JSONB array of capability strings
-        metadata: Additional JSONB metadata
+        agent_metadata: Additional JSONB metadata (named to avoid SQLAlchemy reserved word)
         status: Current status (active, suspended, revoked, pending)
         created_at: Timestamp of agent creation
         updated_at: Timestamp of last update
@@ -114,7 +114,8 @@ class Agent(Base):
         default=list,
         comment="Array of capability strings",
     )
-    metadata: Mapped[dict] = mapped_column(
+    agent_metadata: Mapped[dict] = mapped_column(
+        "metadata",  # Maps to 'metadata' column in database
         JSONB,
         nullable=False,
         default=dict,

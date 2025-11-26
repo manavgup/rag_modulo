@@ -112,13 +112,13 @@ class AgentOutput(BaseModel):
     owner_user_id: UUID4
     team_id: UUID4 | None
     capabilities: list[str]
-    metadata: dict
+    metadata: dict = Field(default_factory=dict, validation_alias="agent_metadata")
     status: str
     created_at: datetime
     updated_at: datetime
     last_seen_at: datetime | None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class AgentListResponse(BaseModel):
