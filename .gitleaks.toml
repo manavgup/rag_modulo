@@ -11,7 +11,7 @@ useDefault = true
 [[rules]]
 id = "ibm-cloud-api-key"
 description = "IBM Cloud API Key"
-regex = '''[A-Za-z0-9_-]{44}'''
+regex = '''(?i)(ibm_cloud_api_key|ibmcloud_api_key|IC_API_KEY)\s*[:=]\s*["'][A-Za-z0-9_-]{44}["']'''
 keywords = [
     "ibm_cloud_api_key",
     "ibmcloud_api_key",
@@ -47,6 +47,7 @@ paths = [
     '''\.env\.example$''',      # Env example files
     '''^docs/''',               # Documentation
     '''^tests/fixtures/''',     # Test fixtures
+    '''^test-reports/''',       # Test reports
 ]
 
 # Commits to exclude (if any)
