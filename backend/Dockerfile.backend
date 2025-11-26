@@ -87,9 +87,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy Poetry config from project root (moved from backend/ in Issue #501)
 COPY pyproject.toml poetry.lock ./
 
-# Add CACHE_BUST argument to invalidate cache
-ARG CACHE_BUST
-RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy only essential application files from backend directory
 COPY backend/main.py backend/healthcheck.py ./
