@@ -12,6 +12,7 @@ from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
+    from rag_solution.models.agent import Agent
     from rag_solution.models.user_team import UserTeam
 
 
@@ -25,6 +26,7 @@ class Team(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     users: Mapped[list[UserTeam]] = relationship("UserTeam", back_populates="team")
+    agents: Mapped[list[Agent]] = relationship("Agent", back_populates="team")
 
     def __repr__(self) -> str:
         return f"Team(id='{self.id}', name='{self.name}')"

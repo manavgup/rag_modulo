@@ -27,6 +27,7 @@ from core.loggingcors_middleware import LoggingCORSMiddleware
 
 # Database
 from rag_solution.file_management.database import Base, engine, get_db
+from rag_solution.router.agent_router import router as agent_router
 
 # Models
 from rag_solution.router.auth_router import router as auth_router
@@ -222,6 +223,7 @@ app.include_router(search_router)
 app.include_router(token_warning_router)
 app.include_router(voice_router)
 app.include_router(websocket_router)
+app.include_router(agent_router)
 
 
 # Root endpoint

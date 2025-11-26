@@ -51,6 +51,7 @@ dependencies = [
     "sentence-transformers (>=5.1.2,<6.0.0)",
     "tiktoken (>=0.12.0,<0.13.0)",
     "html2text (>=2025.4.15,<2026.0.0)",
+    "spiffe (>=0.2.2,<0.3.0)",  # SPIFFE/SPIRE workload identity for agent authentication
 ]
 
 [tool.poetry]

@@ -1,0 +1,169 @@
+# Docker Compose for SPIRE Development Environment
+# Reference: docs/architecture/spire-integration-architecture.md
+#
+# This docker-compose file sets up SPIRE Server and Agent for local development
+# of RAG Modulo's agent authentication system.
+
+version: "3.8"
+
+services:
+  # SPIRE Server - manages trust domain and issues SVIDs
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.11.1
+    container_name: rag-modulo-spire-server
+    hostname: spire-server
+    volumes:
+      - ./server.conf:/etc/spire/server/server.conf:ro
+      - spire-server-data:/var/lib/spire/server
+      - spire-server-socket:/tmp/spire-server/private
+    ports:
+      - "8081:8081" # SPIRE Server API
+      - "8080:8080" # Health check
+      - "9988:9988" # Prometheus metrics
+    command:
+      - -config
+      - /etc/spire/server/server.conf
+    environment:
+      - SPIRE_DB_CONNECTION_STRING=${SPIRE_DB_CONNECTION_STRING:-postgres://spire:spire_password@spire-db:5432/spire?sslmode=disable}
+    depends_on:
+      spire-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "/opt/spire/bin/spire-server"
+        - "healthcheck"
+        - "-shallow"
+        - "-socketPath"
+        - "/tmp/spire-server/private/api.sock"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-modulo-spire
+
+  # SPIRE Agent - runs on workload nodes and provides Workload API
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.11.1
+    container_name: rag-modulo-spire-agent
+    hostname: spire-agent
+    volumes:
+      - ./agent.conf:/etc/spire/agent/agent.conf:ro
+      - spire-agent-data:/var/lib/spire/agent
+      - spire-agent-socket:/run/spire/sockets
+      - spire-bundle:/run/spire/bundle:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8089:8080" # Health check (different port to avoid conflict)
+      - "9989:9989" # Prometheus metrics
+    command:
+      - -config
+      - /etc/spire/agent/agent.conf
+    depends_on:
+      spire-server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "/opt/spire/bin/spire-agent"
+        - "healthcheck"
+        - "-shallow"
+        - "-socketPath"
+        - "/run/spire/sockets/agent.sock"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-modulo-spire
+
+  # PostgreSQL database for SPIRE Server
+  spire-db:
+    image: postgres:15-alpine
+    container_name: rag-modulo-spire-db
+    hostname: spire-db
+    environment:
+      POSTGRES_USER: spire
+      POSTGRES_PASSWORD: ${SPIRE_DB_PASSWORD:-spire_password}
+      POSTGRES_DB: spire
+    volumes:
+      - spire-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # Different port to avoid conflict with main PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spire -d spire"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - rag-modulo-spire
+
+  # SPIRE Server bootstrap job - creates initial registration entries
+  spire-bootstrap:
+    image: ghcr.io/spiffe/spire-server:1.11.1
+    container_name: rag-modulo-spire-bootstrap
+    volumes:
+      - spire-server-socket:/tmp/spire-server/private:ro
+      - ./registration-entries:/etc/spire/entries:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for SPIRE Server to be ready..."
+        sleep 10
+
+        echo "Creating agent node registration entry..."
+        /opt/spire/bin/spire-server entry create \
+          -socketPath /tmp/spire-server/private/api.sock \
+          -spiffeID spiffe://rag-modulo.example.com/spire/agent/unix \
+          -parentID spiffe://rag-modulo.example.com/spire/server \
+          -selector unix:uid:0 \
+          -node || echo "Agent entry may already exist"
+
+        echo "Creating backend-api workload entry..."
+        /opt/spire/bin/spire-server entry create \
+          -socketPath /tmp/spire-server/private/api.sock \
+          -spiffeID spiffe://rag-modulo.example.com/workload/backend-api \
+          -parentID spiffe://rag-modulo.example.com/spire/agent/unix \
+          -selector docker:label:app:rag-modulo-backend || echo "Backend entry may already exist"
+
+        echo "Creating search-enricher agent entry..."
+        /opt/spire/bin/spire-server entry create \
+          -socketPath /tmp/spire-server/private/api.sock \
+          -spiffeID spiffe://rag-modulo.example.com/agent/search-enricher/default \
+          -parentID spiffe://rag-modulo.example.com/spire/agent/unix \
+          -selector docker:label:agent-type:search-enricher || echo "Search enricher entry may already exist"
+
+        echo "Creating cot-reasoning agent entry..."
+        /opt/spire/bin/spire-server entry create \
+          -socketPath /tmp/spire-server/private/api.sock \
+          -spiffeID spiffe://rag-modulo.example.com/agent/cot-reasoning/default \
+          -parentID spiffe://rag-modulo.example.com/spire/agent/unix \
+          -selector docker:label:agent-type:cot-reasoning || echo "CoT reasoning entry may already exist"
+
+        echo "Bootstrap complete!"
+    depends_on:
+      spire-server:
+        condition: service_healthy
+    networks:
+      - rag-modulo-spire
+
+volumes:
+  spire-server-data:
+    name: rag-modulo-spire-server-data
+  spire-server-socket:
+    name: rag-modulo-spire-server-socket
+  spire-agent-data:
+    name: rag-modulo-spire-agent-data
+  spire-agent-socket:
+    name: rag-modulo-spire-agent-socket
+  spire-bundle:
+    name: rag-modulo-spire-bundle
+  spire-db-data:
+    name: rag-modulo-spire-db-data
+
+networks:
+  rag-modulo-spire:
+    name: rag-modulo-spire
+    driver: bridge
