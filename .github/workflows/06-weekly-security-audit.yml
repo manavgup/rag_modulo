@@ -49,14 +49,31 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 🏗️ Build Fresh Container (no cache)
+        uses: docker/build-push-action@v6
+        id: build
+        timeout-minutes: 45
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ matrix.image_name }}:audit
+          no-cache: true
+          pull: true
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_STEP_LOG_MAX_SIZE=10485760
+            BUILDKIT_STEP_LOG_MAX_SPEED=10485760
+
+      - name: ✅ Verify Image Built Successfully
         run: |
-          docker buildx build \
-            --file ${{ matrix.dockerfile }} \
-            --tag ${{ matrix.image_name }}:audit \
-            --load \
-            --no-cache \
-            --pull \
-            ${{ matrix.context }}
+          if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${{ matrix.image_name }}:audit$"; then
+            echo "✅ Image ${{ matrix.image_name }}:audit built successfully"
+            docker images ${{ matrix.image_name }}:audit
+          else
+            echo "❌ Error: Image ${{ matrix.image_name }}:audit was not built"
+            exit 1
+          fi
 
       - name: 🔍 Trivy - Deep Vulnerability Scan (All Severities)
         uses: aquasecurity/trivy-action@master
@@ -69,8 +86,10 @@ jobs:
 
       - name: 📤 Upload Trivy Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
+        continue-on-error: true
         with:
           sarif_file: "trivy-${{ matrix.service }}-results.sarif"
+          wait-for-processing: false
 
       - name: 🔍 Trivy - Generate Detailed Report
         uses: aquasecurity/trivy-action@master
