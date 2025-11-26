@@ -50,9 +50,10 @@ class TestDoclingProcessorTokenizerInit:
 
         processor = DoclingProcessor(mock_settings)
 
-        # Verify AutoTokenizer.from_pretrained was called with correct model
+        # Verify AutoTokenizer.from_pretrained was called with correct model and revision
         mock_tokenizer_cls.from_pretrained.assert_called_once_with(
-            "ibm-granite/granite-embedding-english-r2"
+            "ibm-granite/granite-embedding-english-r2",
+            revision="main",
         )
         assert processor.tokenizer == mock_tokenizer
 
