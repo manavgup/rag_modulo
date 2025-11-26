@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -128,20 +128,20 @@ class SPIFFEConfig:
     def from_env(cls) -> SPIFFEConfig:
         """Create SPIFFEConfig from environment variables.
 
-        Environment variables:
+        Environment variables (aligned with .env.example):
             SPIFFE_ENABLED: Enable SPIFFE authentication (default: false)
             SPIFFE_ENDPOINT_SOCKET: Workload API socket path
             SPIFFE_TRUST_DOMAIN: Trust domain name
-            SPIFFE_DEFAULT_AUDIENCES: Comma-separated list of audiences
-            SPIFFE_SVID_TTL: SVID TTL in seconds
+            SPIFFE_JWT_AUDIENCES: Comma-separated list of audiences
+            SPIFFE_SVID_TTL_SECONDS: SVID TTL in seconds
             SPIFFE_FALLBACK_TO_JWT: Enable JWT fallback (default: true)
         """
         enabled = os.getenv("SPIFFE_ENABLED", "false").lower() == "true"
         endpoint_socket = os.getenv("SPIFFE_ENDPOINT_SOCKET", DEFAULT_SPIFFE_ENDPOINT_SOCKET)
         trust_domain = os.getenv("SPIFFE_TRUST_DOMAIN", "rag-modulo.example.com")
-        audiences_str = os.getenv("SPIFFE_DEFAULT_AUDIENCES", "backend-api,mcp-gateway")
+        audiences_str = os.getenv("SPIFFE_JWT_AUDIENCES", "rag-modulo,mcp-gateway")
         default_audiences = [a.strip() for a in audiences_str.split(",") if a.strip()]
-        svid_ttl = int(os.getenv("SPIFFE_SVID_TTL", "3600"))
+        svid_ttl = int(os.getenv("SPIFFE_SVID_TTL_SECONDS", "3600"))
         fallback_to_jwt = os.getenv("SPIFFE_FALLBACK_TO_JWT", "true").lower() == "true"
 
         return cls(
@@ -296,7 +296,7 @@ class AgentPrincipal(BaseModel):
         """
         if self.expires_at is None:
             return False
-        return datetime.now() > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
 
 class SPIFFEAuthenticator:
@@ -410,6 +410,10 @@ class SPIFFEAuthenticator:
         This method validates the JWT-SVID signature against the SPIRE trust bundle
         and extracts the agent identity information.
 
+        SECURITY NOTE: By default, signature validation is REQUIRED. The fallback_to_jwt
+        config option only controls whether we fall back when SPIRE is UNAVAILABLE,
+        NOT when signature validation FAILS. Failed signature validation always rejects.
+
         Args:
             token: The JWT-SVID token string
             required_audience: Optional audience that must be present in the token
@@ -427,6 +431,21 @@ class SPIFFEAuthenticator:
                 logger.debug("Token is not a SPIFFE JWT-SVID")
                 return None
 
+            # Validate trust domain matches our configuration
+            match = SPIFFE_ID_PATTERN.match(subject)
+            if not match:
+                logger.warning("Invalid SPIFFE ID format in token: %s", subject)
+                return None
+
+            token_trust_domain = match.group(1)
+            if token_trust_domain != self.config.trust_domain:
+                logger.warning(
+                    "SPIFFE ID trust domain mismatch: expected %s, got %s",
+                    self.config.trust_domain,
+                    token_trust_domain,
+                )
+                return None
+
             # Validate audience if required
             audiences = unverified.get("aud", [])
             if isinstance(audiences, str):
@@ -436,32 +455,49 @@ class SPIFFEAuthenticator:
                 logger.warning("JWT-SVID missing required audience: %s", required_audience)
                 return None
 
-            # If SPIRE is available, validate signature using trust bundle
+            # Signature validation - CRITICAL SECURITY CHECK
+            signature_validated = False
+
             if self.is_available:
                 try:
-                    # Use workload client to validate
+                    # Use workload client to validate signature with trust bundle
                     with self._workload_client as client:
                         jwt_bundle = client.fetch_jwt_bundles()
-                        # Extract trust domain from subject
-                        match = SPIFFE_ID_PATTERN.match(subject)
-                        if match:
-                            trust_domain = match.group(1)
-                            bundle = jwt_bundle.get_bundle_for_trust_domain(trust_domain)
-                            if bundle:
-                                # Validate token with bundle
-                                bundle.validate_jwt_svid(token, audiences=set(audiences) if audiences else None)
+                        bundle = jwt_bundle.get_bundle_for_trust_domain(token_trust_domain)
+                        if bundle:
+                            # Validate token signature with bundle
+                            bundle.validate_jwt_svid(token, audiences=set(audiences) if audiences else None)
+                            signature_validated = True
+                            logger.debug("JWT-SVID signature validated successfully")
+                        else:
+                            logger.error("No trust bundle found for domain: %s", token_trust_domain)
+                            return None
                 except Exception as e:
-                    logger.warning("Failed to validate JWT-SVID with trust bundle: %s", e)
-                    if not self.config.fallback_to_jwt:
-                        return None
+                    # SECURITY: Signature validation FAILED - always reject
+                    logger.error(
+                        "JWT-SVID signature validation FAILED: %s. Token rejected for security.",
+                        e,
+                    )
+                    return None
+            else:
+                # SPIRE is not available
+                if self.config.fallback_to_jwt:
+                    # Allow fallback only when SPIRE is unavailable (not when validation fails)
+                    logger.warning(
+                        "SPIRE unavailable, accepting token without signature validation. "
+                        "This is ONLY safe in development environments."
+                    )
+                else:
+                    logger.error("SPIRE unavailable and fallback disabled. Token rejected.")
+                    return None
 
-            # Extract timestamps
+            # Extract timestamps with UTC timezone
             issued_at = None
             expires_at = None
             if "iat" in unverified:
-                issued_at = datetime.fromtimestamp(unverified["iat"])
+                issued_at = datetime.fromtimestamp(unverified["iat"], tz=UTC)
             if "exp" in unverified:
-                expires_at = datetime.fromtimestamp(unverified["exp"])
+                expires_at = datetime.fromtimestamp(unverified["exp"], tz=UTC)
 
             # Create agent principal from SPIFFE ID
             principal = AgentPrincipal.from_spiffe_id(
@@ -469,7 +505,10 @@ class SPIFFEAuthenticator:
                 audiences=audiences,
                 issued_at=issued_at,
                 expires_at=expires_at,
-                metadata={"raw_claims": unverified},
+                metadata={
+                    "raw_claims": unverified,
+                    "signature_validated": signature_validated,
+                },
             )
 
             # Check expiration
@@ -566,3 +605,111 @@ def get_spiffe_authenticator() -> SPIFFEAuthenticator:
     if _authenticator is None:
         _authenticator = SPIFFEAuthenticator()
     return _authenticator
+
+
+def require_capabilities(
+    *required_capabilities: AgentCapability,
+    require_all: bool = True,
+) -> Any:
+    """Decorator to enforce capability requirements on endpoint handlers.
+
+    This decorator checks if the authenticated agent has the required capabilities
+    before allowing access to the endpoint. It works with FastAPI's dependency
+    injection system.
+
+    Args:
+        *required_capabilities: One or more capabilities required to access the endpoint
+        require_all: If True, all capabilities are required. If False, any one suffices.
+
+    Returns:
+        FastAPI dependency that validates capabilities
+
+    Example:
+        @router.post("/search")
+        @require_capabilities(AgentCapability.SEARCH_READ)
+        async def search_endpoint(request: Request):
+            ...
+
+        @router.post("/admin")
+        @require_capabilities(AgentCapability.ADMIN, AgentCapability.SEARCH_WRITE, require_all=True)
+        async def admin_endpoint(request: Request):
+            ...
+    """
+    from functools import wraps
+
+    from fastapi import HTTPException, Request, status
+
+    def decorator(func: Any) -> Any:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Find the request object in args or kwargs
+            request: Request | None = None
+            for arg in args:
+                if isinstance(arg, Request):
+                    request = arg
+                    break
+            if request is None:
+                request = kwargs.get("request")
+
+            if request is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Request object not found in handler",
+                )
+
+            # Check if request has agent principal
+            agent_principal: AgentPrincipal | None = getattr(request.state, "agent_principal", None)
+
+            if agent_principal is None:
+                # Not an agent request - check if we should allow user requests
+                user = getattr(request.state, "user", None)
+                if user:
+                    # User requests are allowed by default (they have implicit capabilities)
+                    return await func(*args, **kwargs)
+
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
+                )
+
+            # Verify agent has required capabilities
+            if require_all:
+                has_permission = agent_principal.has_all_capabilities(list(required_capabilities))
+            else:
+                has_permission = agent_principal.has_any_capability(list(required_capabilities))
+
+            if not has_permission:
+                capability_names = [cap.value for cap in required_capabilities]
+                mode = "all of" if require_all else "any of"
+                logger.warning(
+                    "Agent %s denied access: missing %s capabilities %s (has: %s)",
+                    agent_principal.spiffe_id,
+                    mode,
+                    capability_names,
+                    [cap.value for cap in agent_principal.capabilities],
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Agent lacks required capabilities: {capability_names}",
+                )
+
+            return await func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def get_agent_principal_from_request(request: Any) -> AgentPrincipal | None:
+    """Extract agent principal from request state if present.
+
+    This is a utility function for handlers that need to check agent identity
+    without requiring it.
+
+    Args:
+        request: FastAPI Request object
+
+    Returns:
+        AgentPrincipal if request is from an authenticated agent, None otherwise
+    """
+    return getattr(request.state, "agent_principal", None)

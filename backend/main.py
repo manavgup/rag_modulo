@@ -241,6 +241,80 @@ async def root() -> dict[str, str]:
 # -------------------------------------------
 # 📊 CUSTOM OPENAPI SCHEMA
 # -------------------------------------------
+
+# OpenAPI tag metadata for improved documentation organization
+OPENAPI_TAGS = [
+    {
+        "name": "health",
+        "description": "Health check endpoints for monitoring service availability",
+    },
+    {
+        "name": "auth",
+        "description": "Authentication and authorization endpoints",
+    },
+    {
+        "name": "users",
+        "description": "User management and profile operations",
+    },
+    {
+        "name": "teams",
+        "description": "Team management and membership operations",
+    },
+    {
+        "name": "collections",
+        "description": "Document collection management and configuration",
+    },
+    {
+        "name": "search",
+        "description": "RAG search operations with Chain of Thought reasoning",
+    },
+    {
+        "name": "chat",
+        "description": "Conversational AI chat interface",
+    },
+    {
+        "name": "conversations",
+        "description": "Conversation history and session management",
+    },
+    {
+        "name": "agents",
+        "description": (
+            "AI agent management with SPIFFE/SPIRE workload identity. "
+            "Provides registration, capability management, and JWT-SVID validation "
+            "for machine-to-machine authentication."
+        ),
+        "externalDocs": {
+            "description": "SPIFFE Integration Architecture",
+            "url": "https://spiffe.io/docs/latest/spire-about/spire-concepts/",
+        },
+    },
+    {
+        "name": "podcast",
+        "description": "AI-powered podcast generation from document collections",
+    },
+    {
+        "name": "voice",
+        "description": "Voice synthesis and audio preview operations",
+    },
+    {
+        "name": "dashboard",
+        "description": "Dashboard data and analytics endpoints",
+    },
+    {
+        "name": "runtime-config",
+        "description": "Runtime configuration management",
+    },
+    {
+        "name": "token-warning",
+        "description": "Token usage warnings and limits",
+    },
+    {
+        "name": "websocket",
+        "description": "WebSocket connections for real-time updates",
+    },
+]
+
+
 def custom_openapi() -> dict[str, Any]:
     """Generate custom OpenAPI schema for the application.
 
@@ -258,6 +332,7 @@ def custom_openapi() -> dict[str, Any]:
         version=app.version,
         description=app.description,
         routes=app.routes,
+        tags=OPENAPI_TAGS,
     )
     app.openapi_schema = openapi_schema
     return app.openapi_schema
