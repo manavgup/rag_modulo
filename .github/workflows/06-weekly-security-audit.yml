@@ -125,7 +125,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 📥 Download Security Reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: security-reports
 
