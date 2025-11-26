@@ -117,11 +117,11 @@ jobs:
           push: false
           load: true
           tags: ${{ matrix.image_name }}:${{ github.sha }}
-          no-cache: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            CACHE_BUST=${{ github.run_number }}
 
       # Move cache to optimize for next run (temp workaround for actions/cache#828)
       - name: 💾 Save BuildKit Cache
