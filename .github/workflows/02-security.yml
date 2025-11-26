@@ -51,7 +51,7 @@ jobs:
 
       # 1️⃣ Run TruffleHog to detect verified secrets
       - name: 🔍 Run TruffleHog
-        uses: trufflesecurity/trufflehog@v3.90.13
+        uses: trufflesecurity/trufflehog@v3.91.1
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
