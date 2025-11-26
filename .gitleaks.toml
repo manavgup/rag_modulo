@@ -48,6 +48,7 @@ paths = [
     '''^docs/''',               # Documentation
     '''^tests/fixtures/''',     # Test fixtures
     '''^test-reports/''',       # Test reports
+    '''\.secrets\.baseline$''', # detect-secrets baseline file (contains hashed secrets)
 ]
 
 # Commits to exclude (if any)
