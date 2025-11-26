@@ -120,3 +120,17 @@ uv.lock
 archive/
 .secrets
 .vars
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+*.tfplan
+
+# Helm
+deployment/helm/*/charts/
+
+# Session/temporary documentation
+*_HANDOFF.md
+*_IMPLEMENTATION_PLAN.md
