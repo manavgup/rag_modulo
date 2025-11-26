@@ -767,7 +767,9 @@ quick-check: venv
 security-check: venv
 	@echo "$(CYAN)🔒 Running security checks...$(NC)"
 	@$(POETRY) run bandit -r backend/rag_solution/ -ll || echo "$(YELLOW)⚠️  Security issues found$(NC)"
-	@$(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
+	# Note: Using deprecated 'check' instead of 'scan' because scan requires Safety CLI authentication.
+	# TODO: Migrate to 'safety scan' with authentication when CI/CD authentication is configured.
+	@$(POETRY) run safety check --file poetry.lock 2>&1 | grep -v -E "DEPRECATED|deprecated|highly encourage|unsupported|June 2024" || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
 pre-commit-run: venv
