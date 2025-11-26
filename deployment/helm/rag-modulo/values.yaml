@@ -264,12 +264,14 @@ minio:
       cpu: 500m
       memory: 1Gi
   # Credentials (stored in Secret)
-  # ⚠️ SECURITY: Default credentials (minioadmin) MUST be changed in production!
-  # Set rootUser and rootPassword to secure values or use existingSecret
-  auth:  # pragma: allowlist secret
-    rootUser: minioadmin # ⚠️ CHANGE IN PRODUCTION  # pragma: allowlist secret
-    rootPassword: minioadmin # ⚠️ CHANGE IN PRODUCTION  # pragma: allowlist secret
-    existingSecret: "" # If empty, uses rootUser/rootPassword above
+  # ⚠️ SECURITY: Credentials MUST be explicitly set or use existingSecret
+  # Option 1: Set rootUser and rootPassword explicitly
+  # Option 2: Use existingSecret (recommended for production)
+  # Both cannot be empty - validation will fail if neither is provided
+  auth:
+    rootUser: "" # REQUIRED: Set to secure value or use existingSecret
+    rootPassword: "" # REQUIRED: Set to secure value or use existingSecret
+    existingSecret: "" # If set, uses this secret instead of rootUser/rootPassword
 
 # ============================================================================
 # MLFLOW (Experiment Tracking)

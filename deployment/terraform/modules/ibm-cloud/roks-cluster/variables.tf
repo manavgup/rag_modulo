@@ -159,13 +159,18 @@ variable "kms_private_endpoint" {
 
 # Security Group Configuration
 variable "allowed_cidr_blocks" {
-  description = "List of CIDR blocks allowed for inbound HTTP/HTTPS traffic (default: 0.0.0.0/0 for public access)"
+  description = "List of CIDR blocks allowed for inbound HTTP/HTTPS traffic. ⚠️ SECURITY: 0.0.0.0/0 is not allowed in production environments!"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 
   validation {
     condition     = length(var.allowed_cidr_blocks) > 0
     error_message = "At least one CIDR block must be specified."
+  }
+
+  validation {
+    condition = var.environment != "production" || !contains(var.allowed_cidr_blocks, "0.0.0.0/0")
+    error_message = "Security violation: 0.0.0.0/0 is not allowed in production. Specify restricted CIDR blocks."
   }
 }
 

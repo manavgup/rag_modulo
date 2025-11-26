@@ -1,4 +1,11 @@
 {{- if .Values.minio.enabled }}
+{{- if not .Values.minio.auth.existingSecret }}
+{{- if not .Values.minio.auth.rootUser }}
+{{- fail "MinIO rootUser must be provided via .Values.minio.auth.rootUser or .Values.minio.auth.existingSecret must be set" }}
+{{- end }}
+{{- if not .Values.minio.auth.rootPassword }}
+{{- fail "MinIO rootPassword must be provided via .Values.minio.auth.rootPassword or .Values.minio.auth.existingSecret must be set" }}
+{{- end }}
 ---
 # MinIO Secret (credentials)
 apiVersion: v1
@@ -12,7 +19,8 @@ metadata:
 type: Opaque
 stringData:
   rootUser: {{ .Values.minio.auth.rootUser }}
-  rootPassword: {{ .Values.minio.auth.rootPassword | default (randAlphaNum 32) }}
+  rootPassword: {{ .Values.minio.auth.rootPassword }}
+{{- end }}
 ---
 # MinIO StatefulSet (Standalone mode for dev)
 apiVersion: apps/v1
@@ -46,12 +54,12 @@ spec:
         - name: MINIO_ROOT_USER
           valueFrom:
             secretKeyRef:
-              name: minio-credentials
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
               key: rootUser
         - name: MINIO_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: minio-credentials
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
               key: rootPassword
         ports:
         - containerPort: 9000
@@ -134,12 +142,12 @@ spec:
         - name: MINIO_ROOT_USER
           valueFrom:
             secretKeyRef:
-              name: minio-credentials
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
               key: rootUser
         - name: MINIO_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: minio-credentials
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
               key: rootPassword
         command:
         - /bin/sh
