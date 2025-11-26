@@ -18,6 +18,7 @@ This guide covers common Docker and container-related issues in RAG Modulo, incl
 RAG Modulo uses Docker Compose for orchestrating multiple containers:
 
 **Services**:
+
 - `backend`: FastAPI application (port 8000)
 - `frontend`: React/Nginx (port 3000/8080)
 - `postgres`: PostgreSQL database (port 5432)
@@ -27,6 +28,7 @@ RAG Modulo uses Docker Compose for orchestrating multiple containers:
 - `mlflow-server`: Model tracking (port 5001)
 
 **Docker Compose Files**:
+
 - `./docker-compose.yml` - Production deployment
 - `./docker-compose-infra.yml` - Infrastructure services
 - `./docker-compose.dev.yml` - Development overrides
@@ -37,6 +39,7 @@ RAG Modulo uses Docker Compose for orchestrating multiple containers:
 ### Issue 1: Container Immediately Exits
 
 **Symptoms**:
+
 ```bash
 $ docker compose ps
 NAME                     STATUS
@@ -72,6 +75,7 @@ docker compose exec backend env | grep COLLECTIONDB
 ```
 
 **Solution**:
+
 ```bash
 # Copy example .env
 cp .env.example .env
@@ -121,6 +125,7 @@ docker compose logs backend | grep -i error
 ```
 
 **Solution**:
+
 ```bash
 # Check PYTHONPATH in Dockerfile
 cat backend/Dockerfile.backend | grep PYTHONPATH
@@ -135,6 +140,7 @@ lsof -i :8000 || netstat -tuln | grep 8000
 ### Issue 2: Container Health Check Failures
 
 **Symptoms**:
+
 ```bash
 $ docker compose ps
 NAME                     STATUS
@@ -171,6 +177,7 @@ docker compose logs backend | tail -50
 ```
 
 **Solution**:
+
 ```bash
 # Restart backend
 docker compose restart backend
@@ -193,6 +200,7 @@ backend:
 ### Issue 3: Container Restarts Continuously
 
 **Symptoms**:
+
 ```bash
 $ docker compose ps
 NAME                     STATUS
@@ -228,6 +236,7 @@ journalctl -u docker | grep oom
 ```
 
 **Solution**:
+
 ```yaml
 # Increase memory limit
 # File: docker-compose.yml
@@ -257,6 +266,7 @@ backend:
 ### Issue 1: Cannot Connect to Database
 
 **Symptoms**:
+
 ```python
 sqlalchemy.exc.OperationalError: could not connect to server: Connection refused
 ```
@@ -316,6 +326,7 @@ netstat -tuln | grep 5432
 ### Issue 2: Cannot Access Backend from Host
 
 **Symptoms**:
+
 ```bash
 $ curl http://localhost:8000/api/health
 curl: (7) Failed to connect to localhost port 8000: Connection refused
@@ -373,6 +384,7 @@ curl http://localhost:8000/api/health
 ### Issue 3: Container Cannot Reach External APIs
 
 **Symptoms**:
+
 ```python
 httpx.ConnectError: All connection attempts failed
 # When calling WatsonX/OpenAI APIs
@@ -434,6 +446,7 @@ sudo iptables -I DOCKER-USER -p tcp --dport 443 -j ACCEPT
 ### Issue 1: Volume Mount Errors
 
 **Symptoms**:
+
 ```bash
 Error response from daemon: invalid mount config for type "bind": bind source path does not exist
 ```
@@ -483,6 +496,7 @@ services:
 ### Issue 2: Permission Denied Errors
 
 **Symptoms**:
+
 ```bash
 postgres_1  | FATAL: data directory "/var/lib/postgresql/data" has wrong ownership
 backend_1   | PermissionError: [Errno 13] Permission denied: '/app/logs/rag_modulo.log'
@@ -534,6 +548,7 @@ services:
 ### Issue 3: Disk Space Exhausted
 
 **Symptoms**:
+
 ```bash
 Error: No space left on device
 ```
@@ -601,18 +616,20 @@ docker compose up -d
 
 ## Image Build Problems
 
-### Issue 1: Build Fails with CACHE_BUST
+### Issue 1: Build Fails with BACKEND_CACHE_BUST
 
 **Symptoms**:
+
 ```bash
 ERROR: failed to solve: failed to compute cache key:
+# Or cache not invalidating when backend files change
 ```
 
 **Diagnosis**:
 
 ```bash
 # Check Dockerfile
-cat backend/Dockerfile.backend | grep CACHE_BUST
+cat backend/Dockerfile.backend | grep BACKEND_CACHE_BUST
 
 # Try build with no cache
 docker build --no-cache -f backend/Dockerfile.backend -t test-build .
@@ -620,24 +637,47 @@ docker build --no-cache -f backend/Dockerfile.backend -t test-build .
 
 **Solutions**:
 
-**A) Update CACHE_BUST Value**:
+**A) Local Builds** (uses default value):
 
-```dockerfile
-# File: backend/Dockerfile.backend
-ARG CACHE_BUST=20251028  # Change date to force rebuild
-RUN echo "Cache bust: $CACHE_BUST"
+```bash
+# Local builds use default value 'local-build' automatically
+docker build -f backend/Dockerfile.backend -t rag-modulo-backend:latest .
+make build-backend  # Also works - uses default value
 ```
 
-**B) Build with --pull**:
+**B) Force Cache Invalidation**:
+
+```bash
+# Override with a new value to force cache invalidation
+docker build --build-arg BACKEND_CACHE_BUST=$(date +%s) \
+  -f backend/Dockerfile.backend -t rag-modulo-backend:latest .
+```
+
+**C) CI/CD Builds** (content-based invalidation):
+
+```yaml
+# In GitHub Actions workflows, BACKEND_CACHE_BUST is set automatically
+# based on content hash of backend files:
+BACKEND_CACHE_BUST=${{ hashFiles('backend/**/*.py', 'backend/Dockerfile.backend', 'pyproject.toml', 'poetry.lock') }}
+```
+
+**D) Build with --pull**:
 
 ```bash
 # Pull latest base image
 docker build --pull -f backend/Dockerfile.backend -t rag-modulo-backend:latest .
 ```
 
+**Understanding Cache Invalidation Strategy**:
+
+- **Local builds**: Use default `BACKEND_CACHE_BUST=local-build` - cache invalidates only on manual rebuilds
+- **CI builds**: Use content hash - cache invalidates automatically when backend Python files, Dockerfile, or dependency files change
+- **Cache benefits**: Docker layer cache is preserved when backend files are unchanged, significantly speeding up builds
+
 ### Issue 2: Poetry Lock File Issues
 
 **Symptoms**:
+
 ```bash
 ERROR: poetry.lock does not exist or is out of sync with pyproject.toml
 ```
@@ -669,6 +709,7 @@ docker build --build-arg SKIP_LOCK_CHECK=1 -f backend/Dockerfile.backend .
 ### Issue 3: Build Timeouts
 
 **Symptoms**:
+
 ```bash
 ERROR: failed to solve: DeadlineExceeded
 ```
@@ -692,6 +733,7 @@ COMPOSE_HTTP_TIMEOUT=600 docker compose build backend
 ### Issue 1: Backend OOM (Out of Memory)
 
 **Symptoms**:
+
 ```bash
 docker compose ps
 rag-modulo-backend-1     Restarting (137) 1 minute ago
@@ -748,6 +790,7 @@ WEB_CONCURRENCY=2  # Default is 4
 ### Issue 2: CPU Throttling
 
 **Symptoms**:
+
 ```bash
 # Slow response times
 # High CPU usage: docker stats shows 100% CPU
@@ -803,6 +846,7 @@ nginx:
 ### Issue 1: Services Start Out of Order
 
 **Symptoms**:
+
 ```bash
 backend_1 | sqlalchemy.exc.OperationalError: could not connect to server
 # Backend starts before PostgreSQL is ready
@@ -825,6 +869,7 @@ backend:
 ### Issue 2: Circular Dependency
 
 **Symptoms**:
+
 ```bash
 Error: Circular dependency between services:
   service1 depends on service2
@@ -850,6 +895,7 @@ def connect_to_database():
 ### Issue 1: Docker Compose V1 vs V2
 
 **Symptoms**:
+
 ```bash
 docker-compose: command not found
 # Or
@@ -876,6 +922,7 @@ DOCKER_COMPOSE := docker compose
 ### Issue 2: Multiple Compose Files
 
 **症状**:
+
 ```bash
 # Confusion about which services are running
 # Different configurations in different files
@@ -902,6 +949,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml config
 ### Issue 3: Environment Variable Conflicts
 
 **Symptoms**:
+
 ```bash
 # Different values in .env vs docker-compose.yml
 # Variables not being picked up

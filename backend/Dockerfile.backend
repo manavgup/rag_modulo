@@ -75,11 +75,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # BACKEND_CACHE_BUST: Content-based cache invalidation for backend source files
-# This ARG is set by the workflow using hashFiles('backend/**') to invalidate cache
-# when backend source files change. This ensures cache is invalidated only when
-# backend files actually change, preserving Docker layer cache benefits when unchanged.
-# No default value - must be passed from workflow to ensure proper cache invalidation.
-ARG BACKEND_CACHE_BUST
+# This ARG is set by the workflow using hashFiles() to invalidate cache when backend
+# source files change. For local builds, defaults to 'local-build' marker.
+# In CI, this is set to content hash (hashFiles('backend/**/*.py', ...)) ensuring
+# cache is invalidated only when backend files actually change, preserving Docker
+# layer cache benefits when unchanged.
+ARG BACKEND_CACHE_BUST=local-build
 
 WORKDIR /app
 
