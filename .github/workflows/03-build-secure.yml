@@ -117,6 +117,7 @@ jobs:
           push: false
           load: true
           tags: ${{ matrix.image_name }}:${{ github.sha }}
+          no-cache: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
