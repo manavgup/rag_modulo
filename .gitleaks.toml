@@ -1,182 +1,53 @@
-# .gitleaks.toml
+# Gitleaks configuration for RAG Modulo
+# Detects secrets in code, including IBM Cloud API keys, AWS keys, and more
 
+title = "RAG Modulo Gitleaks Configuration"
+
+[extend]
+# Use default Gitleaks rules
+useDefault = true
+
+# Additional custom rules for IBM Cloud and infrastructure secrets
+[[rules]]
+id = "ibm-cloud-api-key"
+description = "IBM Cloud API Key"
+regex = '''[A-Za-z0-9_-]{44}'''
+keywords = [
+    "ibm_cloud_api_key",
+    "ibmcloud_api_key",
+    "IC_API_KEY",
+]
+
+[[rules]]
+id = "terraform-sensitive-values"
+description = "Terraform sensitive values in .tfvars files"
+path = '''\.tfvars$'''
+regex = '''(?i)(api_key|password|secret|token)\s*=\s*["'][^"']+["']'''
+
+[[rules]]
+id = "ansible-vault-unencrypted"
+description = "Unencrypted secrets in Ansible files"
+path = '''(ansible|playbook).*\.ya?ml$'''
+regex = '''(?i)(api_key|password|secret|token):\s*["']?[A-Za-z0-9_-]{20,}["']?'''
+
+# Allowlist for false positives
 [allowlist]
-description = "Allowlist for paths and commits that are known to be safe."
+description = "Allowlist for safe patterns"
+regexes = [
+    '''YOUR_.*_HERE''',  # Example placeholders
+    '''example\.com''',  # Example domains
+    '''test-.*-key''',   # Test keys
+    '''mock-.*''',       # Mock values
+    '''\$\{.*\}''',      # Environment variable references
+]
+
 paths = [
-    '''gitleaks.toml''',
-    '''(.*?)(go.sum|go.mod|vendor)''',
-    '''(.*?)(package.json|package-lock.json|npm-shrinkwrap.json)''',
-    '''(.*?)(Pipfile|Pipfile.lock|poetry.lock)''',
-    '''(.*?)(Gemfile.lock|gems.locked)''',
-    '''(.*?)(Cargo.lock)''',
-    '''(.*?)(yarn.lock)''',
-    '''(.*?)(composer.lock)''',
-    '''(.*?)(.snap)''',
-    '''(.*?)(\.md|\.txt)''',  # Documentation files
-    '''env\.example''',  # Example env files
-    '''env\..*\.example''',  # env.dev.example, env.jules.example, etc.
-    '''(.*?)test_.*\.py''',  # Test files with fixtures
-    '''(.*?)tests/fixtures/.*''',  # Test fixtures
-    '''deployment/scripts/.*''',  # Deployment scripts with env var templates
-    '''scripts/.*\.sh''',  # All deployment/setup scripts
-    '''scripts/ibm-create-secrets\.sh''',  # IBM secret creation scripts
-    '''deployment/k8s/.*/secrets/.*''',  # Kubernetes secret templates
-    '''\.github/workflows/.*''',  # GitHub Actions workflows (use ${{ secrets.* }})
-    '''docker-compose.*\.yml''',  # Docker compose files with env var templates
-    '''\.env\..*''',  # Environment template files (.env.local, .env.development, etc.)
-    '''(^|/)\.env$''',  # Local .env file (should be in .gitignore anyway)
-    '''(^|/)backend/\.env$''',  # Backend .env file
-    '''(^|/)frontend/\.env$''',  # Frontend .env file
+    '''\.example$''',           # Example files
+    '''\.tfvars\.example$''',   # Terraform example files
+    '''\.env\.example$''',      # Env example files
+    '''^docs/''',               # Documentation
+    '''^tests/fixtures/''',     # Test fixtures
 ]
 
-# Stopwords to avoid false positives
-stopwords = [
-    "example",
-    "sample",
-    "test",
-    "mock",
-    "dummy",
-    "placeholder",
-]
-
-[[rules]]
-    id = "aws-access-token"
-    description = "AWS Access Token"
-    regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
-    tags = ["key", "AWS"]
-
-[[rules]]
-    id = "github-pat"
-    description = "GitHub Personal Access Token"
-    regex = '''ghp_[0-9a-zA-Z]{36}'''
-    tags = ["key", "GitHub"]
-
-[[rules]]
-    id = "github-fine-grained-pat"
-    description = "GitHub Fine-Grained Personal Access Token"
-    regex = '''github_pat_[0-9a-zA-Z]{22}_[0-9a-zA-Z]{59}'''
-    tags = ["key", "GitHub"]
-
-[[rules]]
-    id = "github-app-token"
-    description = "GitHub App Token"
-    regex = '''(ghu|ghs)_[0-9a-zA-Z]{36}'''
-    tags = ["key", "GitHub"]
-
-[[rules]]
-    id = "github-refresh-token"
-    description = "GitHub Refresh Token"
-    regex = '''ghr_[0-9a-zA-Z]{76}'''
-    tags = ["key", "GitHub"]
-
-[[rules]]
-    id = "slack-token"
-    description = "Slack Token"
-    regex = '''xox[baprs]-([0-9a-zA-Z-]{10,48})?'''
-    tags = ["key", "Slack"]
-
-[[rules]]
-    id = "stripe-sk"
-    description = "Stripe Secret Key"
-    regex = '''sk_live_[0-9a-zA-Z]{24}'''
-    tags = ["key", "Stripe"]
-
-[[rules]]
-    id = "stripe-rk"
-    description = "Stripe Restricted Key"
-    regex = '''rk_live_[0-9a-zA-Z]{24}'''
-    tags = ["key", "Stripe"]
-
-[[rules]]
-    id = "private-key"
-    description = "Private Key"
-    regex = '''-----BEGIN ((EC|PGP|OPENSSH|RSA|DSA) )?PRIVATE KEY( BLOCK)?-----'''
-    tags = ["key", "Asymmetric"]
-
-[[rules]]
-    id = "watsonx-api-key"
-    description = "WatsonX API Key"
-    regex = '''(?i)(WATSONX_APIKEY|WATSONX_API_KEY)\s*[=:]\s*['"]?([a-zA-Z0-9_-]{32,})['"]?'''
-    tags = ["key", "WatsonX"]
-
-[[rules]]
-    id = "anthropic-api-key"
-    description = "Anthropic API Key"
-    regex = '''(?i)ANTHROPIC_API_KEY\s*[=:]\s*['"]?(sk-ant-[a-zA-Z0-9_-]{32,})['"]?'''
-    tags = ["key", "Anthropic"]
-
-[[rules]]
-    id = "mlflow-credentials"
-    description = "MLFlow Credentials"
-    regex = '''(?i)MLFLOW_TRACKING_(USERNAME|PASSWORD)\s*[=:]\s*['"]?([^'"\s]{3,})['"]?'''
-    tags = ["credentials", "MLFlow"]
-
-[[rules]]
-    id = "minio-credentials"
-    description = "MinIO Credentials"
-    regex = '''(?i)MINIO_ROOT_(USER|PASSWORD)\s*[=:]\s*['"]?([^'"\s]{3,})['"]?'''
-    tags = ["credentials", "MinIO"]
-
-[[rules]]
-    id = "postgres-password"
-    description = "PostgreSQL Password"
-    regex = '''(?i)(POSTGRES_PASSWORD|COLLECTIONDB_PASSWORD)\s*[=:]\s*['"]?([^'"\s]{3,})['"]?'''
-    tags = ["password", "PostgreSQL"]
-
-[[rules]]
-    id = "jwt-secret-key"
-    description = "JWT Secret Key"
-    regex = '''(?i)JWT_SECRET_KEY\s*[=:]\s*['"]?([a-zA-Z0-9_-]{32,})['"]?'''
-    tags = ["secret", "JWT"]
-
-[[rules]]
-    id = "openai-api-key"
-    description = "OpenAI API Key"
-    regex = '''sk-[a-zA-Z0-9]{48}'''
-    tags = ["key", "OpenAI"]
-
-[[rules]]
-    id = "openai-project-key"
-    description = "OpenAI Project API Key"
-    regex = '''sk-proj-[a-zA-Z0-9]{48}'''
-    tags = ["key", "OpenAI"]
-
-[[rules]]
-    id = "google-gemini-api-key"
-    description = "Google Gemini API Key"
-    regex = '''AIza[0-9A-Za-z\\-_]{35}'''
-    tags = ["key", "Google", "Gemini"]
-
-[[rules]]
-    id = "azure-storage-account-key"
-    description = "Azure Storage Account Key"
-    regex = '''(?i)(AZURE_STORAGE_ACCOUNT_KEY|AZURE_STORAGE_CONNECTION_STRING)\s*[=:]\s*['"]?([a-zA-Z0-9+/=]{88})['"]?'''
-    tags = ["key", "Azure", "Storage"]
-
-[[rules]]
-    id = "azure-subscription-key"
-    description = "Azure Subscription Key"
-    regex = '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
-    keywords = ["azure", "subscription"]
-    tags = ["key", "Azure"]
-
-[[rules]]
-    id = "gcp-service-account-key"
-    description = "GCP Service Account Key (JSON)"
-    regex = '''"type":\s*"service_account"'''
-    keywords = ["private_key", "project_id"]
-    tags = ["key", "GCP", "ServiceAccount"]
-
-[[rules]]
-    id = "gcp-api-key"
-    description = "GCP API Key"
-    regex = '''AIza[0-9A-Za-z\\-_]{35}'''
-    keywords = ["gcp", "google-cloud", "googleapis"]
-    tags = ["key", "GCP"]
-
-[[rules]]
-    id = "high-entropy-strings"
-    description = "High Entropy String (possible secret)"
-    regex = '''[a-zA-Z0-9+/=]{32,}'''
-    entropy = 4.5
-    tags = ["entropy"]
+# Commits to exclude (if any)
+commits = []

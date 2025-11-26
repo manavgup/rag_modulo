@@ -51,6 +51,15 @@ repos:
       - id: detect-secrets
         args: [--baseline .secrets.baseline]
 
+  # Gitleaks - catches secrets missed by detect-secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.1
+    hooks:
+      - id: gitleaks
+        name: Gitleaks secret scanning
+        entry: gitleaks protect --verbose --redact --staged
+        language: system
+
   # Python hooks - must match CI configuration exactly
   # Poetry moved to root (October 2025) - pyproject.toml now at root level
   # CI runs from root with: poetry run ruff check backend/ --config pyproject.toml
