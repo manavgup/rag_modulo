@@ -121,7 +121,7 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            CACHE_BUST=${{ hashFiles('backend/**') }}
+            ${{ matrix.service == 'backend' && format('BACKEND_CACHE_BUST={0}', hashFiles('backend/**')) || '' }}
 
       # Move cache to optimize for next run (temp workaround for actions/cache#828)
       - name: 💾 Save BuildKit Cache
