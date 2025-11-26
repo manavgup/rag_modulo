@@ -127,6 +127,8 @@ archive/
 *.tfstate.backup
 tfplan
 *.tfplan
+*.tfvars
+!*.tfvars.example
 
 # Helm
 deployment/helm/*/charts/

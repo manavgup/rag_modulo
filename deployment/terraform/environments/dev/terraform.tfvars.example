@@ -1,0 +1,7 @@
+# Example Terraform variables for dev environment
+# Copy this file to terraform.tfvars and fill in your actual values
+# DO NOT commit terraform.tfvars to git (it is gitignored)
+
+ibm_cloud_api_key = "YOUR_IBM_CLOUD_API_KEY_HERE"
+region = "us-south"  # or your preferred IBM Cloud region
+environment = "dev"
