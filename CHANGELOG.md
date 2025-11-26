@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Critical Security Vulnerability Remediation** (PR #668): Comprehensive security updates addressing critical and high-severity CVEs
+  - **Python Backend CVEs**:
+    - Updated `starlette >= 0.41.3` (CVE-2025-62727 DoS vulnerability)
+    - Updated `authlib >= 1.3.3` (CVE-2025-59420, CVE-2025-61920, CVE-2025-62706)
+  - **Node.js Frontend CVEs**:
+    - Added dependency overrides for `glob >= 10.3.10` (CVE-2025-64756 command injection)
+    - Added dependency overrides for `js-yaml >= 4.1.0` (CVE-2025-64718 YAML parsing vulnerability)
+    - Updated `webpack-dev-server >= 5.0.4` (CVE-2025-30359, CVE-2025-30360)
+  - **Docker Base Image Updates**:
+    - Backend: Updated to `python:3.12-slim-bookworm` with `apt-get upgrade` for latest security patches
+    - Frontend: Updated to `node:20-alpine3.19` and `nginx:alpine3.19` with `apk upgrade` for latest security patches
+    - Addresses BusyBox vulnerabilities (CVE-2024-58251, CVE-2025-46394), curl vulnerability (CVE-2025-10966), and system library CVEs
+  - **Dependency Management**:
+    - Regenerated `poetry.lock` to sync with security dependency updates
+    - Regenerated `package-lock.json` to sync with Node.js security overrides
+    - Fixed license format deprecation warning in `pyproject.toml` (changed to SPDX expression)
+  - **Impact**: All critical P0 and high P1 vulnerabilities addressed across Python, Node.js, and system dependencies
+
 ### Added
 
 - **Multi-Provider Podcast Audio Generation** (PR #TBD): Comprehensive custom voice support with multi-provider TTS

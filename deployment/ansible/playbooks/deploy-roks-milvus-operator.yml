@@ -1,0 +1,326 @@
+# ==============================================================================
+# RAG Modulo - ROKS Deployment with Milvus Operator
+# ==============================================================================
+# This playbook deploys RAG Modulo to IBM ROKS (Red Hat OpenShift Kubernetes Service)
+# with Milvus Operator for vector database management
+#
+# Prerequisites:
+#   - IBM Cloud CLI (ibmcloud) installed and configured
+#   - OpenShift CLI (oc) installed and logged in
+#   - Helm 3.x installed
+#   - kubectl configured with cluster access
+#
+# Usage:
+#   ansible-playbook deployment/ansible/playbooks/deploy-roks-milvus-operator.yml \
+#     -e target_env=dev \
+#     -e project_version=0.8.0
+# ==============================================================================
+
+- name: Deploy RAG Modulo to ROKS with Milvus Operator
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Environment and version
+    _target_env: "{{ target_env | default('dev') }}"
+    _project_version: "{{ project_version | default('0.8.0') }}"
+
+    # Namespace configuration
+    _app_namespace: "{{ app_namespace | default('rag-modulo') }}"
+    _milvus_operator_namespace: "{{ milvus_operator_namespace | default('milvus-operator') }}"
+
+    # Milvus configuration
+    _milvus_version: "{{ milvus_version | default('v2.6.0') }}"
+    _milvus_cluster_name: "{{ milvus_cluster_name | default('my-release') }}"
+    _milvus_mode: "{{ milvus_mode | default('cluster') }}" # cluster or standalone
+    _milvus_port: "{{ milvus_port | default('19530') }}"
+
+    # Storage configuration
+    _etcd_storage_size: "{{ etcd_storage_size | default('10Gi') }}"
+    _minio_storage_size: "{{ minio_storage_size | default('100Gi') }}"
+
+    # Helm repository
+    _milvus_helm_repo: "https://zilliztech.github.io/milvus-operator/"
+
+    # Image registry
+    _image_registry: "{{ image_registry | default('ghcr.io/manavgup/rag_modulo') }}"
+
+    # Backend configuration (for Helm values)
+    _collectiondb_port: "{{ collectiondb_port | default('5432') }}"
+    _llm_provider: "{{ llm_provider | default('watsonx') }}"
+    _watsonx_url: "{{ watsonx_url | default('https://us-south.ml.cloud.ibm.com') }}"
+
+  tasks:
+    # ==========================================================================
+    # PREREQUISITE CHECKS
+    # ==========================================================================
+    - name: Check OpenShift CLI is available
+      command: oc version
+      register: oc_version
+      changed_when: false
+      failed_when: oc_version.rc != 0
+
+    - name: Check Helm is available
+      command: helm version
+      register: helm_version
+      changed_when: false
+      failed_when: helm_version.rc != 0
+
+    - name: Check cluster connectivity
+      command: oc whoami
+      register: oc_whoami
+      changed_when: false
+      failed_when: oc_whoami.rc != 0
+
+    - name: Display current cluster context
+      debug:
+        msg: "Deploying to cluster as user: {{ oc_whoami.stdout }}"
+
+    # ==========================================================================
+    # MILVUS OPERATOR INSTALLATION
+    # ==========================================================================
+    - name: Create milvus-operator namespace
+      command: oc create namespace "{{ _milvus_operator_namespace }}"
+      register: create_operator_ns
+      failed_when: false
+      changed_when: create_operator_ns.rc == 0
+
+    - name: Create SCC management ClusterRole
+      shell: |
+        cat <<EOF | oc apply -f -
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: milvus-operator-scc-manager
+        rules:
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+          - use
+        EOF
+      register: create_scc_role
+      changed_when: '"created" in create_scc_role.stdout or "configured" in create_scc_role.stdout'
+
+    - name: Grant SCC management permissions to operator service account
+      command: |
+        oc adm policy add-cluster-role-to-user milvus-operator-scc-manager \
+          -z milvus-operator -n {{ _milvus_operator_namespace }}
+      register: grant_scc_mgmt
+      changed_when: true
+
+    - name: Grant anyuid SCC to milvus-operator service account
+      command: |
+        oc adm policy add-scc-to-user anyuid \
+          -z milvus-operator -n {{ _milvus_operator_namespace }}
+      register: grant_operator_scc
+      changed_when: true
+
+    - name: Add Milvus Operator Helm repository
+      command: helm repo add milvus-operator {{ _milvus_helm_repo }}
+      register: add_helm_repo
+      changed_when: '"has been added" in add_helm_repo.stdout'
+      failed_when: false
+
+    - name: Update Helm repositories
+      command: helm repo update milvus-operator
+      register: update_helm_repo
+      changed_when: true
+
+    - name: Install Milvus Operator via Helm
+      command: |
+        helm upgrade --install milvus-operator \
+          milvus-operator/milvus-operator \
+          -n {{ _milvus_operator_namespace }} \
+          --create-namespace \
+          --wait \
+          --timeout 10m
+      register: install_operator
+      changed_when: true
+
+    - name: Wait for Milvus Operator deployment to be ready
+      command: |
+        oc rollout status deployment/milvus-operator \
+          -n {{ _milvus_operator_namespace }} \
+          --timeout=5m
+      register: operator_ready
+      changed_when: false
+
+    # ==========================================================================
+    # APPLICATION NAMESPACE PREPARATION
+    # ==========================================================================
+    - name: Create application namespace
+      command: oc create namespace "{{ _app_namespace }}"
+      register: create_app_ns
+      failed_when: false
+      changed_when: create_app_ns.rc == 0
+
+    - name: Grant anyuid SCC to default service account in app namespace
+      command: |
+        oc adm policy add-scc-to-user anyuid \
+          -z default -n {{ _app_namespace }}
+      register: grant_app_scc
+      changed_when: true
+
+    # ==========================================================================
+    # MILVUS CLUSTER DEPLOYMENT
+    # ==========================================================================
+    - name: Deploy Milvus cluster via Custom Resource
+      shell: |
+        cat <<EOF | oc apply -f -
+        apiVersion: milvus.io/v1beta1
+        kind: Milvus
+        metadata:
+          name: {{ _milvus_cluster_name }}
+          namespace: "{{ _app_namespace }}"
+          labels:
+            app: milvus
+            environment: {{ _target_env }}
+        spec:
+          mode: {{ _milvus_mode }}
+          components:
+            image: milvusdb/milvus:{{ _milvus_version }}
+          config: {}
+          dependencies:
+            msgStreamType: woodpecker
+            etcd:
+              inCluster:
+                deletionPolicy: Retain
+                values:
+                  replicaCount: 3
+                  persistence:
+                    size: {{ _etcd_storage_size }}
+            storage:
+              inCluster:
+                deletionPolicy: Retain
+                values:
+                  mode: distributed
+                  persistence:
+                    size: {{ _minio_storage_size }}
+        EOF
+      register: deploy_milvus
+      changed_when: '"created" in deploy_milvus.stdout or "configured" in deploy_milvus.stdout'
+
+    - name: Wait for Milvus cluster to be healthy
+      command: |
+        oc wait --for=jsonpath='{.status.status}'=Healthy \
+          milvus/{{ _milvus_cluster_name }} \
+          -n {{ _app_namespace }} \
+          --timeout=10m
+      register: milvus_healthy
+      changed_when: false
+      retries: 3
+      delay: 30
+      until: milvus_healthy.rc == 0
+
+    # ==========================================================================
+    # RAG MODULO APPLICATION DEPLOYMENT
+    # ==========================================================================
+    - name: Deploy RAG Modulo via Helm
+      command: |
+        helm upgrade --install rag-modulo \
+          deployment/helm/rag-modulo \
+          --namespace {{ _app_namespace }} \
+          --create-namespace \
+          --set image.backend.repository={{ _image_registry }}/backend \
+          --set image.backend.tag={{ _project_version }} \
+          --set image.frontend.repository={{ _image_registry }}/frontend \
+          --set image.frontend.tag={{ _project_version }} \
+          --set milvus.enabled=false \
+          --set milvus.external.enabled=true \
+          --set milvus.external.host={{ _milvus_cluster_name }}-milvus-proxy.{{ _app_namespace }}.svc.cluster.local \
+          --set milvus.external.port={{ _milvus_port }} \
+          --set backend.env.COLLECTIONDB_PORT={{ _collectiondb_port }} \
+          --set backend.env.LLM_PROVIDER={{ _llm_provider }} \
+          --set backend.env.WATSONX_URL={{ _watsonx_url }} \
+          --timeout 15m \
+          --wait
+      register: deploy_app
+      changed_when: true
+
+    # ==========================================================================
+    # VERIFICATION
+    # ==========================================================================
+    - name: Get Milvus cluster status
+      command: oc get milvus {{ _milvus_cluster_name }} -n {{ _app_namespace }} -o jsonpath='{.status.status}'
+      register: milvus_status
+      changed_when: false
+
+    - name: Get backend pods
+      command: oc get pods -n {{ _app_namespace }} -l app.kubernetes.io/name=backend -o name
+      register: backend_pods
+      changed_when: false
+
+    - name: Get frontend pods
+      command: oc get pods -n {{ _app_namespace }} -l app.kubernetes.io/name=frontend -o name
+      register: frontend_pods
+      changed_when: false
+
+    - name: Get application route
+      command: oc get route -n {{ _app_namespace }} -o jsonpath='{.items[0].spec.host}'
+      register: app_route
+      changed_when: false
+      failed_when: false
+
+    # ==========================================================================
+    # DEPLOYMENT SUMMARY
+    # ==========================================================================
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ========================================
+          RAG Modulo ROKS Deployment Summary
+          ========================================
+          Environment: {{ _target_env }}
+          Version: {{ _project_version }}
+          Namespace: {{ _app_namespace }}
+
+          Milvus Operator:
+            - Namespace: {{ _milvus_operator_namespace }}
+            - Status: {{ operator_ready.stdout }}
+
+          Milvus Cluster:
+            - Name: {{ _milvus_cluster_name }}
+            - Mode: {{ _milvus_mode }}
+            - Status: {{ milvus_status.stdout }}
+            - Version: {{ _milvus_version }}
+            - Endpoint: {{ _milvus_cluster_name }}-milvus-proxy.{{ _app_namespace }}.svc.cluster.local:{{ _milvus_port }}
+
+          Application:
+            - Backend Pods: {{ backend_pods.stdout_lines | length }}
+            - Frontend Pods: {{ frontend_pods.stdout_lines | length }}
+            - Route: {{ app_route.stdout if app_route.stdout else 'Not configured' }}
+
+          Storage:
+            - etcd: {{ _etcd_storage_size }}
+            - MinIO: {{ _minio_storage_size }}
+          ========================================
+
+    - name: Display next steps
+      debug:
+        msg: |
+          ========================================
+          Next Steps:
+          ========================================
+          1. Verify Milvus cluster health:
+             oc get milvus {{ _milvus_cluster_name }} -n {{ _app_namespace }}
+
+          2. Check application pods:
+             oc get pods -n {{ _app_namespace }}
+
+          3. View application logs:
+             oc logs -n {{ _app_namespace }} -l app.kubernetes.io/name=backend --tail=50
+
+          4. Access the application:
+             {{ 'https://' + app_route.stdout if app_route.stdout else 'Configure route first' }}
+
+          5. Scale Milvus cluster (if needed):
+             oc edit milvus {{ _milvus_cluster_name }} -n {{ _app_namespace }}
+          ========================================

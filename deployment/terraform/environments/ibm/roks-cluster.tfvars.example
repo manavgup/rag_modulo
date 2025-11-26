@@ -1,0 +1,34 @@
+# ROKS Cluster Configuration Example
+# Copy this file to roks-cluster.tfvars and update with your values
+
+# Cluster Configuration
+cluster_name         = "rag-modulo-dev"
+resource_group_name  = "default"
+region              = "ca-tor"  # Toronto region
+environment         = "dev"
+
+# Worker Node Configuration
+# Recommended flavors:
+# - bx2.4x16: 4 vCPUs, 16GB RAM (minimum, ~$150/month per worker)
+# - bx2.8x32: 8 vCPUs, 32GB RAM (recommended, ~$300/month per worker)
+# - bx2.16x64: 16 vCPUs, 64GB RAM (large workloads, ~$600/month per worker)
+
+worker_flavor           = "bx2.8x32"  # 8 vCPUs, 32GB RAM
+worker_count_per_zone  = 2            # 2 x 3 zones = 6 workers total
+openshift_version      = "4.19_openshift"  # Current default (Nov 2025)
+
+# Additional Worker Pool (optional)
+# Useful for separating compute-intensive workloads like Milvus
+create_additional_worker_pool        = false
+additional_worker_flavor            = "bx2.16x64"
+additional_worker_count_per_zone    = 1
+
+# Networking
+enable_public_gateway              = true
+disable_public_service_endpoint    = false
+
+# Storage (optional - for cluster backups)
+# cos_instance_crn = "crn:v1:bluemix:public:cloud-object-storage:global:a/..."
+
+# Tags
+tags = ["environment:dev", "project:rag-modulo", "managed-by:terraform"]

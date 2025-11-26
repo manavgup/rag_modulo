@@ -1,0 +1,168 @@
+{{- if .Values.minio.enabled }}
+{{- if not .Values.minio.auth.existingSecret }}
+{{- if or (not .Values.minio.auth.rootUser) (eq .Values.minio.auth.rootUser "") }}
+{{- fail "MinIO rootUser must be provided via .Values.minio.auth.rootUser (non-empty) or .Values.minio.auth.existingSecret must be set" }}
+{{- end }}
+{{- if or (not .Values.minio.auth.rootPassword) (eq .Values.minio.auth.rootPassword "") }}
+{{- fail "MinIO rootPassword must be provided via .Values.minio.auth.rootPassword (non-empty) or .Values.minio.auth.existingSecret must be set" }}
+{{- end }}
+---
+# MinIO Secret (credentials)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+type: Opaque
+stringData:
+  rootUser: {{ .Values.minio.auth.rootUser }}
+  rootPassword: {{ .Values.minio.auth.rootPassword }}
+{{- end }}
+---
+# MinIO StatefulSet (Standalone mode for dev)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  serviceName: minio
+  replicas: 1  # Standalone mode for dev
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
+              key: rootUser
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
+              key: rootPassword
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.minio.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.minio.storage.storageClass }}
+      storageClassName: {{ .Values.minio.storage.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.minio.storage.size }}
+---
+# MinIO Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: api
+  - port: 9001
+    targetPort: 9001
+    protocol: TCP
+    name: console
+  selector:
+    app: minio
+---
+# MinIO Init Job (Create buckets)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init-{{ .Release.Revision }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: minio-init
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: minio-init
+        image: minio/mc:latest
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
+              key: rootUser
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.minio.auth.existingSecret | default "minio-credentials" }}
+              key: rootPassword
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Waiting for MinIO to be ready..."
+          until mc alias set minio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD; do
+            echo "MinIO not ready yet, waiting..."
+            sleep 5
+          done
+          echo "MinIO is ready! Creating buckets..."
+          {{- range .Values.minio.buckets }}
+          mc mb --ignore-existing minio/{{ .name }}
+          echo "Created bucket: {{ .name }}"
+          {{- end }}
+          echo "All buckets created successfully!"
+{{- end }}

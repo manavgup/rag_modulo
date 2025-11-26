@@ -3,9 +3,9 @@
 
 version: 2
 updates:
-  # Backend Python dependencies
+  # Backend Python dependencies (pyproject.toml moved to project root)
   - package-ecosystem: "pip"
-    directory: "/backend"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -58,9 +58,9 @@ updates:
       - "security"
       - "ci-cd"
 
-  # Docker base images
+  # Docker base images (Dockerfile.codeengine at project root)
   - package-ecosystem: "docker"
-    directory: "/backend"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
