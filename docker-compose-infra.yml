@@ -138,6 +138,57 @@ services:
     networks:
       - app-network
 
+  # Redis for MCP Context Forge gateway caching and session management
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - app-network
+
+  # MCP Context Forge Gateway - Model Context Protocol server
+  # Provides tool discovery and invocation capabilities for RAG enrichment
+  mcp-context-forge:
+    container_name: mcp-context-forge
+    image: ghcr.io/ibm/mcp-context-forge:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Server configuration
+      MCP_SERVER_PORT: 3000
+      MCP_SERVER_HOST: 0.0.0.0
+      # Redis configuration for caching
+      REDIS_URL: redis://redis:6379
+      # JWT authentication (optional - set MCP_JWT_SECRET to enable)
+      MCP_JWT_SECRET: ${MCP_JWT_SECRET:-}
+      # Logging
+      LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
+      # Tool registry
+      MCP_TOOLS_DIR: /app/tools
+    volumes:
+      - mcp_tools:/app/tools
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
     driver_opts:
@@ -158,6 +209,16 @@ volumes:
     driver_opts:
       type: none
       device: ${PWD}/volumes/milvus
+      o: bind
+  redis_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/redis
+      o: bind
+  mcp_tools:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/mcp_tools
       o: bind
 
 networks:

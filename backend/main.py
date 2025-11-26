@@ -34,6 +34,7 @@ from rag_solution.router.auth_router import router as auth_router
 
 # Routers
 from rag_solution.router.chat_router import router as chat_router
+from rag_solution.router.mcp_router import router as mcp_router
 from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.conversation_router import router as conversation_router
 from rag_solution.router.dashboard_router import router as dashboard_router
@@ -248,6 +249,7 @@ app.add_middleware(AuthenticationMiddleware)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(conversation_router)
+app.include_router(mcp_router)
 app.include_router(dashboard_router)
 app.include_router(health_router)
 app.include_router(collection_router)
