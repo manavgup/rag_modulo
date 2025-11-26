@@ -1,10 +1,10 @@
 {{- if .Values.minio.enabled }}
 {{- if not .Values.minio.auth.existingSecret }}
-{{- if not .Values.minio.auth.rootUser }}
-{{- fail "MinIO rootUser must be provided via .Values.minio.auth.rootUser or .Values.minio.auth.existingSecret must be set" }}
+{{- if or (not .Values.minio.auth.rootUser) (eq .Values.minio.auth.rootUser "") }}
+{{- fail "MinIO rootUser must be provided via .Values.minio.auth.rootUser (non-empty) or .Values.minio.auth.existingSecret must be set" }}
 {{- end }}
-{{- if not .Values.minio.auth.rootPassword }}
-{{- fail "MinIO rootPassword must be provided via .Values.minio.auth.rootPassword or .Values.minio.auth.existingSecret must be set" }}
+{{- if or (not .Values.minio.auth.rootPassword) (eq .Values.minio.auth.rootPassword "") }}
+{{- fail "MinIO rootPassword must be provided via .Values.minio.auth.rootPassword (non-empty) or .Values.minio.auth.existingSecret must be set" }}
 {{- end }}
 ---
 # MinIO Secret (credentials)

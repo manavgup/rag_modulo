@@ -130,6 +130,7 @@ tfplan
 *.tfvars
 !*.tfvars.example
 *.auto.tfvars
+.terraform.lock.hcl
 
 # Helm
 deployment/helm/*/charts/
