@@ -278,9 +278,11 @@ class WatsonXLLM(LLMBase):
 
                 # Save full prompt to file for debugging (especially useful for podcast generation)
                 import os
+                import tempfile
                 from datetime import datetime
 
-                debug_dir = "/tmp/watsonx_prompts"
+                # Use system temp directory instead of hardcoded path (Bandit B108)
+                debug_dir = os.path.join(tempfile.gettempdir(), "watsonx_prompts")
                 os.makedirs(debug_dir, exist_ok=True)
 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

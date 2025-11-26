@@ -75,7 +75,7 @@ ingress:
             pathType: Prefix
             backend: backend # pragma: allowlist secret
     tls:
-      - secretName: rag-modulo-tls
+      - secretName: rag-modulo-tls # pragma: allowlist secret
         hosts:
           - rag-modulo.example.com
 

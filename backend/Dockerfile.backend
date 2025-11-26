@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build stage: build rust, install poetry and python dependencies
-FROM python:3.12-slim AS builder
+# Security: Use bookworm (Debian 12) for latest security patches
+FROM python:3.12-slim-bookworm AS builder
 
 # Pre-configure poetry to install to system Python
 ENV PYTHONUNBUFFERED=1 \
@@ -14,14 +15,16 @@ ENV PYTHONUNBUFFERED=1 \
 
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
-# Install system dependencies
+# Install system dependencies and upgrade all packages for security
 RUN apt-get update && \
-    apt-get install -y build-essential curl && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends build-essential curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Rust and poetry
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env \
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . "$HOME/.cargo/env" \
     && curl -sSL https://install.python-poetry.org | python3 -
 
 # Add Rust to PATH
@@ -45,6 +48,7 @@ COPY pyproject.toml poetry.lock ./
 # https://github.com/docling-project/docling/blob/main/Dockerfile
 # Note: We normalize dependency strings by removing spaces before parentheses
 # (e.g., "psutil (>=7.0.0,<8.0.0)" -> "psutil>=7.0.0,<8.0.0")
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); deps = data['project']['dependencies']; print('\n'.join(d.replace(' (', '').replace(')', '') for d in deps))" | \
     xargs pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu
@@ -61,7 +65,14 @@ RUN find /usr/local -name "*.pyc" -delete && \
     find /usr/local -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Final stage - clean runtime
-FROM python:3.12-slim
+# Security: Use bookworm (Debian 12) for latest security patches
+FROM python:3.12-slim-bookworm
+
+# Security: Update system packages immediately
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # CACHE_BUST: Force rebuild to use CPU-only PyTorch (Issue #506)
 # Ensure final stage cache is also invalidated

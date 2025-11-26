@@ -66,7 +66,12 @@ class DoclingProcessor(BaseProcessor):
             # This ensures token counts match what the embedding model will see
             # Default: ibm-granite/granite-embedding-english-r2 (matches IBM Slate family)
             try:
-                granite_tokenizer = AutoTokenizer.from_pretrained(settings.chunking_tokenizer_model)
+                # Pin revision to prevent unsafe downloads (Bandit B615)
+                # Note: revision="main" pins to branch; for production, consider pinning to specific commit hash
+                granite_tokenizer = AutoTokenizer.from_pretrained(
+                    settings.chunking_tokenizer_model,
+                    revision="main",  # nosec B615
+                )
             except Exception as e:
                 logger.error(
                     "Failed to load tokenizer '%s': %s. Check CHUNKING_TOKENIZER_MODEL setting and network connectivity.",

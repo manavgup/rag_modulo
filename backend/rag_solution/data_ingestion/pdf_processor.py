@@ -480,7 +480,8 @@ class PdfProcessor(BaseProcessor):
                     base_image: dict[str, Any] | None = page.parent.extract_image(xref)
                     if base_image:
                         image_bytes: bytes = base_image["image"]
-                        image_hash: str = hashlib.md5(image_bytes).hexdigest()
+                        # MD5 used for image deduplication, not security (Bandit B324)
+                        image_hash: str = hashlib.md5(image_bytes, usedforsecurity=False).hexdigest()
 
                         if image_hash not in self.saved_image_hashes:
                             image_extension: str = base_image["ext"]

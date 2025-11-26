@@ -127,9 +127,11 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
         """
         try:
             import os
+            import tempfile
             from datetime import datetime
 
-            debug_dir = "/tmp/rag_debug"
+            # Use system temp directory instead of hardcoded path (Bandit B108)
+            debug_dir = os.path.join(tempfile.gettempdir(), "rag_debug")
             os.makedirs(debug_dir, exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

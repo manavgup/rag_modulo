@@ -1036,7 +1036,10 @@ class PipelineService:
         """
         try:
             # Create debug directory
-            debug_dir = "/tmp/rag_debug"
+            # Use system temp directory instead of hardcoded path (Bandit B108)
+            import tempfile
+
+            debug_dir = os.path.join(tempfile.gettempdir(), "rag_debug")
             os.makedirs(debug_dir, exist_ok=True)
 
             # Create timestamped filename
