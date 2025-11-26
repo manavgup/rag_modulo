@@ -1,0 +1,93 @@
+{{- if and .Values.etcd.enabled .Values.milvus.enabled }}
+---
+# etcd StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  serviceName: etcd
+  replicas: 1  # Simplified for dev
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+      - name: etcd
+        image: "{{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag }}"
+        command:
+        - etcd
+        - --name=etcd
+        - --data-dir=/etcd-data
+        - --listen-client-urls=http://0.0.0.0:2379
+        - --advertise-client-urls=http://etcd:2379
+        - --listen-peer-urls=http://0.0.0.0:2380
+        - --initial-advertise-peer-urls=http://etcd:2380
+        - --initial-cluster=etcd=http://etcd:2380
+        ports:
+        - containerPort: 2379
+          name: client
+        - containerPort: 2380
+          name: peer
+        volumeMounts:
+        - name: etcd-data
+          mountPath: /etcd-data
+        resources:
+          {{- toYaml .Values.etcd.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 2379
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 2379
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.etcd.storage.storageClass }}
+      storageClassName: {{ .Values.etcd.storage.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.etcd.storage.size }}
+---
+# etcd Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2379
+    targetPort: 2379
+    protocol: TCP
+    name: client
+  - port: 2380
+    targetPort: 2380
+    protocol: TCP
+    name: peer
+  selector:
+    app: etcd
+{{- end }}

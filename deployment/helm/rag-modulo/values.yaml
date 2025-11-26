@@ -18,10 +18,10 @@ image:
     pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries (IBM Container Registry)
-# Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>
+# Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>  # pragma: allowlist secret
 # Disabled for GHCR public images
 imagePullSecrets: []
-  # - name: icr-secret
+# - name: icr-secret
 
 # ============================================================================
 # REPLICA COUNTS
@@ -264,9 +264,25 @@ minio:
       cpu: 500m
       memory: 1Gi
   # Credentials (stored in Secret)
+  # ⚠️ SECURITY: Credentials MUST be explicitly set or use existingSecret
+  # These values should be set from .env file (MINIO_ROOT_USER, MINIO_ROOT_PASSWORD)
+  # 
+  # Usage with .env file:
+  #   source .env
+  #   helm install rag-modulo . \
+  #     --set minio.auth.rootUser=${MINIO_ROOT_USER} \
+  #     --set minio.auth.rootPassword=${MINIO_ROOT_PASSWORD}
+  #
+  # Or use envsubst (requires values.yaml to use ${MINIO_ROOT_USER} syntax):
+  #   envsubst < values.yaml > values-substituted.yaml
+  #   helm install rag-modulo . -f values-substituted.yaml
+  #
+  # Option 2: Use existingSecret (recommended for production)
+  # Both cannot be empty - validation will fail if neither is provided
   auth:
-    rootUser: minioadmin
-    existingSecret: "" # If empty, uses rootUser/rootPassword
+    rootUser: "" # REQUIRED: Set from .env MINIO_ROOT_USER via --set or use existingSecret
+    rootPassword: "" # REQUIRED: Set from .env MINIO_ROOT_PASSWORD via --set or use existingSecret
+    existingSecret: "" # If set, uses this secret instead of rootUser/rootPassword
 
 # ============================================================================
 # MLFLOW (Experiment Tracking)
