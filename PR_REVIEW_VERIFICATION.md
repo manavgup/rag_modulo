@@ -101,5 +101,9 @@ All verification checks have passed:
 3. ✅ poetry.lock is in sync with pyproject.toml
 4. ✅ Security scan shows no vulnerabilities after venv sync
 
-**Note:** The virtual environment needed to be synced (`poetry install --sync`) to match the updated
-dependencies in poetry.lock. This is a common step after updating dependencies.
+**Notes:**
+
+- The virtual environment needed to be synced (`poetry install --sync --with dev`) to match the updated
+  dependencies in poetry.lock and install dev dependencies (bandit, safety).
+- This is a common step after updating dependencies or when dev dependencies are missing.
+- After sync: `make security-check` runs successfully with 0 vulnerabilities reported.
