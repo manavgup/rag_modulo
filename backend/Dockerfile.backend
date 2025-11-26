@@ -74,9 +74,13 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# CACHE_BUST: Force rebuild to use CPU-only PyTorch (Issue #506)
-# Ensure final stage cache is also invalidated
-ARG CACHE_BUST=20251119
+# BACKEND_CACHE_BUST: Content-based cache invalidation for backend source files
+# This ARG is set by the workflow using hashFiles() to invalidate cache when backend
+# source files change. For local builds, defaults to 'local-build' marker.
+# In CI, this is set to content hash (hashFiles('backend/**/*.py', ...)) ensuring
+# cache is invalidated only when backend files actually change, preserving Docker
+# layer cache benefits when unchanged.
+ARG BACKEND_CACHE_BUST=local-build
 
 WORKDIR /app
 
@@ -86,6 +90,11 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy Poetry config from project root (moved from backend/ in Issue #501)
 COPY pyproject.toml poetry.lock ./
+
+# Use BACKEND_CACHE_BUST to invalidate cache before copying backend files
+# This ensures that when backend/** files change, this layer (and subsequent COPY layers)
+# are rebuilt, but when backend files are unchanged, Docker can reuse cached layers.
+RUN echo "Backend content hash (cache invalidation): $BACKEND_CACHE_BUST"
 
 # Copy only essential application files from backend directory
 COPY backend/main.py backend/healthcheck.py ./

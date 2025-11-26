@@ -102,6 +102,44 @@ make prod-logs              # View logs
 - ✅ **Local dev**: Feature development, bug fixes, rapid iteration
 - ✅ **Production**: Docker containers for deployment to staging/production environments
 
+#### Docker Build Cache Invalidation Strategy
+
+The backend Dockerfile uses content-based cache invalidation to optimize build performance:
+
+**Local Builds**:
+
+- Default value `BACKEND_CACHE_BUST=local-build` is used automatically
+- Cache invalidates only on manual rebuilds with `--no-cache` or when Dockerfile changes
+- Fast local iteration without unnecessary cache invalidation
+
+**CI/CD Builds** (GitHub Actions):
+
+- Content-based hash:
+  `BACKEND_CACHE_BUST=${{ hashFiles('backend/**/*.py', 'backend/Dockerfile.backend', 'pyproject.toml', 'poetry.lock') }}`
+- Cache invalidates automatically when:
+  - Backend Python files change (`backend/**/*.py`)
+  - Dockerfile changes (`backend/Dockerfile.backend`)
+  - Dependencies change (`pyproject.toml`, `poetry.lock`)
+- Cache preserved when backend files are unchanged → **faster CI builds** (Issue #349)
+- Targeted pattern excludes `.pyc`, `__pycache__`, `.log` files to avoid unnecessary cache invalidation
+
+**Implementation Details**:
+
+- Builder stage: Uses static `CACHE_BUST=20251119` for PyTorch CPU-only migration (Issue #506)
+- Runtime stage: Uses dynamic `BACKEND_CACHE_BUST` for content-based invalidation
+- Both stages are independent - builder cache separate from runtime cache
+- See `backend/Dockerfile.backend` lines 38 and 82 for ARG declarations
+
+**Manual Cache Invalidation**:
+
+```bash
+# Force cache invalidation for local builds
+docker build --build-arg BACKEND_CACHE_BUST=$(date +%s) \
+  -f backend/Dockerfile.backend -t rag-modulo-backend:latest .
+```
+
+See `docs/troubleshooting/docker.md` for detailed troubleshooting.
+
 ### Testing
 
 #### Test Categories

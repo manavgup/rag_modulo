@@ -237,6 +237,8 @@ local-dev-status:
 
 build-backend:
 	@echo "$(CYAN)🔨 Building backend image...$(NC)"
+	@# Note: BACKEND_CACHE_BUST uses default value 'local-build' from Dockerfile
+	@# For CI builds, this is set via workflow using content hash
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
 		$(CONTAINER_CLI) buildx build --load \
