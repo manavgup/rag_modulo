@@ -18,7 +18,7 @@ image:
     pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries (IBM Container Registry)
-# Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>
+# Created separately: kubectl create secret docker-registry icr-secret --docker-server=<region>.icr.io --docker-username=iamapikey --docker-password=<api-key>  # pragma: allowlist secret
 # Disabled for GHCR public images
 imagePullSecrets: []
 # - name: icr-secret
@@ -264,9 +264,12 @@ minio:
       cpu: 500m
       memory: 1Gi
   # Credentials (stored in Secret)
-  auth:
-    rootUser: minioadmin
-    existingSecret: "" # If empty, uses rootUser/rootPassword
+  # ⚠️ SECURITY: Default credentials (minioadmin) MUST be changed in production!
+  # Set rootUser and rootPassword to secure values or use existingSecret
+  auth:  # pragma: allowlist secret
+    rootUser: minioadmin # ⚠️ CHANGE IN PRODUCTION  # pragma: allowlist secret
+    rootPassword: minioadmin # ⚠️ CHANGE IN PRODUCTION  # pragma: allowlist secret
+    existingSecret: "" # If empty, uses rootUser/rootPassword above
 
 # ============================================================================
 # MLFLOW (Experiment Tracking)

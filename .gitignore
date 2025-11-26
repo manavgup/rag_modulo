@@ -129,6 +129,7 @@ tfplan
 *.tfplan
 *.tfvars
 !*.tfvars.example
+*.auto.tfvars
 
 # Helm
 deployment/helm/*/charts/

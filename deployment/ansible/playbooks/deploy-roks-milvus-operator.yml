@@ -79,9 +79,10 @@
     # MILVUS OPERATOR INSTALLATION
     # ==========================================================================
     - name: Create milvus-operator namespace
-      command: oc create namespace {{ _milvus_operator_namespace }}
+      command: oc create namespace "{{ _milvus_operator_namespace }}"
       register: create_operator_ns
       failed_when: false
+      changed_when: create_operator_ns.rc == 0
       changed_when: create_operator_ns.rc == 0
 
     - name: Create SCC management ClusterRole
@@ -157,7 +158,10 @@
     # APPLICATION NAMESPACE PREPARATION
     # ==========================================================================
     - name: Create application namespace
-      command: oc create namespace {{ _app_namespace }}
+      command: oc create namespace "{{ _app_namespace }}"
+      register: create_app_ns
+      failed_when: false
+      changed_when: create_app_ns.rc == 0
       register: create_app_ns
       failed_when: false
       changed_when: create_app_ns.rc == 0
@@ -179,7 +183,7 @@
         kind: Milvus
         metadata:
           name: {{ _milvus_cluster_name }}
-          namespace: {{ _app_namespace }}
+          namespace: "{{ _app_namespace }}"
           labels:
             app: milvus
             environment: {{ _target_env }}
@@ -242,8 +246,6 @@
           --set backend.env.WATSONX_URL={{ _watsonx_url }} \
           --timeout 15m \
           --wait
-      args:
-        chdir: /Users/mg/mg-work/manav/work/ai-experiments/rag_modulo
       register: deploy_app
       changed_when: true
 

@@ -157,6 +157,24 @@ variable "kms_private_endpoint" {
   default     = false
 }
 
+# Security Group Configuration
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed for inbound HTTP/HTTPS traffic (default: 0.0.0.0/0 for public access)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.allowed_cidr_blocks) > 0
+    error_message = "At least one CIDR block must be specified."
+  }
+}
+
+variable "allowed_icmp_cidr_blocks" {
+  description = "List of CIDR blocks allowed for inbound ICMP traffic (default: 0.0.0.0/0)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 # Tags
 variable "tags" {
   description = "Tags to apply to all resources"

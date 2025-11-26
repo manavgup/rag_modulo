@@ -62,22 +62,24 @@ resource "ibm_is_security_group" "cluster_sg" {
 resource "ibm_is_security_group_rule" "cluster_sg_rule_outbound" {
   group     = ibm_is_security_group.cluster_sg.id
   direction = "outbound"
-  remote    = "0.0.0.0/0"
+  remote    = "0.0.0.0/0"  # Outbound to internet is typically required
 }
 
 resource "ibm_is_security_group_rule" "cluster_sg_rule_inbound_icmp" {
+  count     = length(var.allowed_icmp_cidr_blocks)
   group     = ibm_is_security_group.cluster_sg.id
   direction = "inbound"
-  remote    = "0.0.0.0/0"
+  remote    = var.allowed_icmp_cidr_blocks[count.index]
   icmp {
     type = 8  # Echo request
   }
 }
 
 resource "ibm_is_security_group_rule" "cluster_sg_rule_inbound_https" {
+  count     = length(var.allowed_cidr_blocks)
   group     = ibm_is_security_group.cluster_sg.id
   direction = "inbound"
-  remote    = "0.0.0.0/0"
+  remote    = var.allowed_cidr_blocks[count.index]
   tcp {
     port_min = 443
     port_max = 443
@@ -85,9 +87,10 @@ resource "ibm_is_security_group_rule" "cluster_sg_rule_inbound_https" {
 }
 
 resource "ibm_is_security_group_rule" "cluster_sg_rule_inbound_http" {
+  count     = length(var.allowed_cidr_blocks)
   group     = ibm_is_security_group.cluster_sg.id
   direction = "inbound"
-  remote    = "0.0.0.0/0"
+  remote    = var.allowed_cidr_blocks[count.index]
   tcp {
     port_min = 80
     port_max = 80
