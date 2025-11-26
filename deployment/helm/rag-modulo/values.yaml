@@ -265,12 +265,23 @@ minio:
       memory: 1Gi
   # Credentials (stored in Secret)
   # ⚠️ SECURITY: Credentials MUST be explicitly set or use existingSecret
-  # Option 1: Set rootUser and rootPassword explicitly
+  # These values should be set from .env file (MINIO_ROOT_USER, MINIO_ROOT_PASSWORD)
+  # 
+  # Usage with .env file:
+  #   source .env
+  #   helm install rag-modulo . \
+  #     --set minio.auth.rootUser=${MINIO_ROOT_USER} \
+  #     --set minio.auth.rootPassword=${MINIO_ROOT_PASSWORD}
+  #
+  # Or use envsubst (requires values.yaml to use ${MINIO_ROOT_USER} syntax):
+  #   envsubst < values.yaml > values-substituted.yaml
+  #   helm install rag-modulo . -f values-substituted.yaml
+  #
   # Option 2: Use existingSecret (recommended for production)
   # Both cannot be empty - validation will fail if neither is provided
   auth:
-    rootUser: "" # REQUIRED: Set to secure value or use existingSecret
-    rootPassword: "" # REQUIRED: Set to secure value or use existingSecret
+    rootUser: "" # REQUIRED: Set from .env MINIO_ROOT_USER via --set or use existingSecret
+    rootPassword: "" # REQUIRED: Set from .env MINIO_ROOT_PASSWORD via --set or use existingSecret
     existingSecret: "" # If set, uses this secret instead of rootUser/rootPassword
 
 # ============================================================================
