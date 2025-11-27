@@ -343,7 +343,7 @@ jobs:
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
-          SKIP_AUTH: ${{ secrets.SKIP_AUTH }}
+          SKIP_AUTH: ${{ secrets.SKIP_AUTH || 'false' }}
           OIDC_DISCOVERY_ENDPOINT: ${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
           IBM_CLIENT_ID: ${{ secrets.IBM_CLIENT_ID }}
           IBM_CLIENT_SECRET: ${{ secrets.IBM_CLIENT_SECRET }}
