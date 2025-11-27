@@ -27,9 +27,12 @@ from rag_solution.services.pipeline.search_context import SearchContext
 from rag_solution.services.pipeline.stages import (
     GenerationStage,
     PipelineResolutionStage,
+    PostSearchAgentStage,
+    PreSearchAgentStage,
     QueryEnhancementStage,
     ReasoningStage,
     RerankingStage,
+    ResponseAgentStage,
     RetrievalStage,
 )
 from rag_solution.services.pipeline_service import PipelineService
@@ -573,15 +576,18 @@ class SearchService:
         return await self._search_with_pipeline(search_input)
 
     async def _search_with_pipeline(self, search_input: SearchInput) -> SearchOutput:
-        """New stage-based pipeline architecture (Week 4).
+        """Stage-based pipeline architecture with agent execution hooks.
 
         This method uses the modern pipeline architecture with explicit stages:
         1. PipelineResolutionStage - Resolve user's default pipeline
         2. QueryEnhancementStage - Enhance/rewrite query
-        3. RetrievalStage - Retrieve documents from vector DB
-        4. RerankingStage - Rerank results for relevance
-        5. ReasoningStage - Apply Chain of Thought if needed
-        6. GenerationStage - Generate final answer
+        3. PreSearchAgentStage - Execute pre-search agents (Issue #697)
+        4. RetrievalStage - Retrieve documents from vector DB
+        5. RerankingStage - Rerank results for relevance
+        6. PostSearchAgentStage - Execute post-search agents (Issue #697)
+        7. ReasoningStage - Apply Chain of Thought if needed
+        8. GenerationStage - Generate final answer
+        9. ResponseAgentStage - Execute response agents for artifacts (Issue #697)
 
         Each stage is independent, testable, and modifiable without affecting
         others. This enables easier maintenance, testing, and feature addition.
@@ -590,9 +596,9 @@ class SearchService:
             search_input: The search request
 
         Returns:
-            SearchOutput with answer, documents, and metadata
+            SearchOutput with answer, documents, metadata, and agent artifacts
         """
-        logger.info("✨ Starting NEW pipeline architecture execution")
+        logger.info("✨ Starting pipeline architecture execution with agent hooks")
         logger.info("Question: %s", search_input.question)
 
         # Create initial search context
@@ -603,8 +609,14 @@ class SearchService:
         # Create pipeline executor (pass empty list, stages will be added below)
         executor = PipelineExecutor(stages=[])
 
-        # Add stages in execution order (Week 4 implementation uses all stages)
-        logger.debug("Configuring pipeline with all 6 stages")
+        # Check if agents are enabled (can be disabled via config_metadata)
+        agents_enabled = True
+        if search_input.config_metadata and search_input.config_metadata.get("agents_disabled"):
+            agents_enabled = False
+            logger.info("Agent execution disabled by config_metadata")
+
+        # Add stages in execution order
+        logger.debug("Configuring pipeline with stages (agents_enabled=%s)", agents_enabled)
 
         # Stage 1: Pipeline Resolution - Get user's default pipeline configuration
         executor.add_stage(PipelineResolutionStage(self.pipeline_service))
@@ -612,17 +624,29 @@ class SearchService:
         # Stage 2: Query Enhancement - Rewrite/enhance query for better retrieval
         executor.add_stage(QueryEnhancementStage(self.pipeline_service))
 
-        # Stage 3: Retrieval - Get documents from vector DB
+        # Stage 3: Pre-Search Agents - Query enhancement agents (Issue #697)
+        if agents_enabled:
+            executor.add_stage(PreSearchAgentStage(self.db, self.settings))
+
+        # Stage 4: Retrieval - Get documents from vector DB
         executor.add_stage(RetrievalStage(self.pipeline_service))
 
-        # Stage 4: Reranking - Rerank results for better relevance
+        # Stage 5: Reranking - Rerank results for better relevance
         executor.add_stage(RerankingStage(self.pipeline_service))
 
-        # Stage 5: Reasoning - Apply Chain of Thought if needed
+        # Stage 6: Post-Search Agents - Result enhancement agents (Issue #697)
+        if agents_enabled:
+            executor.add_stage(PostSearchAgentStage(self.db, self.settings))
+
+        # Stage 7: Reasoning - Apply Chain of Thought if needed
         executor.add_stage(ReasoningStage(self.chain_of_thought_service))
 
-        # Stage 6: Generation - Generate final answer from context
+        # Stage 8: Generation - Generate final answer from context
         executor.add_stage(GenerationStage(self.pipeline_service))
+
+        # Stage 9: Response Agents - Artifact generation agents (Issue #697)
+        if agents_enabled:
+            executor.add_stage(ResponseAgentStage(self.db, self.settings))
 
         # Execute pipeline
         logger.info("Executing pipeline with %d stages", len(executor.get_stage_names()))
@@ -654,6 +678,17 @@ class SearchService:
                 else "NO DOCUMENT_NAME",
             )
 
+        # Log agent execution summary if present
+        if result_context.agent_execution_summary:
+            summary = result_context.agent_execution_summary
+            logger.info(
+                "🤖 Agent execution: %d total, %d successful, %d failed in %.2fms",
+                summary.total_agents,
+                summary.successful,
+                summary.failed,
+                summary.total_execution_time_ms,
+            )
+
         search_output = SearchOutput(
             answer=cleaned_answer,
             documents=result_context.document_metadata,
@@ -664,9 +699,12 @@ class SearchService:
             cot_output=cot_output_dict,
             token_warning=result_context.token_warning,
             structured_answer=result_context.structured_answer,
+            agent_artifacts=result_context.agent_artifacts if result_context.agent_artifacts else None,
+            agent_executions=result_context.agent_execution_summary,
             metadata={
-                "pipeline_architecture": "v2_stage_based",
+                "pipeline_architecture": "v2_with_agents",
                 "stages_executed": executor.get_stage_names(),
+                "agents_enabled": agents_enabled,
                 **result_context.metadata,
             },
         )
@@ -674,6 +712,8 @@ class SearchService:
         logger.info("✨ Pipeline execution completed successfully in %.2f seconds", result_context.execution_time)
         logger.info("Generated answer length: %d chars", len(cleaned_answer))
         logger.info("Retrieved documents: %d", len(result_context.query_results))
+        if result_context.agent_artifacts:
+            logger.info("Generated artifacts: %d", len(result_context.agent_artifacts))
 
         return search_output
 

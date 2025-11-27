@@ -16,6 +16,7 @@ from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
 
 if TYPE_CHECKING:
+    from rag_solution.models.agent_config import CollectionAgent
     from rag_solution.models.conversation import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.podcast import Podcast
@@ -62,6 +63,9 @@ class Collection(Base):  # pylint: disable=too-few-public-methods
     )
     podcasts: Mapped[list["Podcast"]] = relationship(
         "Podcast", back_populates="collection", cascade="all, delete-orphan"
+    )
+    agent_associations: Mapped[list["CollectionAgent"]] = relationship(
+        "CollectionAgent", back_populates="collection", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
