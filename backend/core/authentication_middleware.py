@@ -1,7 +1,15 @@
 """Authentication middleware for FastAPI application.
 
 This module provides middleware for handling JWT-based authentication,
-including support for development/testing modes and mock user creation.
+including support for development/testing modes, mock user creation,
+and SPIFFE JWT-SVID authentication for AI agents.
+
+SPIFFE Integration:
+    This middleware supports SPIFFE JWT-SVIDs for agent authentication.
+    When a Bearer token with a SPIFFE ID in the 'sub' claim is detected,
+    it validates the token and creates an agent principal instead of a user.
+
+Reference: docs/architecture/spire-integration-architecture.md
 """
 
 import logging
@@ -19,6 +27,10 @@ from auth.oidc import verify_jwt_token
 from core.config import get_settings
 from core.mock_auth import create_mock_user_data, ensure_mock_user_exists, is_bypass_mode_active, is_mock_token
 from core.request_context import RequestContext
+from core.spiffe_auth import (
+    get_spiffe_authenticator,
+    is_spiffe_jwt_svid,
+)
 
 # Get settings safely for middleware
 settings = get_settings()
@@ -206,8 +218,63 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         logger.info("AuthMiddleware: Using mock test token")
         return True
 
+    def _handle_spiffe_jwt_svid(self, request: Request, token: str) -> bool:
+        """Handle SPIFFE JWT-SVID authentication for agents.
+
+        This method validates a SPIFFE JWT-SVID and sets up the agent
+        principal in the request state.
+
+        Args:
+            request: The FastAPI request object.
+            token: The SPIFFE JWT-SVID token.
+
+        Returns:
+            True if SPIFFE JWT-SVID was handled successfully.
+        """
+        try:
+            authenticator = get_spiffe_authenticator()
+            principal = authenticator.validate_jwt_svid(token)
+
+            if principal is None:
+                logger.warning("AuthMiddleware: Invalid SPIFFE JWT-SVID")
+                return False
+
+            # Check if the agent is expired
+            if principal.is_expired():
+                logger.warning("AuthMiddleware: Expired SPIFFE JWT-SVID for %s", principal.spiffe_id)
+                return False
+
+            # Set agent principal in request state
+            request.state.agent = principal
+            request.state.identity_type = "agent"
+
+            # Also set a unified principal representation for compatibility
+            agent_data = {
+                "identity_type": "agent",
+                "spiffe_id": principal.spiffe_id,
+                "agent_type": principal.agent_type.value,
+                "agent_id": principal.agent_id,
+                "capabilities": [cap.value for cap in principal.capabilities],
+                "audiences": principal.audiences,
+            }
+            request.state.user = agent_data  # For backward compatibility
+            RequestContext.set_user(agent_data)
+
+            logger.info(
+                "AuthMiddleware: SPIFFE JWT-SVID validated successfully. Agent: %s (type: %s)",
+                principal.spiffe_id,
+                principal.agent_type.value,
+            )
+            return True
+        except Exception as e:
+            logger.warning("AuthMiddleware: Error validating SPIFFE JWT-SVID - %s", e)
+            return False
+
     def _handle_jwt_token(self, request: Request, token: str) -> bool:
         """Handle JWT token authentication and cache user data.
+
+        This method handles both traditional user JWTs and SPIFFE JWT-SVIDs.
+        It detects the token type and delegates to the appropriate handler.
 
         Args:
             request: The FastAPI request object.
@@ -221,9 +288,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             if is_mock_token(token):
                 return self._handle_mock_token(request, token)
 
-            # Verify JWT using the verify_jwt_token function
+            # Check if this is a SPIFFE JWT-SVID (agent authentication)
+            if is_spiffe_jwt_svid(token):
+                return self._handle_spiffe_jwt_svid(request, token)
+
+            # Verify JWT using the verify_jwt_token function (user authentication)
             payload = verify_jwt_token(token)
             user_data = {
+                "identity_type": "user",
                 "id": payload.get("sub"),
                 "email": payload.get("email"),
                 "name": payload.get("name"),
@@ -231,6 +303,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 "role": payload.get("role"),
             }
             request.state.user = user_data
+            request.state.identity_type = "user"
             # Cache user data in request context to eliminate N+1 queries
             RequestContext.set_user(user_data)
             logger.info("AuthMiddleware: JWT token validated successfully. User: %s", request.state.user)

@@ -2,6 +2,9 @@
 
 from rag_solution.file_management.database import Base
 
+# Agent model for SPIFFE-based workload identity
+from rag_solution.models.agent import Agent
+
 # Then Collection since it's referenced by UserCollection
 from rag_solution.models.collection import Collection
 
@@ -28,6 +31,7 @@ from rag_solution.models.voice import Voice
 
 # Register all models with Base.metadata
 __all__ = [
+    "Agent",
     "Base",
     "Collection",
     "ConversationMessage",
