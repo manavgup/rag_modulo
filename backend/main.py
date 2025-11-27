@@ -177,6 +177,41 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 # -------------------------------------------
 # 🚀 APPLICATION INITIALIZATION
 # -------------------------------------------
+
+# OpenAPI tags metadata for API documentation
+tags_metadata = [
+    {
+        "name": "agents",
+        "description": "AI Agent management with SPIFFE-based workload identity. "
+        "Register, manage, and authenticate AI agents using SPIRE for secure "
+        "machine-to-machine communication.",
+        "externalDocs": {
+            "description": "SPIFFE Integration Architecture",
+            "url": "https://spiffe.io/",
+        },
+    },
+    {
+        "name": "auth",
+        "description": "User authentication and authorization endpoints.",
+    },
+    {
+        "name": "collections",
+        "description": "Document collection management operations.",
+    },
+    {
+        "name": "search",
+        "description": "RAG search and query operations.",
+    },
+    {
+        "name": "users",
+        "description": "User profile and settings management.",
+    },
+    {
+        "name": "teams",
+        "description": "Team management and collaboration.",
+    },
+]
+
 app = FastAPI(
     lifespan=lifespan,
     title="RAG Modulo API",
@@ -184,6 +219,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_tags=tags_metadata,
 )
 
 # Middleware

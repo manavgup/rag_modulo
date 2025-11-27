@@ -457,23 +457,32 @@ async def update_agent_capabilities(
     "/validate",
     response_model=SPIFFEValidationResponse,
     summary="Validate SPIFFE JWT-SVID",
-    description="Validate a SPIFFE JWT-SVID token and return agent identity.",
+    description="Validate a SPIFFE JWT-SVID token and return agent identity. Requires authentication.",
 )
 async def validate_spiffe_token(
+    request: Request,
     validation_request: SPIFFEValidationRequest,
     db: Session = Depends(get_db),
 ) -> SPIFFEValidationResponse:
     """Validate a SPIFFE JWT-SVID.
 
     This endpoint allows validating JWT-SVIDs and extracting agent identity.
+    Requires authentication to prevent SPIFFE ID enumeration attacks.
 
     Args:
+        request: FastAPI request object
         validation_request: Token to validate
         db: Database session
 
     Returns:
         Validation response with agent identity
+
+    Raises:
+        HTTPException: If user not authenticated
     """
+    # Require authentication to prevent enumeration attacks
+    _ = get_current_user_id(request)
+
     try:
         service = AgentService(db)
         return service.validate_jwt_svid(validation_request)

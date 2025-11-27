@@ -10,10 +10,10 @@ Reference: docs/architecture/spire-integration-architecture.md
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,6 +65,13 @@ class Agent(Base):
     """
 
     __tablename__ = "agents"
+
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index("ix_agents_owner_status", "owner_user_id", "status"),
+        Index("ix_agents_type_status", "agent_type", "status"),
+        Index("ix_agents_team_status", "team_id", "status"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -124,23 +131,23 @@ class Agent(Base):
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default=AgentStatus.ACTIVE,
+        default=AgentStatus.PENDING,
         index=True,
         comment="Agent status (active, suspended, revoked, pending)",
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
-        onupdate=datetime.now,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="Last successful authentication timestamp",
     )
@@ -211,4 +218,4 @@ class Agent(Base):
 
     def update_last_seen(self) -> None:
         """Update the last seen timestamp to now."""
-        self.last_seen_at = datetime.now()
+        self.last_seen_at = datetime.now(UTC)

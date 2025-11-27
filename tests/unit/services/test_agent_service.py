@@ -89,10 +89,10 @@ class TestAgentServiceRegistration:
             assert "agent/search-enricher/" in result.spiffe_id
             assert result.registration_instructions is not None
 
-    def test_register_agent_with_custom_trust_domain(
+    def test_register_agent_with_custom_trust_domain_rejected(
         self, mock_db: MagicMock, sample_agent_output: AgentOutput
     ) -> None:
-        """Test registration with custom trust domain."""
+        """Test that registration with non-matching trust domain is rejected."""
         with patch("rag_solution.services.agent_service.AgentRepository") as mock_repo_class:
             mock_repo_instance = MagicMock()
             mock_repo_instance.create.return_value = sample_agent_output
@@ -102,16 +102,17 @@ class TestAgentServiceRegistration:
             request = AgentRegistrationRequest(
                 agent_type=SchemaAgentType.COT_REASONING,
                 name="Custom Domain Agent",
-                trust_domain="custom.domain.com",
+                trust_domain="custom.domain.com",  # Different from configured domain
             )
 
-            result = service.register_agent(request, uuid.uuid4())
+            # Custom trust domains should be rejected for security
+            with pytest.raises(ValueError) as exc_info:
+                service.register_agent(request, uuid.uuid4())
 
-            assert result is not None
-            # The SPIFFE ID should use the custom trust domain
-            mock_repo_instance.create.assert_called_once()
-            call_args = mock_repo_instance.create.call_args
-            assert "custom.domain.com" in call_args.kwargs["spiffe_id"]
+            assert "Trust domain must be" in str(exc_info.value)
+            assert "Custom trust domains are not allowed" in str(exc_info.value)
+            # Repository should not be called
+            mock_repo_instance.create.assert_not_called()
 
     def test_register_agent_with_custom_path(self, mock_db: MagicMock, sample_agent_output: AgentOutput) -> None:
         """Test registration with custom SPIFFE path."""

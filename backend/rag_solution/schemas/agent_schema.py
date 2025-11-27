@@ -8,8 +8,9 @@ Reference: docs/architecture/spire-integration-architecture.md
 
 from datetime import datetime
 from enum import Enum
+from typing import Self
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 
 
 class AgentType(str, Enum):
@@ -48,6 +49,53 @@ class AgentCapability(str, Enum):
     ADMIN = "admin"
 
 
+# Define allowed capabilities per agent type for security
+ALLOWED_CAPABILITIES_BY_TYPE: dict[AgentType, set[AgentCapability]] = {
+    AgentType.SEARCH_ENRICHER: {
+        AgentCapability.SEARCH_READ,
+        AgentCapability.SEARCH_WRITE,
+        AgentCapability.DOCUMENT_READ,
+        AgentCapability.LLM_INVOKE,
+    },
+    AgentType.COT_REASONING: {
+        AgentCapability.COT_INVOKE,
+        AgentCapability.LLM_INVOKE,
+        AgentCapability.SEARCH_READ,
+        AgentCapability.DOCUMENT_READ,
+    },
+    AgentType.QUESTION_DECOMPOSER: {
+        AgentCapability.LLM_INVOKE,
+        AgentCapability.SEARCH_READ,
+    },
+    AgentType.SOURCE_ATTRIBUTION: {
+        AgentCapability.DOCUMENT_READ,
+        AgentCapability.SEARCH_READ,
+    },
+    AgentType.ENTITY_EXTRACTION: {
+        AgentCapability.LLM_INVOKE,
+        AgentCapability.DOCUMENT_READ,
+    },
+    AgentType.ANSWER_SYNTHESIS: {
+        AgentCapability.LLM_INVOKE,
+        AgentCapability.SEARCH_READ,
+        AgentCapability.DOCUMENT_READ,
+    },
+    AgentType.CUSTOM: {
+        # Custom agents can have any non-admin capabilities
+        AgentCapability.MCP_TOOL_INVOKE,
+        AgentCapability.SEARCH_READ,
+        AgentCapability.SEARCH_WRITE,
+        AgentCapability.LLM_INVOKE,
+        AgentCapability.PIPELINE_EXECUTE,
+        AgentCapability.DOCUMENT_READ,
+        AgentCapability.DOCUMENT_WRITE,
+        AgentCapability.COT_INVOKE,
+        AgentCapability.AGENT_SPAWN,
+        # Note: ADMIN is never allowed for CUSTOM agents
+    },
+}
+
+
 class AgentInput(BaseModel):
     """Schema for creating a new agent.
 
@@ -69,6 +117,24 @@ class AgentInput(BaseModel):
         description="Agent capabilities",
     )
     metadata: dict | None = Field(default=None, description="Additional metadata")
+
+    @model_validator(mode="after")
+    def validate_capabilities_for_agent_type(self) -> Self:
+        """Validate that requested capabilities are allowed for this agent type."""
+        if not self.capabilities:
+            return self
+
+        allowed = ALLOWED_CAPABILITIES_BY_TYPE.get(self.agent_type, set())
+        requested = set(self.capabilities)
+        disallowed = requested - allowed
+
+        if disallowed:
+            disallowed_names = [cap.value for cap in disallowed]
+            raise ValueError(
+                f"Capabilities {disallowed_names} are not allowed for agent type '{self.agent_type.value}'. "
+                f"Allowed capabilities: {[cap.value for cap in allowed]}"
+            )
+        return self
 
 
 class AgentUpdate(BaseModel):
@@ -165,12 +231,30 @@ class AgentRegistrationRequest(BaseModel):
     # SPIFFE-specific fields
     trust_domain: str | None = Field(
         default=None,
-        description="Trust domain (uses default if not provided)",
+        description="Trust domain (must match server configuration or be omitted)",
     )
     custom_path: str | None = Field(
         default=None,
         description="Custom SPIFFE ID path suffix (generated if not provided)",
     )
+
+    @model_validator(mode="after")
+    def validate_capabilities_for_agent_type(self) -> Self:
+        """Validate that requested capabilities are allowed for this agent type."""
+        if not self.capabilities:
+            return self
+
+        allowed = ALLOWED_CAPABILITIES_BY_TYPE.get(self.agent_type, set())
+        requested = set(self.capabilities)
+        disallowed = requested - allowed
+
+        if disallowed:
+            disallowed_names = [cap.value for cap in disallowed]
+            raise ValueError(
+                f"Capabilities {disallowed_names} are not allowed for agent type '{self.agent_type.value}'. "
+                f"Allowed capabilities: {[cap.value for cap in allowed]}"
+            )
+        return self
 
 
 class AgentRegistrationResponse(BaseModel):

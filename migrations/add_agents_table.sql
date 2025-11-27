@@ -38,6 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_agents_team_id ON agents(team_id);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at DESC);
 
+-- Composite indexes for common query patterns (owner+status, type+status, team+status)
+CREATE INDEX IF NOT EXISTS ix_agents_owner_status ON agents(owner_user_id, status);
+CREATE INDEX IF NOT EXISTS ix_agents_type_status ON agents(agent_type, status);
+CREATE INDEX IF NOT EXISTS ix_agents_team_status ON agents(team_id, status);
+
 -- Create GIN index for capabilities JSONB for efficient containment queries
 CREATE INDEX IF NOT EXISTS idx_agents_capabilities ON agents USING GIN (capabilities);
 

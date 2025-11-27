@@ -6,7 +6,7 @@ workload identity.
 Reference: docs/architecture/spire-integration-architecture.md
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -68,7 +68,7 @@ class AgentRepository:
                 team_id=agent_input.team_id,
                 capabilities=capabilities,
                 agent_metadata=agent_input.metadata or {},
-                status=AgentStatus.ACTIVE,
+                status=AgentStatus.PENDING,
             )
             self.db.add(agent)
             self.db.commit()
@@ -278,7 +278,7 @@ class AgentRepository:
         try:
             agent = self.db.query(Agent).filter(Agent.id == agent_id).first()
             if agent:
-                agent.last_seen_at = datetime.now()
+                agent.last_seen_at = datetime.now(UTC)
                 self.db.commit()
         except Exception as e:
             logger.error(f"Error updating agent last_seen {agent_id}: {e!s}")
@@ -293,7 +293,7 @@ class AgentRepository:
         try:
             agent = self.db.query(Agent).filter(Agent.spiffe_id == spiffe_id).first()
             if agent:
-                agent.last_seen_at = datetime.now()
+                agent.last_seen_at = datetime.now(UTC)
                 self.db.commit()
         except Exception as e:
             logger.error(f"Error updating agent last_seen by SPIFFE ID {spiffe_id}: {e!s}")

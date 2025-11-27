@@ -460,37 +460,51 @@ class TestSPIFFEAuthenticator:
             assert result is None
 
     def test_authenticator_creates_principal_with_fallback(self) -> None:
-        """Test that authenticator creates valid principal from JWT when using fallback."""
-        config = SPIFFEConfig(
-            enabled=True,
-            trust_domain="rag-modulo.example.com",
-            endpoint_socket="/tmp/socket",
-            default_audiences=["backend-api"],
-            fallback_to_jwt=True,  # Allow fallback when SPIRE unavailable
-        )
+        """Test that authenticator creates valid principal from JWT when using fallback.
 
-        authenticator = SPIFFEAuthenticator(config)
-        exp_time = datetime.now(UTC) + timedelta(hours=1)
-        iat_time = datetime.now(UTC)
+        When SPIFFE is enabled, py-spiffe library must be available. This test
+        mocks the spiffe import to simulate a working environment and tests
+        the JWT fallback path when SPIRE agent is not reachable.
+        """
+        # Mock the spiffe import to prevent ImportError
+        mock_jwt_source = MagicMock()
+        mock_workload_client = MagicMock()
 
-        with patch("core.spiffe_auth.jwt.decode") as mock_decode:
-            mock_decode.return_value = {
-                "sub": "spiffe://rag-modulo.example.com/agent/search-enricher/agent-001",
-                "aud": ["backend-api"],
-                "iat": iat_time.timestamp(),
-                "exp": exp_time.timestamp(),
-            }
+        with patch.dict("sys.modules", {"spiffe": MagicMock(JwtSource=mock_jwt_source, WorkloadApiClient=mock_workload_client)}):
+            config = SPIFFEConfig(
+                enabled=True,
+                trust_domain="rag-modulo.example.com",
+                endpoint_socket="/tmp/socket",
+                default_audiences=["backend-api"],
+                fallback_to_jwt=True,  # Allow fallback when SPIRE unavailable
+            )
 
-            result = authenticator.validate_jwt_svid("mock.token")
+            authenticator = SPIFFEAuthenticator(config)
+            # Make SPIRE unavailable to trigger fallback
+            authenticator._spire_available = False
+            authenticator._initialized = True
 
-            assert result is not None
-            assert result.spiffe_id == "spiffe://rag-modulo.example.com/agent/search-enricher/agent-001"
-            assert result.trust_domain == "rag-modulo.example.com"
-            assert result.agent_type == AgentType.SEARCH_ENRICHER
-            assert result.agent_id == "agent-001"
-            # Should have default capabilities for search-enricher
-            assert AgentCapability.MCP_TOOL_INVOKE in result.capabilities
-            assert AgentCapability.SEARCH_READ in result.capabilities
+            exp_time = datetime.now(UTC) + timedelta(hours=1)
+            iat_time = datetime.now(UTC)
+
+            with patch("core.spiffe_auth.jwt.decode") as mock_decode:
+                mock_decode.return_value = {
+                    "sub": "spiffe://rag-modulo.example.com/agent/search-enricher/agent-001",
+                    "aud": ["backend-api"],
+                    "iat": iat_time.timestamp(),
+                    "exp": exp_time.timestamp(),
+                }
+
+                result = authenticator.validate_jwt_svid("mock.token")
+
+                assert result is not None
+                assert result.spiffe_id == "spiffe://rag-modulo.example.com/agent/search-enricher/agent-001"
+                assert result.trust_domain == "rag-modulo.example.com"
+                assert result.agent_type == AgentType.SEARCH_ENRICHER
+                assert result.agent_id == "agent-001"
+                # Should have default capabilities for search-enricher
+                assert AgentCapability.MCP_TOOL_INVOKE in result.capabilities
+                assert AgentCapability.SEARCH_READ in result.capabilities
 
     def test_authenticator_handles_expired_token(self) -> None:
         """Test that authenticator rejects expired tokens."""

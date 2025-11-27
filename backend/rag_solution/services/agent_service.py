@@ -80,8 +80,17 @@ class AgentService:
         # Generate unique agent instance ID
         agent_instance_id = str(uuid.uuid4())[:8]
 
-        # Determine trust domain
-        trust_domain = request.trust_domain or self._config.trust_domain
+        # Validate and determine trust domain - users cannot specify arbitrary trust domains
+        if request.trust_domain and request.trust_domain != self._config.trust_domain:
+            logger.warning(
+                f"Rejected trust domain '{request.trust_domain}' from user - "
+                f"must match configured domain '{self._config.trust_domain}'"
+            )
+            raise ValueError(
+                f"Trust domain must be '{self._config.trust_domain}' or omitted. "
+                "Custom trust domains are not allowed for security reasons."
+            )
+        trust_domain = self._config.trust_domain
 
         # Generate SPIFFE ID
         if request.custom_path:

@@ -17,16 +17,22 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from functools import wraps
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import jwt
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     pass
+
+# Type variables for generic decorator typing
+P = ParamSpec("P")
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -358,16 +364,31 @@ class SPIFFEAuthenticator:
             self._initialized = True
             logger.info("SPIFFE authenticator initialized successfully")
             return True
-        except ImportError:
+        except ImportError as e:
+            # When SPIFFE is explicitly enabled, missing py-spiffe is a critical error
+            error_msg = (
+                "SPIFFE authentication is enabled but py-spiffe library is not installed. "
+                "Install with: pip install spiffe"
+            )
+            if self.config.enabled:
+                logger.error(error_msg)
+                raise RuntimeError(error_msg) from e
+            # If not explicitly enabled, just warn and disable
             logger.warning("py-spiffe library not available, SPIFFE authentication disabled")
             self._initialized = True
             self._spire_available = False
             return False
         except Exception as e:
-            logger.warning("Failed to initialize SPIFFE authenticator: %s", e)
-            self._initialized = True
-            self._spire_available = False
-            return False
+            # Connection/runtime errors are recoverable with fallback
+            if self.config.fallback_to_jwt:
+                logger.warning("Failed to initialize SPIFFE authenticator (will use JWT fallback): %s", e)
+                self._initialized = True
+                self._spire_available = False
+                return False
+            # If no fallback allowed, this is critical
+            error_msg = f"Failed to initialize SPIFFE authenticator and fallback is disabled: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
 
     @property
     def is_available(self) -> bool:
@@ -610,7 +631,7 @@ def get_spiffe_authenticator() -> SPIFFEAuthenticator:
 def require_capabilities(
     *required_capabilities: AgentCapability,
     require_all: bool = True,
-) -> Any:
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     """Decorator to enforce capability requirements on endpoint handlers.
 
     This decorator checks if the authenticated agent has the required capabilities
@@ -635,13 +656,11 @@ def require_capabilities(
         async def admin_endpoint(request: Request):
             ...
     """
-    from functools import wraps
-
     from fastapi import HTTPException, Request, status
 
-    def decorator(func: Any) -> Any:
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Find the request object in args or kwargs
             request: Request | None = None
             for arg in args:
