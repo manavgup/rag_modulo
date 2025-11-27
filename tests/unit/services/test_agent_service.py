@@ -395,6 +395,7 @@ class TestAgentServiceValidation:
             mock_authenticator = MagicMock()
             mock_principal = AgentPrincipal(
                 spiffe_id="spiffe://rag-modulo.example.com/agent/search-enricher/agent-001",
+                trust_domain="rag-modulo.example.com",
                 agent_type=AgentType.SEARCH_ENRICHER,
                 agent_id="agent-001",
                 capabilities=[AgentCapability.SEARCH_READ],
