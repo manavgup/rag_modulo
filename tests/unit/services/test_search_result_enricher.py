@@ -21,7 +21,7 @@ from rag_solution.schemas.mcp_schema import (
     MCPToolsResponse,
 )
 from rag_solution.schemas.search_schema import SearchOutput
-from vectordbs.data_types import DocumentMetadata, QueryResult
+from vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata, QueryResult
 
 
 class TestSearchResultEnricher:
@@ -50,17 +50,19 @@ class TestSearchResultEnricher:
             answer="This is a test answer",
             documents=[
                 DocumentMetadata(
-                    doc_id="doc1",
-                    file_name="test.pdf",
-                    file_type="pdf",
-                    created_at=datetime.utcnow(),
+                    document_name="test.pdf",
+                    title="Test Document",
+                    creation_date=datetime.utcnow(),
                 )
             ],
             query_results=[
                 QueryResult(
                     score=0.95,
-                    text="This is relevant text from the document.",
-                    document_chunk_id="chunk1",
+                    chunk=DocumentChunkWithScore(
+                        chunk_id="chunk1",
+                        text="This is relevant text from the document.",
+                        document_id="doc1",
+                    ),
                 )
             ],
             rewritten_query="test query",
@@ -102,15 +104,16 @@ class TestSearchResultEnricher:
     @pytest.mark.asyncio
     async def test_enrich_gateway_unavailable(self, enricher, mock_search_output):
         """Test enrichment handles unavailable gateway gracefully."""
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=False)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=False)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output)
+        result = await enricher.enrich(mock_search_output)
 
-            assert result.metadata is not None
-            assert "mcp_enrichment" in result.metadata
-            assert result.metadata["mcp_enrichment"]["success"] is False
-            assert "unavailable" in result.metadata["mcp_enrichment"]["error"].lower()
+        assert result.metadata is not None
+        assert "mcp_enrichment" in result.metadata
+        assert result.metadata["mcp_enrichment"]["success"] is False
+        assert "unavailable" in result.metadata["mcp_enrichment"]["error"].lower()
 
     @pytest.mark.asyncio
     async def test_enrich_success_with_tools(self, enricher, mock_search_output):
@@ -134,19 +137,20 @@ class TestSearchResultEnricher:
             execution_time_ms=100.0,
         )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.list_tools = AsyncMock(return_value=mock_tools_response)
-            mock_client.invoke_tool = AsyncMock(return_value=mock_invocation_result)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.list_tools = AsyncMock(return_value=mock_tools_response)
+        mock_client.invoke_tool = AsyncMock(return_value=mock_invocation_result)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output)
+        result = await enricher.enrich(mock_search_output)
 
-            assert result.metadata is not None
-            assert "mcp_enrichment" in result.metadata
-            assert result.metadata["mcp_enrichment"]["success"] is True
-            assert len(result.metadata["mcp_enrichment"]["tools"]) == 1
-            assert result.metadata["mcp_enrichment"]["tools"][0]["name"] == "summarizer"
-            assert result.metadata["mcp_enrichment"]["tools"][0]["success"] is True
+        assert result.metadata is not None
+        assert "mcp_enrichment" in result.metadata
+        assert result.metadata["mcp_enrichment"]["success"] is True
+        assert len(result.metadata["mcp_enrichment"]["tools"]) == 1
+        assert result.metadata["mcp_enrichment"]["tools"][0]["name"] == "summarizer"
+        assert result.metadata["mcp_enrichment"]["tools"][0]["success"] is True
 
     @pytest.mark.asyncio
     async def test_enrich_with_specific_tools(self, enricher, mock_search_output):
@@ -164,16 +168,17 @@ class TestSearchResultEnricher:
             execution_time_ms=50.0,
         )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(return_value=mock_invocation_result)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(return_value=mock_invocation_result)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output, config)
+        result = await enricher.enrich(mock_search_output, config)
 
-            # Should use custom_tool from config
-            mock_client.invoke_tool.assert_called_once()
-            call_args = mock_client.invoke_tool.call_args
-            assert call_args[0][0] == "custom_tool"
+        # Should use custom_tool from config
+        mock_client.invoke_tool.assert_called_once()
+        call_args = mock_client.invoke_tool.call_args
+        assert call_args[0][0] == "custom_tool"
 
     @pytest.mark.asyncio
     async def test_enrich_parallel_execution(self, enricher, mock_search_output):
@@ -182,13 +187,6 @@ class TestSearchResultEnricher:
             enabled=True,
             tools=["tool1", "tool2", "tool3"],
             parallel=True,
-        )
-
-        mock_result = MCPInvocationOutput(
-            tool_name="",
-            status=MCPInvocationStatus.SUCCESS,
-            result={"data": "result"},
-            execution_time_ms=50.0,
         )
 
         call_count = 0
@@ -203,15 +201,16 @@ class TestSearchResultEnricher:
                 execution_time_ms=50.0,
             )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output, config)
+        result = await enricher.enrich(mock_search_output, config)
 
-            # All tools should be called
-            assert call_count == 3
-            assert len(result.metadata["mcp_enrichment"]["tools"]) == 3
+        # All tools should be called
+        assert call_count == 3
+        assert len(result.metadata["mcp_enrichment"]["tools"]) == 3
 
     @pytest.mark.asyncio
     async def test_enrich_sequential_execution(self, enricher, mock_search_output):
@@ -233,14 +232,15 @@ class TestSearchResultEnricher:
                 execution_time_ms=50.0,
             )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        enricher._mcp_client = mock_client
 
-            await enricher.enrich(mock_search_output, config)
+        await enricher.enrich(mock_search_output, config)
 
-            # Should be in order for sequential execution
-            assert execution_order == ["tool1", "tool2"]
+        # Should be in order for sequential execution
+        assert execution_order == ["tool1", "tool2"]
 
     @pytest.mark.asyncio
     async def test_enrich_handles_tool_failure(self, enricher, mock_search_output):
@@ -266,22 +266,23 @@ class TestSearchResultEnricher:
                 execution_time_ms=50.0,
             )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output, config)
+        result = await enricher.enrich(mock_search_output, config)
 
-            # Should still have results, with one success and one failure
-            tools = result.metadata["mcp_enrichment"]["tools"]
-            assert len(tools) == 2
+        # Should still have results, with one success and one failure
+        tools = result.metadata["mcp_enrichment"]["tools"]
+        assert len(tools) == 2
 
-            working = next(t for t in tools if t["name"] == "working_tool")
-            failing = next(t for t in tools if t["name"] == "failing_tool")
+        working = next(t for t in tools if t["name"] == "working_tool")
+        failing = next(t for t in tools if t["name"] == "failing_tool")
 
-            assert working["success"] is True
-            assert failing["success"] is False
-            assert failing["error"] == "Tool failed"
+        assert working["success"] is True
+        assert failing["success"] is False
+        assert failing["error"] == "Tool failed"
 
     @pytest.mark.asyncio
     async def test_enrich_preserves_original_output(self, enricher, mock_search_output):
@@ -292,30 +293,37 @@ class TestSearchResultEnricher:
 
         config = MCPEnrichmentConfig(enabled=True, tools=["tool1"])
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(
-                return_value=MCPInvocationOutput(
-                    tool_name="tool1",
-                    status=MCPInvocationStatus.SUCCESS,
-                    result={"modified": True},
-                    execution_time_ms=50.0,
-                )
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(
+            return_value=MCPInvocationOutput(
+                tool_name="tool1",
+                status=MCPInvocationStatus.SUCCESS,
+                result={"modified": True},
+                execution_time_ms=50.0,
             )
+        )
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output, config)
+        result = await enricher.enrich(mock_search_output, config)
 
-            # Original fields should be unchanged
-            assert result.answer == original_answer
-            assert result.documents == original_docs
-            assert result.query_results == original_results
+        # Original fields should be unchanged
+        assert result.answer == original_answer
+        assert result.documents == original_docs
+        assert result.query_results == original_results
 
     @pytest.mark.asyncio
     async def test_enrich_query_results_single_tool(self, enricher):
         """Test enriching individual query results with a tool."""
         query_results = [
-            QueryResult(score=0.9, text="Text 1", document_chunk_id="c1"),
-            QueryResult(score=0.8, text="Text 2", document_chunk_id="c2"),
+            QueryResult(
+                score=0.9,
+                chunk=DocumentChunkWithScore(chunk_id="c1", text="Text 1", document_id="d1"),
+            ),
+            QueryResult(
+                score=0.8,
+                chunk=DocumentChunkWithScore(chunk_id="c2", text="Text 2", document_id="d2"),
+            ),
         ]
 
         async def mock_invoke(name, args, timeout=None):
@@ -326,20 +334,21 @@ class TestSearchResultEnricher:
                 execution_time_ms=30.0,
             )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        mock_client = MagicMock()
+        mock_client.invoke_tool = AsyncMock(side_effect=mock_invoke)
+        enricher._mcp_client = mock_client
 
-            results = await enricher.enrich_query_results(
-                query_results,
-                "entity_extractor",
-                {"extract_types": ["person", "org"]},
-            )
+        results = await enricher.enrich_query_results(
+            query_results,
+            "entity_extractor",
+            {"extract_types": ["person", "org"]},
+        )
 
-            assert len(results) == 2
-            assert results[0].original_score == 0.9
-            assert results[1].original_score == 0.8
-            assert len(results[0].enrichments) == 1
-            assert results[0].enrichments[0].success is True
+        assert len(results) == 2
+        assert results[0].original_score == 0.9
+        assert results[1].original_score == 0.8
+        assert len(results[0].enrichments) == 1
+        assert results[0].enrichments[0].success is True
 
     @pytest.mark.asyncio
     async def test_enrich_empty_tools_list(self, enricher, mock_search_output):
@@ -350,14 +359,15 @@ class TestSearchResultEnricher:
             gateway_healthy=True,
         )
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.list_tools = AsyncMock(return_value=mock_tools_response)
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.list_tools = AsyncMock(return_value=mock_tools_response)
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(mock_search_output)
+        result = await enricher.enrich(mock_search_output)
 
-            # Should return original without enrichment metadata
-            assert result.answer == mock_search_output.answer
+        # Should return original without enrichment metadata
+        assert result.answer == mock_search_output.answer
 
     @pytest.mark.asyncio
     async def test_enrich_merges_with_existing_metadata(self, enricher):
@@ -371,22 +381,23 @@ class TestSearchResultEnricher:
 
         config = MCPEnrichmentConfig(enabled=True, tools=["tool1"])
 
-        with patch.object(enricher, "mcp_client") as mock_client:
-            mock_client.is_available = AsyncMock(return_value=True)
-            mock_client.invoke_tool = AsyncMock(
-                return_value=MCPInvocationOutput(
-                    tool_name="tool1",
-                    status=MCPInvocationStatus.SUCCESS,
-                    result={},
-                    execution_time_ms=50.0,
-                )
+        mock_client = MagicMock()
+        mock_client.is_available = AsyncMock(return_value=True)
+        mock_client.invoke_tool = AsyncMock(
+            return_value=MCPInvocationOutput(
+                tool_name="tool1",
+                status=MCPInvocationStatus.SUCCESS,
+                result={},
+                execution_time_ms=50.0,
             )
+        )
+        enricher._mcp_client = mock_client
 
-            result = await enricher.enrich(search_output, config)
+        result = await enricher.enrich(search_output, config)
 
-            # Both old and new metadata should exist
-            assert result.metadata["existing_key"] == "existing_value"
-            assert "mcp_enrichment" in result.metadata
+        # Both old and new metadata should exist
+        assert result.metadata["existing_key"] == "existing_value"
+        assert "mcp_enrichment" in result.metadata
 
 
 class TestEnrichmentConfig:

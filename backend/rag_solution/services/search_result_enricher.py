@@ -225,8 +225,10 @@ class SearchResultEnricher:
         async def enrich_single(qr: QueryResult) -> MCPEnrichedSearchResult:
             async with semaphore:
                 start_time = time.perf_counter()
+                # Get text from chunk if available
+                chunk_text = qr.chunk.text if qr.chunk and qr.chunk.text else ""
                 args = {
-                    "text": qr.text,
+                    "text": chunk_text,
                     **(tool_arguments or {}),
                 }
 
@@ -378,15 +380,15 @@ class SearchResultEnricher:
             "answer": search_output.answer,
             "documents": [
                 {
-                    "doc_id": doc.doc_id,
-                    "file_name": doc.file_name,
-                    "file_type": doc.file_type,
+                    "document_name": doc.document_name,
+                    "title": doc.title,
+                    "content_type": getattr(doc, "content_type", None),
                 }
                 for doc in search_output.documents[:5]  # Limit to top 5
             ],
             "chunks": [
                 {
-                    "text": qr.text[:500],  # Limit text length
+                    "text": (qr.chunk.text[:500] if qr.chunk and qr.chunk.text else ""),  # Limit text length
                     "score": qr.score,
                 }
                 for qr in search_output.query_results[:5]
