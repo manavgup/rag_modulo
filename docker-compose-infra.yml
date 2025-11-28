@@ -158,24 +158,23 @@ services:
 
   # MCP Context Forge Gateway - Model Context Protocol server
   # Provides tool discovery and invocation capabilities for RAG enrichment
-  # Note: Uses port 3001 to avoid conflict with frontend (port 3000)
+  # Note: Uses port 3001 externally to avoid conflict with frontend (port 3000)
+  # MCP Context Forge uses PORT env var (not MCP_SERVER_PORT), defaults to 4444 internally
   mcp-context-forge:
     container_name: mcp-context-forge
     image: ghcr.io/ibm/mcp-context-forge:latest
     ports:
       - "3001:3001"
     environment:
-      # Server configuration (port 3001 to avoid frontend conflict)
-      MCP_SERVER_PORT: 3001
-      MCP_SERVER_HOST: 0.0.0.0
+      # Server port (MCP Context Forge uses PORT env var)
+      PORT: 3001
+      HOST: 0.0.0.0
       # Redis configuration for caching
       REDIS_URL: redis://redis:6379
       # JWT authentication (optional - set MCP_JWT_SECRET to enable)
       MCP_JWT_SECRET: ${MCP_JWT_SECRET:-}
       # Logging
       LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
-      # Tool registry
-      MCP_TOOLS_DIR: /app/tools
     volumes:
       - mcp_tools:/app/tools
     healthcheck:
