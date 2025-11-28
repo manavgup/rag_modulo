@@ -8,8 +8,7 @@ Tests the SearchResultEnricher service including:
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -173,7 +172,7 @@ class TestSearchResultEnricher:
         mock_client.invoke_tool = AsyncMock(return_value=mock_invocation_result)
         enricher._mcp_client = mock_client
 
-        result = await enricher.enrich(mock_search_output, config)
+        await enricher.enrich(mock_search_output, config)
 
         # Should use custom_tool from config
         mock_client.invoke_tool.assert_called_once()
