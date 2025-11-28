@@ -287,8 +287,8 @@ class Settings(BaseSettings):
     # MCP Gateway settings
     # Enable/disable MCP integration globally
     mcp_enabled: Annotated[bool, Field(default=True, alias="MCP_ENABLED")]
-    # MCP Context Forge gateway URL
-    mcp_gateway_url: Annotated[str, Field(default="http://localhost:3000", alias="MCP_GATEWAY_URL")]
+    # MCP Context Forge gateway URL (port 3001 to avoid frontend conflict on 3000)
+    mcp_gateway_url: Annotated[str, Field(default="http://localhost:3001", alias="MCP_GATEWAY_URL")]
     # Request timeout in seconds (30s default per requirements)
     mcp_timeout: Annotated[float, Field(default=30.0, ge=1.0, le=300.0, alias="MCP_TIMEOUT")]
     # Health check timeout (5s per requirements)
@@ -298,7 +298,9 @@ class Settings(BaseSettings):
     # Circuit breaker failure threshold (5 failures per requirements)
     mcp_circuit_breaker_threshold: Annotated[int, Field(default=5, ge=1, le=20, alias="MCP_CIRCUIT_BREAKER_THRESHOLD")]
     # Circuit breaker recovery timeout in seconds (60s per requirements)
-    mcp_circuit_breaker_timeout: Annotated[float, Field(default=60.0, ge=10.0, le=600.0, alias="MCP_CIRCUIT_BREAKER_TIMEOUT")]
+    mcp_circuit_breaker_timeout: Annotated[
+        float, Field(default=60.0, ge=10.0, le=600.0, alias="MCP_CIRCUIT_BREAKER_TIMEOUT")
+    ]
     # JWT token for MCP gateway authentication
     mcp_jwt_token: Annotated[str | None, Field(default=None, alias="MCP_JWT_TOKEN")]
     # Enable enrichment of search results with MCP tools

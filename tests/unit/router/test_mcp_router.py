@@ -31,7 +31,7 @@ class TestMCPRouter:
         """Create mock settings."""
         settings = Mock()
         settings.mcp_enabled = True
-        settings.mcp_gateway_url = "http://localhost:3000"
+        settings.mcp_gateway_url = "http://localhost:3001"
         settings.mcp_timeout = 30.0
         settings.mcp_health_timeout = 5.0
         settings.mcp_max_retries = 3
@@ -87,7 +87,7 @@ class TestHealthEndpoint(TestMCPRouter):
         """Test successful health check."""
         mock_mcp_client.check_health.return_value = MCPHealthStatus(
             healthy=True,
-            gateway_url="http://localhost:3000",
+            gateway_url="http://localhost:3001",
             latency_ms=50.0,
             circuit_breaker_state="closed",
         )
@@ -97,14 +97,14 @@ class TestHealthEndpoint(TestMCPRouter):
         assert response.status_code == 200
         data = response.json()
         assert data["healthy"] is True
-        assert data["gateway_url"] == "http://localhost:3000"
+        assert data["gateway_url"] == "http://localhost:3001"
         assert data["circuit_breaker_state"] == "closed"
 
     def test_health_unhealthy(self, client, mock_mcp_client):
         """Test unhealthy gateway response."""
         mock_mcp_client.check_health.return_value = MCPHealthStatus(
             healthy=False,
-            gateway_url="http://localhost:3000",
+            gateway_url="http://localhost:3001",
             error="Connection refused",
             circuit_breaker_state="open",
         )

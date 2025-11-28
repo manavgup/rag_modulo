@@ -32,7 +32,7 @@ class TestSearchResultEnricher:
         settings = Mock()
         settings.mcp_enabled = True
         settings.mcp_enrichment_enabled = True
-        settings.mcp_gateway_url = "http://localhost:3000"
+        settings.mcp_gateway_url = "http://localhost:3001"
         settings.mcp_timeout = 30.0
         settings.mcp_health_timeout = 5.0
         settings.mcp_max_retries = 3

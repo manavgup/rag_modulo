@@ -102,7 +102,7 @@ class TestResilientMCPGatewayClient:
         """Create mock settings."""
         settings = Mock()
         settings.mcp_enabled = True
-        settings.mcp_gateway_url = "http://localhost:3000"
+        settings.mcp_gateway_url = "http://localhost:3001"
         settings.mcp_timeout = 30.0
         settings.mcp_health_timeout = 5.0
         settings.mcp_max_retries = 3
@@ -120,7 +120,7 @@ class TestResilientMCPGatewayClient:
 
     def test_client_initialization(self, mcp_client, mock_settings):
         """Test client initializes with correct settings."""
-        assert mcp_client.gateway_url == "http://localhost:3000"
+        assert mcp_client.gateway_url == "http://localhost:3001"
         assert mcp_client.timeout == 30.0
         assert mcp_client.health_timeout == 5.0
         assert mcp_client.max_retries == 3
@@ -160,7 +160,7 @@ class TestResilientMCPGatewayClient:
             health = await mcp_client.check_health()
 
             assert health.healthy is True
-            assert health.gateway_url == "http://localhost:3000"
+            assert health.gateway_url == "http://localhost:3001"
             assert health.latency_ms is not None
 
     @pytest.mark.asyncio
@@ -367,7 +367,7 @@ class TestCircuitBreakerIntegration:
         """Create mock settings with low threshold for testing."""
         settings = Mock()
         settings.mcp_enabled = True
-        settings.mcp_gateway_url = "http://localhost:3000"
+        settings.mcp_gateway_url = "http://localhost:3001"
         settings.mcp_timeout = 1.0  # Short timeout
         settings.mcp_health_timeout = 1.0
         settings.mcp_max_retries = 0  # No retries for speed
