@@ -15,7 +15,7 @@ Key features:
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -87,7 +87,7 @@ class CircuitBreaker:
         """
         async with self._lock:
             if self.state == CircuitBreakerState.OPEN and self.last_failure_time:
-                elapsed = datetime.utcnow() - self.last_failure_time
+                elapsed = datetime.now(UTC) - self.last_failure_time
                 if elapsed >= timedelta(seconds=self.recovery_timeout):
                     logger.info(
                         "Circuit breaker transitioning to half-open state",
@@ -119,7 +119,7 @@ class CircuitBreaker:
         """Record a failed call, potentially opening the circuit."""
         async with self._lock:
             self.failure_count += 1
-            self.last_failure_time = datetime.utcnow()
+            self.last_failure_time = datetime.now(UTC)
 
             if self.failure_count >= self.failure_threshold:
                 previous_state = self.state

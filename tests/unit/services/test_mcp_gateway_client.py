@@ -8,7 +8,7 @@ Tests the ResilientMCPGatewayClient service including:
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
@@ -73,7 +73,7 @@ class TestCircuitBreaker:
             await circuit_breaker.record_failure()
 
         # Simulate time passing
-        circuit_breaker.last_failure_time = datetime.utcnow() - timedelta(seconds=15)
+        circuit_breaker.last_failure_time = datetime.now(UTC) - timedelta(seconds=15)
 
         state = await circuit_breaker.check_state()
         assert state == CircuitBreakerState.HALF_OPEN
@@ -86,7 +86,7 @@ class TestCircuitBreaker:
         # Get to half-open state
         for _ in range(3):
             await circuit_breaker.record_failure()
-        circuit_breaker.last_failure_time = datetime.utcnow() - timedelta(seconds=15)
+        circuit_breaker.last_failure_time = datetime.now(UTC) - timedelta(seconds=15)
         await circuit_breaker.check_state()
 
         # Success should close it

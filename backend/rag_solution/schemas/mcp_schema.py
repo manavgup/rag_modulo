@@ -4,7 +4,7 @@ This module defines the data structures for MCP tool discovery,
 invocation, and search result enrichment.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -111,7 +111,7 @@ class MCPInvocationOutput(BaseModel):
     result: Any | None = None
     error: str | None = None
     execution_time_ms: float | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,7 +132,7 @@ class MCPHealthStatus(BaseModel):
     gateway_url: str
     latency_ms: float | None = None
     circuit_breaker_state: str = "closed"  # closed, open, half_open
-    last_check: datetime = Field(default_factory=datetime.utcnow)
+    last_check: datetime = Field(default_factory=lambda: datetime.now(UTC))
     error: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
