@@ -23,7 +23,7 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.3.1",
     "react-flow-renderer": "^10.3.17",
-    "react-hook-form": "^7.66.1",
+    "react-hook-form": "^7.67.0",
     "react-markdown": "^10.1.0",
     "react-pdf": "^10.2.0",
     "react-router-dom": "^7.9.6",
