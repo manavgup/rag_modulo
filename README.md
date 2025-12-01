@@ -37,6 +37,7 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 </div>
 
 #### 🎨 Frontend Features
+
 - **Modern UI**: React 18 with Tailwind CSS and Carbon Design System principles
 - **Reusable Component Library**: 8 accessible, type-safe components with consistent design patterns
 - **Enhanced Search**: Interactive chat interface with Chain of Thought reasoning visualization
@@ -167,6 +168,7 @@ make local-dev-all
 <summary><strong>🔍 What Gets Installed</strong></summary>
 
 **Backend (Python/Poetry)**:
+
 - FastAPI and dependencies
 - LLM providers (WatsonX, OpenAI, Anthropic)
 - Vector DB clients (Milvus, Elasticsearch, etc.)
@@ -174,12 +176,14 @@ make local-dev-all
 - Code quality tools (ruff, mypy, bandit)
 
 **Frontend (npm)**:
+
 - React 18 + Vite
 - Tailwind CSS + Carbon Design
 - TypeScript dependencies
 - Testing libraries
 
 **Infrastructure (Docker)**:
+
 - PostgreSQL (metadata)
 - Milvus (vector storage)
 - MinIO (object storage)
@@ -188,18 +192,21 @@ make local-dev-all
 </details>
 
 **Access Points:**
-- 🌐 **Frontend**: http://localhost:3000
-- 🔧 **Backend API**: http://localhost:8000/docs (Swagger UI)
-- 📊 **MLFlow**: http://localhost:5001
-- 💾 **MinIO Console**: http://localhost:9001
+
+- 🌐 **Frontend**: <http://localhost:3000>
+- 🔧 **Backend API**: <http://localhost:8000/docs> (Swagger UI)
+- 📊 **MLFlow**: <http://localhost:5001>
+- 💾 **MinIO Console**: <http://localhost:9001>
 
 **Benefits:**
+
 - ⚡ **Instant reload** - Python/React changes reflected immediately (no container rebuilds)
 - 🐛 **Native debugging** - Use PyCharm, VS Code debugger with breakpoints
 - 📦 **Local caching** - Poetry/npm caches work natively for faster dependency installs
 - 🔥 **Fastest iteration** - Pre-commit hooks optimized (fast on commit, comprehensive on push)
 
 **When to use:**
+
 - ✅ Daily development work
 - ✅ Feature development and bug fixes
 - ✅ Rapid iteration and testing
@@ -227,6 +234,7 @@ docker compose up -d
 ```
 
 **When to use:**
+
 - ✅ Testing production configurations
 - ✅ Validating Docker builds
 - ✅ Deployment rehearsal
@@ -242,6 +250,7 @@ docker compose up -d
 4. **Run**: `make venv && make run-infra`
 
 **When to use:**
+
 - ✅ No local setup required
 - ✅ Consistent development environment
 - ✅ Work from any device
@@ -364,9 +373,10 @@ make local-dev-all
 ```
 
 Done! Services running at:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- MLFlow: http://localhost:5001
+
+- Frontend: <http://localhost:3000>
+- Backend: <http://localhost:8000>
+- MLFlow: <http://localhost:5001>
 
 </details>
 
@@ -500,6 +510,7 @@ make prod-start
 ```
 
 Available images:
+
 - `ghcr.io/manavgup/rag_modulo/backend:latest`
 - `ghcr.io/manavgup/rag_modulo/frontend:latest`
 
@@ -517,6 +528,8 @@ Available images:
 - **Multi-LLM Support**: Seamless switching between WatsonX, OpenAI, and Anthropic with provider-specific optimizations
 - **IBM Docling Integration**: Enhanced document processing for complex formats (PDF, DOCX, XLSX)
 - **Question Suggestions**: AI-generated relevant questions based on document collection content
+- **MCP Context Forge**: Tool enrichment via
+  [IBM MCP](https://github.com/IBM/mcp-context-forge) with resilience patterns
 
 ### 🔍 Search & Retrieval
 
@@ -564,6 +577,7 @@ Available images:
 - **[🔌 API Reference](docs/api/README.md)** - Complete API documentation
 - **[🖥️ CLI Documentation](docs/cli/index.md)** - Command-line interface guide
 - **[🔐 Secret Management](docs/development/secret-management.md)** - Comprehensive guide for safe secret handling
+- **[🔗 MCP Integration](docs/features/mcp-integration.md)** - MCP Context Forge gateway setup and usage
 
 ### 🛠️ Command-Line Interface (CLI)
 
@@ -617,6 +631,7 @@ make run-ghcr
 ```
 
 **Available Images:**
+
 - `ghcr.io/manavgup/rag_modulo/backend:latest`
 - `ghcr.io/manavgup/rag_modulo/frontend:latest`
 
@@ -692,6 +707,7 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 **Triggers:** Push to `main`, Pull Requests
 
 **Stages:**
+
 1. **Lint and Unit Tests** (No infrastructure)
    - Ruff linting (120 char line length)
    - MyPy type checking
@@ -711,6 +727,7 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
    - End-to-end validation
 
 **Status Badges:**
+
 ```markdown
 [![CI Pipeline](https://github.com/manavgup/rag_modulo/workflows/CI/badge.svg)](https://github.com/manavgup/rag_modulo/actions)
 ```
@@ -720,11 +737,13 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 **Triggers:** Push to `main`, Pull Requests
 
 **Secret Detection (3-Layer Defense):**
+
 1. **Pre-commit hooks**: detect-secrets with baseline (< 1 sec)
 2. **Local testing**: Gitleaks via `make pre-commit-run` (~1-2 sec)
 3. **CI/CD**: Gitleaks + TruffleHog (~45 sec)
 
 **Scans:**
+
 - **Gitleaks**: Pattern-based secret scanning with custom rules (`.gitleaks.toml`)
 - **TruffleHog**: Entropy-based + verified secret detection
 - **Trivy**: Container vulnerability scanning
@@ -735,6 +754,7 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 **⚠️ IMPORTANT:** CI now **fails on ANY secret detection** (no `continue-on-error`). This ensures no secrets make their way to the repository.
 
 **Supported Secret Types:**
+
 - Cloud: AWS, Azure, GCP keys
 - LLM: OpenAI, Anthropic, WatsonX, Gemini API keys
 - Infrastructure: PostgreSQL, MinIO, MLFlow, JWT secrets
@@ -748,6 +768,7 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 **Triggers:** Push to `main`, Pull Requests to `docs/`
 
 **Actions:**
+
 - Build MkDocs site
 - Deploy to GitHub Pages
 - API documentation generation
@@ -773,30 +794,35 @@ make scan-secrets
 Optimized for developer velocity:
 
 **On Commit** (fast, 5-10 sec):
+
 - Ruff formatting
 - Trailing whitespace
 - YAML syntax
 - File size limits
 
 **On Push** (slow, 30-60 sec):
+
 - MyPy type checking
 - Pylint analysis
 - Security scans
 - Strangler pattern checks
 
 **In CI** (comprehensive):
+
 - All checks run regardless
 - Ensures quality gates
 
 ### Container Registry
 
 **GitHub Container Registry (GHCR)**:
+
 - Automatic image builds on push
 - Multi-architecture support (amd64, arm64)
 - Image signing and verification
 - Retention policies
 
 **Image Tags:**
+
 - `latest`: Latest main branch build
 - `sha-<commit>`: Specific commit
 - `<branch>`: Branch-specific builds
@@ -861,6 +887,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 ## 📈 Roadmap
 
 ### ✅ Phase 1: Foundation (Completed)
+
 - [x] Service-based architecture with 26+ services
 - [x] Comprehensive test infrastructure (947 tests)
 - [x] Multi-LLM provider support (WatsonX, OpenAI, Anthropic)
@@ -868,6 +895,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 - [x] CI/CD pipeline with security scanning
 
 ### ✅ Phase 2: Advanced Features (Completed)
+
 - [x] Chain of Thought (CoT) reasoning system
 - [x] Automatic pipeline resolution
 - [x] Token tracking and monitoring
@@ -877,6 +905,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 - [x] Containerless local development workflow
 
 ### 🔄 Phase 3: Production Enhancement (Current)
+
 - [x] Production deployment with GHCR images
 - [x] Multi-stage Docker builds
 - [x] Security hardening (Trivy, Bandit, Gitleaks, Semgrep)
@@ -885,6 +914,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 - [ ] Authentication system improvements (OIDC)
 
 ### 🚀 Phase 4: Enterprise Features (Next)
+
 - [ ] Multi-tenant support
 - [ ] Advanced analytics and dashboards
 - [ ] Batch processing capabilities
@@ -892,6 +922,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 - [ ] Advanced caching strategies
 
 ### 🔮 Phase 5: Innovation (Future)
+
 - [ ] Multi-modal support (image, audio)
 - [ ] Agentic AI workflows
 - [ ] Real-time collaborative features
