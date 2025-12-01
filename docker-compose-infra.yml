@@ -138,10 +138,19 @@ services:
     networks:
       - app-network
 
+  # ============================================================================
+  # MCP Context Forge Services (Optional - only started with --profile mcp)
+  # ============================================================================
+  # To enable: Set ENABLE_MCP_GATEWAY=true in your .env file
+  # The Makefile will automatically pass --profile mcp to docker-compose
+  # ============================================================================
+
   # Redis for MCP Context Forge gateway caching and session management
   redis:
     container_name: redis
     image: redis:7-alpine
+    profiles:
+      - mcp
     ports:
       - "6379:6379"
     volumes:
@@ -158,28 +167,56 @@ services:
 
   # MCP Context Forge Gateway - Model Context Protocol server
   # Provides tool discovery and invocation capabilities for RAG enrichment
-  # Note: Uses port 3001 externally to avoid conflict with frontend (port 3000)
-  # MCP Context Forge uses PORT env var (not MCP_SERVER_PORT), defaults to 4444 internally
+  # Port 3001 by default to avoid conflict with frontend (port 3000)
+  #
+  # AUTHENTICATION ARCHITECTURE:
+  # RAG Modulo uses PROXY AUTHENTICATION - it acts as a trusted backend service
+  # that passes authenticated user identity via headers. No JWT token exchange needed.
+  # See: https://ibm.github.io/mcp-context-forge/manage/proxy/
+  #
+  # IMAGE VERSION: Pinned to SHA digest for reproducibility (updated 2025-12-01)
+  # To update: docker pull ghcr.io/ibm/mcp-context-forge:latest && docker inspect --format='{{index .RepoDigests 0}}'
   mcp-context-forge:
     container_name: mcp-context-forge
-    image: ghcr.io/ibm/mcp-context-forge:latest
+    image: ghcr.io/ibm/mcp-context-forge@sha256:654c72fd4d2ed3ce0716214e6adf517fbba3ef105f39864a0deb326f90475797
+    profiles:
+      - mcp
     ports:
-      - "3001:3001"
+      - "${MCP_PORT:-3001}:${MCP_PORT:-3001}"
     environment:
       # Server port (MCP Context Forge uses PORT env var)
-      PORT: 3001
+      PORT: ${MCP_PORT:-3001}
       HOST: 0.0.0.0
       # Redis configuration for caching
       REDIS_URL: redis://redis:6379
-      # JWT authentication (optional - set MCP_JWT_SECRET to enable)
-      MCP_JWT_SECRET: ${MCP_JWT_SECRET:-}
+      # ========================================
+      # PROXY AUTHENTICATION (Recommended)
+      # ========================================
+      # RAG Modulo is a TRUSTED BACKEND SERVICE, not an end-user client.
+      # With proxy auth, RAG Modulo passes the authenticated user's identity
+      # via a header, and MCP trusts it without requiring JWT token exchange.
+      TRUST_PROXY_AUTH: ${MCP_TRUST_PROXY_AUTH:-true}
+      PROXY_USER_HEADER: ${MCP_PROXY_USER_HEADER:-X-Authenticated-User}
+      # Disable client-side JWT auth when using proxy auth
+      MCP_CLIENT_AUTH_ENABLED: ${MCP_CLIENT_AUTH_ENABLED:-false}
+      # ========================================
+      # ADMIN UI AUTHENTICATION
+      # ========================================
+      # AUTH_REQUIRED controls the admin web UI, not API calls
+      AUTH_REQUIRED: ${MCP_AUTH_REQUIRED:-false}
+      # Admin credentials for web UI (only needed if AUTH_REQUIRED=true)
+      PLATFORM_ADMIN_EMAIL: ${MCP_ADMIN_EMAIL:-admin@example.com}
+      PLATFORM_ADMIN_PASSWORD: ${MCP_ADMIN_PASSWORD:-change-me-in-production}
+      # JWT secret for admin UI tokens (not used for proxy auth)
+      JWT_SECRET_KEY: ${MCP_JWT_SECRET:-dev-jwt-secret-change-in-production}
       # Logging
       LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
     volumes:
       - mcp_tools:/app/tools
     healthcheck:
       # Use wget instead of curl (Alpine-based image)
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      # Note: Health check uses internal PORT env var set above
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:$${PORT}/health"]
       interval: 10s
       timeout: 5s
       retries: 3

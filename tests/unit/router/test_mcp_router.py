@@ -7,10 +7,10 @@ Tests the MCP router API endpoints including:
 - Metrics endpoint
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from rag_solution.router.mcp_router import router
@@ -59,10 +59,9 @@ class TestMCPRouter:
     @pytest.fixture
     def app(self, mock_settings, mock_mcp_client, mock_current_user):
         """Create FastAPI test app with mocked dependencies."""
-        from rag_solution.router.mcp_router import get_mcp_client
-
         from core.config import get_settings
         from rag_solution.core.dependencies import get_current_user
+        from rag_solution.router.mcp_router import get_mcp_client
 
         app = FastAPI()
         app.include_router(router)

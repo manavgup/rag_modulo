@@ -7,9 +7,8 @@ Tests the ResilientMCPGatewayClient service including:
 - Retry logic and error handling
 """
 
-import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
