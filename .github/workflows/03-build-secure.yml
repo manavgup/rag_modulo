@@ -259,7 +259,7 @@ jobs:
           fi
 
       - name: 📤 Upload SBOM Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always() && steps.check-sbom.outputs.sbom_success == 'true'
         with:
           name: sbom-${{ matrix.service }}

@@ -124,7 +124,7 @@ jobs:
           output: "sbom-${{ matrix.service }}.json"
 
       - name: 📤 Upload Security Reports as Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: security-audit-${{ matrix.service }}
           path: |
