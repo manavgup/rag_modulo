@@ -12,6 +12,7 @@ import pytest
 
 from backend.mcp_server.server import (
     MCPServerContext,
+    _validate_auth_configuration,
     create_mcp_server,
     get_app_context,
     parse_uuid,
@@ -315,3 +316,80 @@ class TestModuleExports:
 
         assert "create_mcp_server" in mcp_server.__all__
         assert "run_server" in mcp_server.__all__
+
+
+class TestValidateAuthConfiguration:
+    """Tests for _validate_auth_configuration function."""
+
+    def test_no_jwt_secret_key_logs_warning_when_auth_not_required(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test warning is logged when JWT_SECRET_KEY is missing and auth not required."""
+
+        @dataclass
+        class SettingsNoJWT:
+            JWT_SECRET_KEY: str | None = None
+            MCP_API_KEY: str | None = "valid-api-key"
+            MCP_AUTH_REQUIRED: bool = False
+
+        with caplog.at_level("WARNING"):
+            _validate_auth_configuration(SettingsNoJWT())
+
+        assert "JWT_SECRET_KEY not configured" in caplog.text
+        assert "Bearer token authentication will not work" in caplog.text
+
+    def test_no_jwt_secret_key_raises_when_auth_required(self) -> None:
+        """Test ValueError is raised when JWT_SECRET_KEY is missing and MCP_AUTH_REQUIRED=true."""
+
+        @dataclass
+        class SettingsAuthRequired:
+            JWT_SECRET_KEY: str | None = None
+            MCP_API_KEY: str | None = "valid-api-key"
+            MCP_AUTH_REQUIRED: bool = True
+
+        with pytest.raises(ValueError) as exc_info:
+            _validate_auth_configuration(SettingsAuthRequired())
+
+        assert "JWT_SECRET_KEY must be configured" in str(exc_info.value)
+        assert "MCP_AUTH_REQUIRED=true" in str(exc_info.value)
+
+    def test_no_api_key_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test warning is logged when MCP_API_KEY is missing."""
+
+        @dataclass
+        class SettingsNoAPIKey:
+            JWT_SECRET_KEY: str | None = "secret-key"
+            MCP_API_KEY: str | None = None
+            MCP_AUTH_REQUIRED: bool = False
+
+        with caplog.at_level("WARNING"):
+            _validate_auth_configuration(SettingsNoAPIKey())
+
+        assert "MCP_API_KEY not configured" in caplog.text
+        assert "API key authentication will not work" in caplog.text
+
+    def test_all_configured_no_warnings(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test no warnings when all auth configuration is present."""
+
+        @dataclass
+        class SettingsComplete:
+            JWT_SECRET_KEY: str | None = "secret-key"
+            MCP_API_KEY: str | None = "api-key"
+            MCP_AUTH_REQUIRED: bool = False
+
+        with caplog.at_level("WARNING"):
+            _validate_auth_configuration(SettingsComplete())
+
+        # No warnings about JWT or API key
+        assert "JWT_SECRET_KEY not configured" not in caplog.text
+        assert "MCP_API_KEY not configured" not in caplog.text
+
+    def test_jwt_secret_key_present_with_auth_required_no_error(self) -> None:
+        """Test no error when JWT_SECRET_KEY is present and MCP_AUTH_REQUIRED=true."""
+
+        @dataclass
+        class SettingsAuthRequiredWithJWT:
+            JWT_SECRET_KEY: str | None = "secret-key"
+            MCP_API_KEY: str | None = "api-key"
+            MCP_AUTH_REQUIRED: bool = True
+
+        # Should not raise
+        _validate_auth_configuration(SettingsAuthRequiredWithJWT())

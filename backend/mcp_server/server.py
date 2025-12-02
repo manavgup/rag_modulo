@@ -41,6 +41,41 @@ __all__ = [
 ]
 
 
+def _validate_auth_configuration(settings: object) -> None:
+    """Validate authentication configuration at startup.
+
+    Logs warnings for missing or insecure configurations.
+    In production mode with MCP_AUTH_REQUIRED=true, raises ValueError
+    for critical misconfigurations.
+
+    Args:
+        settings: Application settings object
+
+    Raises:
+        ValueError: If JWT_SECRET_KEY is missing and MCP_AUTH_REQUIRED is true
+    """
+    jwt_secret = getattr(settings, "JWT_SECRET_KEY", None)
+    api_key = getattr(settings, "MCP_API_KEY", None)
+    auth_required = getattr(settings, "MCP_AUTH_REQUIRED", False)
+
+    if not jwt_secret:
+        if auth_required:
+            raise ValueError(
+                "JWT_SECRET_KEY must be configured when MCP_AUTH_REQUIRED=true. "
+                "Set JWT_SECRET_KEY in environment or disable auth requirement."
+            )
+        logger.warning(
+            "JWT_SECRET_KEY not configured - Bearer token authentication will not work. "
+            "Set JWT_SECRET_KEY environment variable for production use."
+        )
+
+    if not api_key:
+        logger.warning(
+            "MCP_API_KEY not configured - API key authentication will not work. "
+            "Consider setting MCP_API_KEY for programmatic access."
+        )
+
+
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
     """Manage server lifecycle with proper resource initialization and cleanup.
@@ -53,6 +88,9 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
 
     Yields:
         MCPServerContext with initialized services
+
+    Raises:
+        ValueError: If required authentication configuration is missing
     """
     logger.info("Initializing RAG Modulo MCP Server...")
 
@@ -66,6 +104,9 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
     try:
         # Get settings instance
         settings = get_settings()
+
+        # Validate authentication configuration at startup
+        _validate_auth_configuration(settings)
 
         # Initialize services
         search_service = SearchService(db=db_session, settings=settings)

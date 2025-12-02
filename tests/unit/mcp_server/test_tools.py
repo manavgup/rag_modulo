@@ -6,7 +6,7 @@ Tests for all RAG tools exposed via MCP.
 from datetime import datetime
 from enum import Enum
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -215,6 +215,64 @@ class TestRagSearchTool:
 
         assert "error" in result
         assert result["error_type"] == "search_error"
+
+    @pytest.mark.asyncio
+    async def test_search_with_custom_chunk_length(
+        self, mock_app_context: MCPServerContext, mock_mcp_context: MagicMock
+    ) -> None:
+        """Test search with custom max_chunk_length parameter."""
+        # Generate UUIDs dynamically
+        doc_uuid = uuid4()
+        collection_uuid = uuid4()
+        user_uuid = uuid4()
+
+        # Setup mock with long text
+        long_text = "A" * 1000  # 1000 character text
+
+        mock_doc = MagicMock()
+        mock_doc.document_id = doc_uuid
+        mock_doc.document_name = "test.pdf"
+        mock_doc.chunk_text = long_text
+
+        mock_query_result = MagicMock()
+        mock_query_result.text = long_text
+        mock_query_result.score = 0.95
+        mock_query_result.metadata = {}
+
+        mock_result = MagicMock()
+        mock_result.answer = "Test answer"
+        mock_result.documents = [mock_doc]
+        mock_result.query_results = [mock_query_result]
+        mock_result.execution_time = 1.5
+        mock_result.rewritten_query = None
+        mock_result.cot_output = None
+
+        mock_app_context.search_service.search = AsyncMock(return_value=mock_result)
+
+        mock_mcp = MagicMock()
+        tool_functions = {}
+
+        def capture_tool(func=None):
+            if func:
+                tool_functions[func.__name__] = func
+                return func
+            return capture_tool
+
+        mock_mcp.tool = capture_tool
+        register_rag_tools(mock_mcp)
+
+        # Test with custom chunk length of 100
+        result = await tool_functions["rag_search"](
+            question="test question",
+            collection_id=str(collection_uuid),
+            user_id=str(user_uuid),
+            ctx=mock_mcp_context,
+            max_chunk_length=100,
+        )
+
+        # Verify truncation to 100 characters
+        assert len(result["documents"][0]["chunk_text"]) == 100
+        assert len(result["query_results"][0]["text"]) == 100
 
 
 class TestRagListCollectionsTool:

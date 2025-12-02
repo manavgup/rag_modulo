@@ -37,6 +37,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
         enable_cot: bool = False,
         show_cot_steps: bool = False,
         max_results: int = 10,
+        max_chunk_length: int = 500,
     ) -> dict[str, Any]:
         """Search documents in a RAG collection and generate an answer.
 
@@ -52,6 +53,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
             enable_cot: Enable Chain of Thought reasoning for complex questions
             show_cot_steps: Include reasoning steps in the response
             max_results: Maximum number of document chunks to retrieve
+            max_chunk_length: Maximum character length for chunk text in response
 
         Returns:
             Dictionary containing:
@@ -94,13 +96,13 @@ def register_rag_tools(mcp: FastMCP) -> None:
                     {
                         "document_id": str(doc.document_id),
                         "document_name": doc.document_name,
-                        "chunk_text": doc.chunk_text[:500] if doc.chunk_text else None,
+                        "chunk_text": doc.chunk_text[:max_chunk_length] if doc.chunk_text else None,
                     }
                     for doc in result.documents
                 ],
                 "query_results": [
                     {
-                        "text": qr.text[:500] if qr.text else None,
+                        "text": qr.text[:max_chunk_length] if qr.text else None,
                         "score": qr.score,
                         "metadata": qr.metadata,
                     }
