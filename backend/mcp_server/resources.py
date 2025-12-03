@@ -6,13 +6,47 @@ This module defines MCP resources that expose RAG Modulo data:
 - rag://search/{query}/results: Cached search results
 """
 
+import contextlib
 import json
-import logging
+from collections.abc import Generator
+from contextlib import contextmanager
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
+from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+from backend.core.enhanced_logging import get_logger
+
+logger = get_logger(__name__)
+
+
+@contextmanager
+def db_session_context() -> Generator[Session, None, None]:
+    """Context manager for proper database session lifecycle.
+
+    This wraps the get_db() generator to ensure proper cleanup,
+    including rollback on errors and session closure.
+
+    Yields:
+        Session: Database session that is properly managed
+
+    Example:
+        with db_session_context() as db:
+            result = db.query(Model).all()
+
+    Raises:
+        Exception: Any database errors are propagated after cleanup
+    """
+    from backend.rag_solution.repository.database import get_db
+
+    db_gen = get_db()
+    db_session = next(db_gen)
+    try:
+        yield db_session
+    finally:
+        # Exhaust the generator to trigger its cleanup code
+        with contextlib.suppress(StopIteration):
+            next(db_gen)
 
 
 def register_rag_resources(mcp: FastMCP) -> None:
@@ -45,17 +79,12 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid collection_id: {e}"})
 
         try:
-            from backend.rag_solution.repository.database import get_db
-
             from backend.core.config import get_settings
             from backend.rag_solution.services.file_management_service import FileManagementService
 
-            # Get database session and settings
-            db_gen = get_db()
-            db_session = next(db_gen)
             settings = get_settings()
 
-            try:
+            with db_session_context() as db_session:
                 file_service = FileManagementService(db=db_session, settings=settings)
 
                 # Get files in collection
@@ -82,8 +111,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
                     },
                     indent=2,
                 )
-            finally:
-                db_session.close()
 
         except Exception as e:
             logger.exception("Failed to fetch collection documents")
@@ -105,19 +132,14 @@ def register_rag_resources(mcp: FastMCP) -> None:
         logger.info("Fetching stats for collection %s", collection_id)
 
         try:
-            from backend.rag_solution.repository.database import get_db
-
             from backend.core.config import get_settings
             from backend.rag_solution.services.collection_service import CollectionService
 
-            # Get database session and settings
-            db_gen = get_db()
-            db_session = next(db_gen)
             settings = get_settings()
+            collection_uuid = UUID(collection_id)
 
-            try:
+            with db_session_context() as db_session:
                 collection_service = CollectionService(db=db_session, settings=settings)
-                collection_uuid = UUID(collection_id)
 
                 # Get collection
                 collection = collection_service.get_collection(collection_uuid)
@@ -143,8 +165,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
                     stats["total_documents"] = collection.total_documents
 
                 return json.dumps(stats, indent=2)
-            finally:
-                db_session.close()
 
         except ValueError as e:
             logger.warning("Invalid collection_id: %s", e)
@@ -176,17 +196,12 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid user_id: {e}"})
 
         try:
-            from backend.rag_solution.repository.database import get_db
-
             from backend.core.config import get_settings
             from backend.rag_solution.services.collection_service import CollectionService
 
-            # Get database session and settings
-            db_gen = get_db()
-            db_session = next(db_gen)
             settings = get_settings()
 
-            try:
+            with db_session_context() as db_session:
                 collection_service = CollectionService(db=db_session, settings=settings)
 
                 # Get user's collections
@@ -211,8 +226,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
                     },
                     indent=2,
                 )
-            finally:
-                db_session.close()
 
         except Exception as e:
             logger.exception("Failed to fetch user collections")

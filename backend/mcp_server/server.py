@@ -5,13 +5,13 @@ as MCP tools and resources. Uses the FastMCP high-level API for clean integratio
 """
 
 import asyncio
-import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
 
 from backend.core.config import get_settings
+from backend.core.enhanced_logging import get_logger
 from backend.mcp_server.auth import MCPAuthenticator
 
 # Re-export from types for backward compatibility
@@ -27,7 +27,7 @@ from backend.rag_solution.services.podcast_service import PodcastService
 from backend.rag_solution.services.question_service import QuestionService
 from backend.rag_solution.services.search_service import SearchService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Export types for external modules
 __all__ = [

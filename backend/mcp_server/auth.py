@@ -5,18 +5,32 @@ supporting multiple authentication methods:
 - SPIFFE JWT-SVID (workload identity)
 - Bearer tokens
 - API keys
+
+Security Notes:
+    - SPIFFE JWT-SVID validation requires a running SPIRE agent
+    - Fallback mode (when SPIRE unavailable) should only be used in development
+    - All authentication failures are logged for security auditing
+    - Timing attacks are mitigated using constant-time comparison
 """
 
-import logging
+import contextlib
+import hmac
+import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from backend.core.enhanced_logging import get_logger
+from backend.mcp_server.permissions import DefaultPermissionSets, MCPPermissions
+
 # SPIFFE imports are optional - used only when SPIFFE auth is configured
 if TYPE_CHECKING:
-    pass
+    from backend.core.spiffe_auth import AgentPrincipal
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+# Security: Check if we're in production mode
+_IS_PRODUCTION = os.getenv("ENVIRONMENT", "development").lower() == "production"
 
 
 @dataclass
@@ -65,36 +79,6 @@ class MCPAuthenticator:
             settings: Application settings containing auth configuration
         """
         self.settings = settings
-        self._spiffe_source: Any = None  # Optional[DefaultJwtSource]
-        self._spiffe_initialized = False
-
-    async def _init_spiffe(self) -> None:
-        """Initialize SPIFFE workload API client lazily.
-
-        This is called on first authentication request that requires
-        SPIFFE validation to avoid startup delays.
-        """
-        if self._spiffe_initialized:
-            return
-
-        try:
-            # Import SPIFFE modules only when needed
-            from spiffe.workloadapi.default_jwt_source import DefaultJwtSource
-            from spiffe.workloadapi.workload_api_client import WorkloadApiClient
-
-            spiffe_socket = getattr(self.settings, "SPIFFE_ENDPOINT_SOCKET", None)
-            if spiffe_socket:
-                client = WorkloadApiClient(spiffe_endpoint_socket=spiffe_socket)
-                self._spiffe_source = DefaultJwtSource(workload_api_client=client)
-                logger.info("SPIFFE workload API client initialized")
-            else:
-                logger.warning("SPIFFE_ENDPOINT_SOCKET not configured, SPIFFE auth disabled")
-        except ImportError:
-            logger.warning("SPIFFE package not installed, SPIFFE auth disabled")
-        except Exception as e:
-            logger.warning("Failed to initialize SPIFFE client: %s", e)
-        finally:
-            self._spiffe_initialized = True
 
     async def authenticate_request(
         self,
@@ -163,53 +147,109 @@ class MCPAuthenticator:
     async def _authenticate_spiffe(self, jwt_token: str) -> MCPAuthContext:
         """Authenticate using SPIFFE JWT-SVID.
 
+        Uses the existing SPIFFEAuthenticator from backend/core/spiffe_auth.py
+        for proper signature validation and trust domain verification.
+
+        SECURITY: In production, signature validation is REQUIRED. The fallback
+        mode (accepting tokens without signature validation) is ONLY allowed in
+        non-production environments when SPIRE agent is unavailable.
+
         Args:
             jwt_token: The SPIFFE JWT-SVID token
 
         Returns:
             MCPAuthContext with SPIFFE identity if valid
+
+        Raises:
+            PermissionError: In production when signature validation fails
         """
-        await self._init_spiffe()
-
-        if not self._spiffe_source:
-            logger.warning("SPIFFE authentication attempted but not configured")
-            return MCPAuthContext()
-
         try:
-            # Validate the JWT and extract SPIFFE ID
-            # The actual validation depends on the SPIFFE SDK version
-            # For now, we'll extract the subject from the JWT claims
-            import jwt
+            # Import the existing SPIFFE authenticator which has proper validation
+            from backend.core.spiffe_auth import get_spiffe_authenticator
 
-            # Decode without verification to get the subject
-            # In production, this should be validated against the trust bundle
-            unverified = jwt.decode(jwt_token, options={"verify_signature": False})
-            spiffe_id = unverified.get("sub", "")
+            authenticator = get_spiffe_authenticator()
 
-            if spiffe_id.startswith("spiffe://"):
-                # Import SpiffeId lazily
-                from spiffe import SpiffeId
+            # Validate the JWT-SVID with proper signature verification
+            # The SPIFFEAuthenticator validates:
+            # 1. Token format and SPIFFE ID structure
+            # 2. Trust domain matches configuration
+            # 3. Signature against SPIRE trust bundle (when available)
+            # 4. Token expiration
+            principal = authenticator.validate_jwt_svid(jwt_token)
 
-                # Extract workload identity info
-                parsed = SpiffeId.parse(spiffe_id)
-                trust_domain = parsed.trust_domain.name
+            if principal is not None:
+                # SECURITY CHECK: In production, require signature validation
+                signature_validated = principal.metadata.get("signature_validated", False)
+                if _IS_PRODUCTION and not signature_validated:
+                    logger.error(
+                        "SECURITY: Rejecting SPIFFE token without signature validation in production. "
+                        "SPIFFE ID: %s. Ensure SPIRE agent is running and accessible.",
+                        principal.spiffe_id,
+                    )
+                    return MCPAuthContext()
+
+                if not signature_validated:
+                    logger.warning(
+                        "SPIFFE token accepted without signature validation (development mode). "
+                        "SPIFFE ID: %s. This is NOT safe for production!",
+                        principal.spiffe_id,
+                    )
+
+                # Map AgentPrincipal capabilities to MCP permissions
+                mcp_permissions = self._map_agent_capabilities_to_permissions(principal)
 
                 return MCPAuthContext(
                     is_authenticated=True,
                     auth_method="spiffe",
-                    agent_id=spiffe_id,
-                    permissions=["rag:search", "rag:read", "rag:list"],
+                    agent_id=principal.spiffe_id,
+                    permissions=mcp_permissions,
                     metadata={
-                        "trust_domain": trust_domain,
-                        "path": parsed.path,
+                        "trust_domain": principal.trust_domain,
+                        "agent_type": principal.agent_type.value,
+                        "capabilities": [cap.value for cap in principal.capabilities],
+                        "signature_validated": signature_validated,
                     },
                 )
         except ImportError:
-            logger.warning("SPIFFE package not installed, cannot validate SPIFFE ID")
+            logger.warning("SPIFFE auth module not available")
         except Exception as e:
             logger.warning("SPIFFE authentication failed: %s", e)
 
         return MCPAuthContext()
+
+    def _map_agent_capabilities_to_permissions(self, principal: "AgentPrincipal") -> list[str]:
+        """Map SPIFFE agent capabilities to MCP permissions.
+
+        Args:
+            principal: The authenticated agent principal
+
+        Returns:
+            List of MCP permission strings
+        """
+        from backend.core.spiffe_auth import AgentCapability
+
+        # Mapping from SPIFFE capabilities to MCP permissions
+        capability_to_permission = {
+            AgentCapability.SEARCH_READ: MCPPermissions.SEARCH,
+            AgentCapability.DOCUMENT_READ: MCPPermissions.READ,
+            AgentCapability.DOCUMENT_WRITE: MCPPermissions.WRITE,
+            AgentCapability.MCP_TOOL_INVOKE: MCPPermissions.LIST,
+            AgentCapability.LLM_INVOKE: MCPPermissions.GENERATE,
+            AgentCapability.PIPELINE_EXECUTE: MCPPermissions.PIPELINE,
+            AgentCapability.COT_INVOKE: MCPPermissions.COT,
+            AgentCapability.ADMIN: MCPPermissions.ADMIN,
+        }
+
+        permissions = []
+        for cap in principal.capabilities:
+            if cap in capability_to_permission:
+                permissions.append(capability_to_permission[cap])
+
+        # Ensure basic read permissions for any authenticated agent
+        if not permissions:
+            permissions = list(DefaultPermissionSets.DEFAULT_AGENT)
+
+        return permissions
 
     async def _authenticate_bearer(self, token: str) -> MCPAuthContext:
         """Authenticate using Bearer token.
@@ -240,7 +280,7 @@ class MCPAuthenticator:
                     username=username,
                     is_authenticated=True,
                     auth_method="bearer",
-                    permissions=payload.get("permissions", ["rag:search", "rag:read"]),
+                    permissions=payload.get("permissions", list(DefaultPermissionSets.BEARER)),
                     metadata={"exp": payload.get("exp")},
                 )
         except Exception as e:
@@ -250,6 +290,8 @@ class MCPAuthenticator:
 
     async def _authenticate_api_key(self, api_key: str) -> MCPAuthContext:
         """Authenticate using API key.
+
+        Uses constant-time comparison to prevent timing attacks.
 
         Args:
             api_key: The API key
@@ -261,11 +303,13 @@ class MCPAuthenticator:
         # For now, we'll check against environment variable for demo
         valid_api_key = getattr(self.settings, "MCP_API_KEY", None)
 
-        if valid_api_key and api_key == valid_api_key:
+        # Use constant-time comparison to prevent timing attacks
+        # hmac.compare_digest prevents timing attacks by comparing in constant time
+        if valid_api_key and hmac.compare_digest(api_key.encode(), valid_api_key.encode()):
             return MCPAuthContext(
                 is_authenticated=True,
                 auth_method="api_key",
-                permissions=["rag:search", "rag:read", "rag:list"],
+                permissions=list(DefaultPermissionSets.API_KEY),
                 metadata={"api_key_prefix": api_key[:8] + "..."},
             )
 
@@ -290,6 +334,8 @@ class MCPAuthenticator:
         from backend.core.config import get_settings
         from backend.rag_solution.services.user_service import UserService
 
+        db_gen = None
+        db_session = None
         try:
             db_gen = get_db()
             db_session = next(db_gen)
@@ -310,11 +356,16 @@ class MCPAuthenticator:
                     username=user.email,
                     is_authenticated=True,
                     auth_method="trusted_proxy",
-                    permissions=["rag:search", "rag:read", "rag:list", "rag:write"],
+                    permissions=list(DefaultPermissionSets.TRUSTED_PROXY),
                     metadata={"source": "trusted_proxy"},
                 )
         except Exception as e:
             logger.warning("Trusted user lookup failed: %s", e)
+        finally:
+            # Ensure proper cleanup of database session
+            if db_gen is not None:
+                with contextlib.suppress(StopIteration):
+                    next(db_gen)
 
         return MCPAuthContext()
 

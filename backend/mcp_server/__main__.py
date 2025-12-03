@@ -18,7 +18,10 @@ import argparse
 import logging
 import sys
 
+from backend.core.enhanced_logging import get_logger
 from backend.mcp_server.server import run_server
+
+logger = get_logger(__name__)
 
 
 def main() -> None:

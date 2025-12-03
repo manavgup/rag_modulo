@@ -539,6 +539,251 @@ MCP_GATEWAY_URL=http://localhost:3002
 
 ---
 
+# RAG Modulo MCP Server
+
+RAG Modulo can also act as an **MCP Server**, exposing its RAG capabilities to MCP clients
+such as Claude Desktop, enabling LLMs to interact with your document collections.
+
+## Overview
+
+The MCP Server exposes:
+
+- **Tools**: 6 tools for search, ingestion, collection management, and more
+- **Resources**: Collection documents, statistics, and user collections
+- **Authentication**: SPIFFE JWT-SVID, Bearer tokens, API keys, trusted proxy
+
+## Quick Start
+
+### Running the Server
+
+```bash
+# Run with stdio transport (for Claude Desktop)
+python -m mcp_server
+
+# Run with SSE transport (for web clients)
+python -m mcp_server --transport sse --port 8080
+
+# Run with HTTP transport (for API clients)
+python -m mcp_server --transport http --port 8080
+```
+
+### Claude Desktop Configuration
+
+Add to `~/.config/claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "rag-modulo": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/path/to/rag_modulo"
+    }
+  }
+}
+```
+
+## Available Tools
+
+| Tool | Description | Required Permissions |
+|------|-------------|---------------------|
+| `rag_search` | Search documents and generate answers | `rag:search` |
+| `rag_list_collections` | List accessible collections | `rag:list` |
+| `rag_ingest` | Ingest documents into collections | `rag:ingest`, `rag:write` |
+| `rag_generate_podcast` | Generate podcasts from content | `rag:podcast`, `rag:read` |
+| `rag_smart_questions` | Generate follow-up questions | `rag:read` |
+| `rag_get_document` | Retrieve document metadata | `rag:read` |
+
+### Tool Examples
+
+#### Search
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_search",
+    "arguments": {
+      "question": "What is machine learning?",
+      "collection_id": "uuid-here",
+      "user_id": "user-uuid",
+      "enable_cot": true,
+      "max_results": 10
+    }
+  }
+}
+```
+
+#### List Collections
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_list_collections",
+    "arguments": {
+      "user_id": "user-uuid",
+      "include_stats": true
+    }
+  }
+}
+```
+
+## Available Resources
+
+| Resource URI | Description |
+|-------------|-------------|
+| `rag://collection/{id}/documents` | List documents in a collection |
+| `rag://collection/{id}/stats` | Collection statistics |
+| `rag://user/{id}/collections` | User's collections |
+
+## Authentication
+
+The MCP server supports multiple authentication methods:
+
+### 1. SPIFFE JWT-SVID
+
+For workload identity in agent environments:
+
+```
+X-SPIFFE-JWT: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 2. Bearer Token
+
+For user API access:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 3. API Key
+
+For programmatic access:
+
+```
+X-API-Key: your-api-key
+```
+
+### 4. Trusted Proxy
+
+For deployment behind an authenticated proxy:
+
+```
+X-Authenticated-User: user@example.com
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWT_SECRET_KEY` | Secret for JWT validation | Required for Bearer auth |
+| `MCP_API_KEY` | API key for programmatic access | Optional |
+| `MCP_AUTH_REQUIRED` | Require authentication | `false` |
+
+## Permissions
+
+Permissions follow the pattern `rag:{action}`:
+
+| Permission | Description |
+|-----------|-------------|
+| `rag:search` | Perform semantic search queries |
+| `rag:read` | Read document content and metadata |
+| `rag:write` | Create, update, or delete documents |
+| `rag:list` | List collections and resources |
+| `rag:ingest` | Ingest documents into collections |
+| `rag:podcast` | Generate podcasts from content |
+| `rag:generate` | Use LLM generation features |
+| `rag:admin` | Administrative operations |
+
+## Error Handling
+
+All tools return consistent error responses:
+
+```json
+{
+  "error": "Collection not found",
+  "error_type": "not_found",
+  "details": {}
+}
+```
+
+Error types:
+
+- `authorization_error`: Authentication or permission failure
+- `validation_error`: Invalid input parameters
+- `not_found`: Requested resource does not exist
+- `operation_error`: Operation failed during execution
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                          MCP Client                                 │
+│           (Claude Desktop, Web Client, API Client)                  │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+                    stdio / SSE / HTTP
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     RAG Modulo MCP Server                           │
+│                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────┐  │
+│  │   MCPAuthenti-  │  │     FastMCP     │  │   MCPServerContext │  │
+│  │     cator       │  │     Server      │  │     (Services)     │  │
+│  └────────┬────────┘  └────────┬────────┘  └─────────┬──────────┘  │
+│           │                    │                     │             │
+│           └───────────┬────────┴─────────────────────┘             │
+│                       │                                             │
+│                       ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                        MCP Tools                             │   │
+│  │  ┌───────────────┐  ┌────────────────┐  ┌─────────────────┐ │   │
+│  │  │  rag_search   │  │ rag_list_colls │  │   rag_ingest    │ │   │
+│  │  └───────────────┘  └────────────────┘  └─────────────────┘ │   │
+│  │  ┌───────────────┐  ┌────────────────┐  ┌─────────────────┐ │   │
+│  │  │ rag_podcast   │  │ rag_questions  │  │  rag_get_doc    │ │   │
+│  │  └───────────────┘  └────────────────┘  └─────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+└────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     RAG Modulo Services                             │
+│  SearchService, CollectionService, PodcastService, etc.           │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+## Development
+
+### Module Structure
+
+```
+backend/mcp_server/
+├── __init__.py         # Package exports
+├── __main__.py         # CLI entry point
+├── server.py           # FastMCP server creation and lifecycle
+├── tools.py            # MCP tool implementations
+├── resources.py        # MCP resource implementations
+├── auth.py             # Authentication handlers
+├── types.py            # Type definitions and utilities
+└── permissions.py      # Permission constants
+```
+
+### Running Tests
+
+```bash
+# Unit tests for MCP server
+poetry run pytest tests/unit/mcp_server/ -v
+
+# Integration tests
+poetry run pytest tests/integration/test_mcp_server.py -v
+```
+
+---
+
 ## Related Documentation
 
 - [MCP Context Forge Documentation](https://ibm.github.io/mcp-context-forge/)
@@ -546,3 +791,4 @@ MCP_GATEWAY_URL=http://localhost:3002
 - [Search & Retrieval](search-retrieval.md) - Core search functionality
 - [Chain of Thought](chain-of-thought/index.md) - Advanced reasoning
 - [LLM Integration](llm-integration.md) - Provider configuration
+- [FastMCP Documentation](https://github.com/anthropics/anthropic-sdk-python) - MCP SDK

@@ -2,15 +2,60 @@
 
 This module provides shared type definitions and utility functions used
 across the MCP server implementation. Separated to avoid circular imports.
+
+Error Types:
+    - authorization_error: Authentication or permission failure
+    - validation_error: Invalid input parameters
+    - not_found: Requested resource does not exist
+    - operation_error: Operation failed during execution
 """
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
 from mcp.server.fastmcp import Context
 from mcp.server.session import ServerSession
 from sqlalchemy.orm import Session
+
+
+class MCPErrorType(str, Enum):
+    """Standard error types for MCP tool responses.
+
+    These error types provide consistent categorization of failures
+    across all MCP tools for easier client-side handling.
+    """
+
+    AUTHORIZATION = "authorization_error"
+    VALIDATION = "validation_error"
+    NOT_FOUND = "not_found"
+    OPERATION = "operation_error"
+
+
+def create_error_response(
+    error: str | Exception,
+    error_type: MCPErrorType,
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create a standardized error response for MCP tools.
+
+    Args:
+        error: Error message or exception
+        error_type: Category of error from MCPErrorType
+        details: Optional additional error details
+
+    Returns:
+        Dictionary with error, error_type, and optional details
+    """
+    response: dict[str, Any] = {
+        "error": str(error),
+        "error_type": error_type.value,
+    }
+    if details:
+        response["details"] = details
+    return response
+
 
 # Try to import get_http_headers for HTTP transport header extraction
 try:
@@ -19,12 +64,13 @@ except ImportError:
     # Fallback if using older mcp package version
     get_http_headers = None  # type: ignore[misc, assignment]
 
-from backend.mcp_server.auth import MCPAuthContext, MCPAuthenticator
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.file_management_service import FileManagementService
-from backend.rag_solution.services.podcast_service import PodcastService
-from backend.rag_solution.services.question_service import QuestionService
-from backend.rag_solution.services.search_service import SearchService
+# Service imports must come after try/except block above to avoid circular imports
+from backend.mcp_server.auth import MCPAuthContext, MCPAuthenticator  # noqa: E402
+from backend.rag_solution.services.collection_service import CollectionService  # noqa: E402
+from backend.rag_solution.services.file_management_service import FileManagementService  # noqa: E402
+from backend.rag_solution.services.podcast_service import PodcastService  # noqa: E402
+from backend.rag_solution.services.question_service import QuestionService  # noqa: E402
+from backend.rag_solution.services.search_service import SearchService  # noqa: E402
 
 
 @dataclass
