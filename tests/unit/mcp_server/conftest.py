@@ -20,6 +20,7 @@ except ImportError:
 if not MCP_AVAILABLE:
     collect_ignore = [
         "test_auth.py",
+        "test_main.py",
         "test_resources.py",
         "test_server.py",
         "test_tools.py",
