@@ -58,9 +58,9 @@ services:
     environment:
       # BACKEND_URL: Used by nginx at runtime for proxy_pass in /api/ location
       - BACKEND_URL=http://backend:8000
-      # REACT_APP_BACKEND_URL: React build-time variable (already baked into image)
+      # REACT_APP_API_URL: React build-time variable (already baked into image)
       # Kept for consistency, but note: runtime changes have no effect on React bundle
-      - REACT_APP_BACKEND_URL=http://backend:8000
+      - REACT_APP_API_URL=http://backend:8000
     ports:
       - "3000:8080"
     depends_on:

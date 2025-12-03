@@ -293,7 +293,7 @@ The frontend can be customized through environment variables:
 
 ```bash
 # API Configuration
-REACT_APP_BACKEND_URL=http://localhost:8000
+REACT_APP_API_URL=http://localhost:8000
 REACT_APP_WS_URL=ws://localhost:8000/ws
 
 # Feature Flags

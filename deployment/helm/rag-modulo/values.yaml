@@ -471,7 +471,7 @@ frontend:
   # Environment variables
   env:
     # Backend URL (uses Kubernetes service DNS)
-    REACT_APP_BACKEND_URL: http://rag-modulo-backend:8000
+    REACT_APP_API_URL: http://rag-modulo-backend:8000
     REACT_APP_WS_URL: ws://rag-modulo-backend:8000/ws
 
   # Health check configuration

@@ -539,7 +539,7 @@ spec:
         - containerPort: 8080
           name: http
         env:
-        - name: REACT_APP_BACKEND_URL
+        - name: REACT_APP_API_URL
           value: "https://api.rag-modulo.example.com"
         - name: REACT_APP_WS_URL
           value: "wss://api.rag-modulo.example.com/ws"
