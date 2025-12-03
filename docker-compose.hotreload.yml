@@ -68,7 +68,7 @@ services:
         condition: service_healthy
     environment:
       # Optimized React development environment
-      - REACT_APP_BACKEND_URL=
+      - REACT_APP_API_URL=
       - CHOKIDAR_USEPOLLING=true # Enable file watching polling
       - FAST_REFRESH=true # Enable React Fast Refresh
       - WATCHPACK_POLLING=true # Enable webpack polling

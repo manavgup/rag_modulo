@@ -197,7 +197,7 @@ const LightweightCollectionDetail: React.FC = () => {
   const handleDownloadDocument = async (file: CollectionFile) => {
     if (!collection) return;
     try {
-      const downloadUrl = `${process.env.REACT_APP_BACKEND_URL || ''}/api/collections/${collection.id}/files/${file.name}/download`;
+      const downloadUrl = `${process.env.REACT_APP_API_URL || ''}/api/collections/${collection.id}/files/${file.name}/download`;
 
       const link = document.createElement('a');
       link.href = downloadUrl;
