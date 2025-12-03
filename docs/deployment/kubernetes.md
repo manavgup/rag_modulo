@@ -351,7 +351,7 @@ spec:
     spec:
       containers:
       - name: milvus
-        image: milvusdb/milvus:v2.4.4
+        image: milvusdb/milvus:v2.4.15
         command: ["milvus", "run", "standalone"]
         ports:
         - containerPort: 19530
@@ -643,7 +643,7 @@ postgres:
 # Milvus
 milvus:
   enabled: true
-  image: milvusdb/milvus:v2.4.4
+  image: milvusdb/milvus:v2.4.15
   storage: 100Gi
   resources:
     requests:

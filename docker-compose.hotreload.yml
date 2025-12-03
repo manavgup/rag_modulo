@@ -171,7 +171,7 @@ services:
       start_period: 30s
 
   milvus-standalone:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "standalone"]
     ports:
       - "19530:19530"
