@@ -80,7 +80,7 @@ services:
 
   # Test Milvus vector database
   milvus-test:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     container_name: rag-milvus-test
     command: ["milvus", "run", "standalone"]
     ports:

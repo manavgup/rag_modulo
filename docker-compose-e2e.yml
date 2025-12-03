@@ -80,7 +80,7 @@ services:
 
   # E2E Milvus vector database
   milvus-e2e:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     container_name: rag-milvus-e2e
     command: ["milvus", "run", "standalone"]
     ports:

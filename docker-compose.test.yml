@@ -88,7 +88,7 @@ services:
       - minio-test-data:/data
 
   milvus-standalone-test:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     container_name: ${PROJECT_NAME:-rag-modulo}-milvus-test
     depends_on:
       etcd-test:

@@ -200,7 +200,7 @@ def get_collection_with_files(collection_id: UUID) -> Collection:
 # docker-compose-milvus-cluster.yml
 services:
   milvus-proxy:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "proxy"]
     depends_on:
       - milvus-rootcoord
@@ -208,27 +208,27 @@ services:
       - milvus-querynode-2
 
   milvus-rootcoord:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "rootcoord"]
 
   milvus-querynode-1:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "querynode"]
 
   milvus-querynode-2:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "querynode"]
 
   milvus-datanode-1:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "datanode"]
 
   milvus-datanode-2:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "datanode"]
 
   milvus-indexnode:
-    image: milvusdb/milvus:v2.4.4
+    image: milvusdb/milvus:v2.4.15
     command: ["milvus", "run", "indexnode"]
 
   milvus-etcd:
