@@ -98,6 +98,7 @@ class DefaultPermissionSets:
 
 # Tool-to-permission mapping for authorization
 TOOL_PERMISSIONS: Final[dict[str, list[str]]] = {
+    "rag_whoami": [],  # No permissions required - just validates authentication
     "rag_search": [MCPPermissions.SEARCH],
     "rag_list_collections": [MCPPermissions.LIST],
     "rag_ingest": [MCPPermissions.INGEST, MCPPermissions.WRITE],

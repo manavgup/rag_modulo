@@ -76,9 +76,9 @@ class TestMCPAuthenticator:
         """Test authenticator initialization."""
         auth = MCPAuthenticator(settings)
 
+        # The refactored authenticator only stores settings
+        # SPIFFE validation is delegated to backend.core.spiffe_auth
         assert auth.settings == settings
-        assert auth._spiffe_source is None
-        assert auth._spiffe_initialized is False
 
     @pytest.mark.asyncio
     async def test_authenticate_request_no_credentials(self, authenticator: MCPAuthenticator) -> None:
@@ -242,73 +242,76 @@ class TestMCPAuthenticator:
 
     @pytest.mark.asyncio
     async def test_authenticate_spiffe_valid(self, settings: MockSettings) -> None:
-        """Test valid SPIFFE JWT-SVID authentication."""
+        """Test valid SPIFFE JWT-SVID authentication.
+
+        The MCP auth now delegates to backend.core.spiffe_auth.SPIFFEAuthenticator
+        which performs proper JWT validation including trust domain verification.
+        """
         import jwt
 
-        settings.SPIFFE_ENDPOINT_SOCKET = "unix:///run/spire/sockets/agent.sock"
+        from backend.core.spiffe_auth import AgentPrincipal, AgentType
+
         auth = MCPAuthenticator(settings)
 
-        # Create a SPIFFE JWT with proper subject
+        # Create a SPIFFE JWT with the correct trust domain (rag-modulo.example.com)
         spiffe_jwt = jwt.encode(
-            {"sub": "spiffe://example.org/agent/test", "aud": ["rag-modulo"]},
-            "any-secret",  # Will be decoded without verification for subject extraction
+            {"sub": "spiffe://rag-modulo.example.com/agent/search-enricher/test123", "aud": ["rag-modulo"]},
+            "any-secret",
             algorithm="HS256",
         )
         headers = {"X-SPIFFE-JWT": spiffe_jwt}
 
-        # Mock the SPIFFE source
-        mock_source = MagicMock()
-        auth._spiffe_source = mock_source
-        auth._spiffe_initialized = True
+        # Mock the global SPIFFE authenticator to return a valid principal
+        mock_principal = AgentPrincipal(
+            spiffe_id="spiffe://rag-modulo.example.com/agent/search-enricher/test123",
+            trust_domain="rag-modulo.example.com",
+            agent_type=AgentType.SEARCH_ENRICHER,
+            agent_id="test123",
+            capabilities=[],
+            metadata={"signature_validated": True},
+        )
 
-        # Create mock for SpiffeId class
-        mock_spiffe_id = MagicMock()
-        mock_parsed = MagicMock()
-        mock_parsed.trust_domain.name = "example.org"
-        mock_parsed.path = "/agent/test"
-        mock_spiffe_id.parse.return_value = mock_parsed
+        mock_authenticator = MagicMock()
+        mock_authenticator.validate_jwt_svid.return_value = mock_principal
 
-        # Mock the spiffe module in sys.modules
-        mock_spiffe_module = MagicMock()
-        mock_spiffe_module.SpiffeId = mock_spiffe_id
-        with patch.dict(sys.modules, {"spiffe": mock_spiffe_module}):
+        with patch("backend.core.spiffe_auth.get_spiffe_authenticator", return_value=mock_authenticator):
             result = await auth.authenticate_request(headers)
 
             assert result.is_authenticated is True
             assert result.auth_method == "spiffe"
-            assert result.agent_id == "spiffe://example.org/agent/test"
-            assert "example.org" in result.metadata.get("trust_domain", "")
+            assert result.agent_id == "spiffe://rag-modulo.example.com/agent/search-enricher/test123"
+            assert result.metadata.get("trust_domain") == "rag-modulo.example.com"
 
     @pytest.mark.asyncio
     async def test_authenticate_spiffe_lowercase_header(self, settings: MockSettings) -> None:
         """Test SPIFFE JWT with lowercase header."""
         import jwt
 
-        settings.SPIFFE_ENDPOINT_SOCKET = "unix:///run/spire/sockets/agent.sock"
+        from backend.core.spiffe_auth import AgentPrincipal, AgentType
+
         auth = MCPAuthenticator(settings)
 
         spiffe_jwt = jwt.encode(
-            {"sub": "spiffe://example.org/agent/test"},
+            {"sub": "spiffe://rag-modulo.example.com/agent/cot-reasoning/test"},
             "any-secret",
             algorithm="HS256",
         )
         headers = {"x-spiffe-jwt": spiffe_jwt}
 
-        # Mock the SPIFFE source
-        mock_source = MagicMock()
-        auth._spiffe_source = mock_source
-        auth._spiffe_initialized = True
+        # Mock the global SPIFFE authenticator
+        mock_principal = AgentPrincipal(
+            spiffe_id="spiffe://rag-modulo.example.com/agent/cot-reasoning/test",
+            trust_domain="rag-modulo.example.com",
+            agent_type=AgentType.COT_REASONING,
+            agent_id="test",
+            capabilities=[],
+            metadata={},
+        )
 
-        # Create mock for SpiffeId class
-        mock_spiffe_id = MagicMock()
-        mock_parsed = MagicMock()
-        mock_parsed.trust_domain.name = "example.org"
-        mock_parsed.path = "/agent/test"
-        mock_spiffe_id.parse.return_value = mock_parsed
+        mock_authenticator = MagicMock()
+        mock_authenticator.validate_jwt_svid.return_value = mock_principal
 
-        mock_spiffe_module = MagicMock()
-        mock_spiffe_module.SpiffeId = mock_spiffe_id
-        with patch.dict(sys.modules, {"spiffe": mock_spiffe_module}):
+        with patch("backend.core.spiffe_auth.get_spiffe_authenticator", return_value=mock_authenticator):
             result = await auth.authenticate_request(headers)
 
             assert result.is_authenticated is True
@@ -461,12 +464,13 @@ class TestMCPAuthenticator:
         """Test that SPIFFE auth is tried before Bearer and API key."""
         import jwt
 
-        settings.SPIFFE_ENDPOINT_SOCKET = "unix:///run/spire/sockets/agent.sock"
+        from backend.core.spiffe_auth import AgentPrincipal, AgentType
+
         auth = MCPAuthenticator(settings)
 
         # Provide both SPIFFE and Bearer tokens
         spiffe_jwt = jwt.encode(
-            {"sub": "spiffe://example.org/agent/test"},
+            {"sub": "spiffe://rag-modulo.example.com/agent/test"},
             "any-secret",
             algorithm="HS256",
         )
@@ -482,21 +486,20 @@ class TestMCPAuthenticator:
             "X-API-Key": "test-api-key-12345",  # pragma: allowlist secret
         }
 
-        # Mock the SPIFFE source
-        mock_source = MagicMock()
-        auth._spiffe_source = mock_source
-        auth._spiffe_initialized = True
+        # Mock the global SPIFFE authenticator to return a valid principal
+        mock_principal = AgentPrincipal(
+            spiffe_id="spiffe://rag-modulo.example.com/agent/test",
+            trust_domain="rag-modulo.example.com",
+            agent_type=AgentType.CUSTOM,
+            agent_id="test",
+            capabilities=[],
+            metadata={},
+        )
 
-        # Create mock for SpiffeId class
-        mock_spiffe_id = MagicMock()
-        mock_parsed = MagicMock()
-        mock_parsed.trust_domain.name = "example.org"
-        mock_parsed.path = "/agent/test"
-        mock_spiffe_id.parse.return_value = mock_parsed
+        mock_authenticator = MagicMock()
+        mock_authenticator.validate_jwt_svid.return_value = mock_principal
 
-        mock_spiffe_module = MagicMock()
-        mock_spiffe_module.SpiffeId = mock_spiffe_id
-        with patch.dict(sys.modules, {"spiffe": mock_spiffe_module}):
+        with patch("backend.core.spiffe_auth.get_spiffe_authenticator", return_value=mock_authenticator):
             result = await auth.authenticate_request(headers)
 
             # SPIFFE should be used since it's tried first and is valid
@@ -536,17 +539,34 @@ class TestMCPAuthenticator:
         assert result.auth_method == "api_key"
 
     @pytest.mark.asyncio
-    async def test_init_spiffe_called_once(self, settings: MockSettings) -> None:
-        """Test that SPIFFE initialization only happens once."""
-        settings.SPIFFE_ENDPOINT_SOCKET = None
+    async def test_spiffe_auth_uses_global_authenticator(self, settings: MockSettings) -> None:
+        """Test that SPIFFE auth uses the global authenticator from spiffe_auth module.
+
+        The MCP auth now delegates to backend.core.spiffe_auth.SPIFFEAuthenticator
+        instead of managing its own SPIFFE source.
+        """
+        import jwt
+
         auth = MCPAuthenticator(settings)
 
-        await auth._init_spiffe()
-        assert auth._spiffe_initialized is True
+        spiffe_jwt = jwt.encode(
+            {"sub": "spiffe://rag-modulo.example.com/agent/test"},
+            "any-secret",
+            algorithm="HS256",
+        )
+        headers = {"X-SPIFFE-JWT": spiffe_jwt}
 
-        # Call again - should not re-initialize
-        await auth._init_spiffe()
-        assert auth._spiffe_initialized is True
+        # Mock the global authenticator to return None (validation failed)
+        mock_authenticator = MagicMock()
+        mock_authenticator.validate_jwt_svid.return_value = None
+
+        with patch("backend.core.spiffe_auth.get_spiffe_authenticator", return_value=mock_authenticator):
+            result = await auth.authenticate_request(headers)
+
+            # Should call validate_jwt_svid on the global authenticator
+            mock_authenticator.validate_jwt_svid.assert_called_once()
+            # Since validation returned None, auth should fail
+            assert result.is_authenticated is False
 
 
 class TestMCPAuthContextPermissions:

@@ -2,6 +2,15 @@
 
 This module provides the core MCP server that exposes RAG Modulo functionality
 as MCP tools and resources. Uses the FastMCP high-level API for clean integration.
+
+Database Session Management:
+    This server uses a per-request session factory pattern to prevent race conditions
+    and transaction conflicts in concurrent requests. Instead of sharing a single
+    database session, each tool/resource creates its own session using:
+
+        with db_session_context(app_ctx.db_session_factory) as db:
+            service = SomeService(db=db, settings=app_ctx.settings)
+            result = service.do_something()
 """
 
 import asyncio
@@ -10,22 +19,17 @@ from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
 
-from backend.core.config import get_settings
-from backend.core.enhanced_logging import get_logger
-from backend.mcp_server.auth import MCPAuthenticator
+from core.config import get_settings
+from core.enhanced_logging import get_logger
+from mcp_server.auth import MCPAuthenticator
 
 # Re-export from types for backward compatibility
-from backend.mcp_server.types import (
+from mcp_server.types import (
     MCPServerContext,
     get_app_context,
     parse_uuid,
     validate_auth,
 )
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.file_management_service import FileManagementService
-from backend.rag_solution.services.podcast_service import PodcastService
-from backend.rag_solution.services.question_service import QuestionService
-from backend.rag_solution.services.search_service import SearchService
 
 logger = get_logger(__name__)
 
@@ -80,14 +84,23 @@ def _validate_auth_configuration(settings: object) -> None:
 async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
     """Manage server lifecycle with proper resource initialization and cleanup.
 
-    This context manager initializes all required services at startup
-    and ensures proper cleanup on shutdown.
+    This context manager initializes shared resources at startup (authenticator,
+    settings) and provides a database session factory for per-request session
+    creation.
+
+    IMPORTANT: Database sessions are created per-request using db_session_factory
+    to prevent race conditions and transaction conflicts in concurrent requests.
+    Each tool/resource should create its own session using:
+
+        with db_session_context(app_ctx.db_session_factory) as db:
+            service = SomeService(db=db, settings=app_ctx.settings)
+            result = service.do_something()
 
     Args:
         server: The FastMCP server instance
 
     Yields:
-        MCPServerContext with initialized services
+        MCPServerContext with db_session_factory and shared resources
 
     Raises:
         ValueError: If required authentication configuration is missing
@@ -95,51 +108,30 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
     logger.info("Initializing RAG Modulo MCP Server...")
 
     # Import here to avoid circular imports
-    from backend.rag_solution.repository.database import get_db
+    from rag_solution.file_management.database import get_db
 
-    # Get database session
-    db_gen = get_db()
-    db_session = next(db_gen)
+    # Get settings instance
+    settings = get_settings()
+
+    # Validate authentication configuration at startup
+    _validate_auth_configuration(settings)
+
+    # Initialize authenticator (shared across requests - stateless)
+    authenticator = MCPAuthenticator(settings=settings)
+
+    # Create context with factory instead of shared session
+    # Services are created per-request in tools/resources using db_session_context
+    context = MCPServerContext(
+        db_session_factory=get_db,
+        authenticator=authenticator,
+        settings=settings,
+    )
+
+    logger.info("RAG Modulo MCP Server initialized successfully")
 
     try:
-        # Get settings instance
-        settings = get_settings()
-
-        # Validate authentication configuration at startup
-        _validate_auth_configuration(settings)
-
-        # Initialize services
-        search_service = SearchService(db=db_session, settings=settings)
-        collection_service = CollectionService(db=db_session, settings=settings)
-        podcast_service = PodcastService(
-            session=db_session,
-            collection_service=collection_service,
-            search_service=search_service,
-        )
-        question_service = QuestionService(db=db_session, settings=settings)
-        file_service = FileManagementService(db=db_session, settings=settings)
-        authenticator = MCPAuthenticator(settings=settings)
-
-        context = MCPServerContext(
-            db_session=db_session,
-            search_service=search_service,
-            collection_service=collection_service,
-            podcast_service=podcast_service,
-            question_service=question_service,
-            file_service=file_service,
-            authenticator=authenticator,
-            settings=settings,
-        )
-
-        logger.info("RAG Modulo MCP Server initialized successfully")
         yield context
-
     finally:
-        logger.info("Shutting down RAG Modulo MCP Server...")
-        try:
-            db_session.close()
-        except Exception as e:
-            logger.warning("Error closing database session: %s", e)
         logger.info("RAG Modulo MCP Server shutdown complete")
 
 
@@ -150,8 +142,8 @@ def create_mcp_server() -> FastMCP:
         Configured FastMCP server instance ready to run
     """
     # Import here to avoid circular imports
-    from backend.mcp_server.resources import register_rag_resources
-    from backend.mcp_server.tools import register_rag_tools
+    from mcp_server.resources import register_rag_resources
+    from mcp_server.tools import register_rag_tools
 
     mcp = FastMCP(
         name="RAG Modulo",
@@ -166,16 +158,127 @@ def create_mcp_server() -> FastMCP:
     return mcp
 
 
-def run_server(transport: str = "stdio", port: int = 8080) -> None:
+def _run_sse_with_middleware(mcp: FastMCP, port: int) -> None:
+    """Run SSE transport with header capture middleware.
+
+    Creates a custom Starlette app that wraps MCP SSE routes with
+    HeaderCaptureMiddleware to enable header extraction in tool handlers.
+
+    Args:
+        mcp: The FastMCP server instance
+        port: Port number to listen on
+    """
+    import uvicorn
+    from mcp.server.sse import SseServerTransport
+    from starlette.applications import Starlette
+    from starlette.routing import Route
+
+    from mcp_server.middleware import HeaderCaptureMiddleware
+    from mcp_server.types import set_global_auth_headers, set_session_headers
+
+    # Create SSE transport for MCP
+    sse_transport = SseServerTransport("/messages/")
+
+    # Create handler that connects SSE transport to MCP server
+    async def handle_sse(request):
+        # Capture auth headers from the SSE connection and store globally
+        # This ensures headers are available to tool handlers even when
+        # context variables don't propagate across async boundaries
+        auth_headers = [
+            "authorization",
+            "x-api-key",
+            "x-authenticated-user",
+            "x-spiffe-jwt",
+        ]
+        headers = {}
+        for header_name in auth_headers:
+            value = request.headers.get(header_name)
+            if value:
+                headers[header_name] = value
+        if headers:
+            set_global_auth_headers(headers)
+            logger.info("handle_sse: Captured and stored auth headers globally: %s", list(headers.keys()))
+        else:
+            logger.debug("handle_sse: No auth headers found in SSE connection request")
+
+        async with sse_transport.connect_sse(
+            request.scope,
+            request.receive,
+            request._send,
+        ) as streams:
+            await mcp._mcp_server.run(
+                streams[0],
+                streams[1],
+                mcp._mcp_server.create_initialization_options(),
+            )
+
+    # Create handler for MCP messages
+    async def handle_messages(request):
+        # Extract session_id and store headers before delegating to SSE transport
+        # This ensures headers are available to tool handlers even in different async context
+        session_id = request.query_params.get("session_id")
+
+        # Capture auth-related headers
+        auth_headers = [
+            "authorization",
+            "x-api-key",
+            "x-authenticated-user",
+            "x-spiffe-jwt",
+        ]
+        headers = {}
+        for header_name in auth_headers:
+            value = request.headers.get(header_name)
+            if value:
+                headers[header_name] = value
+
+        if headers:
+            # Store by session_id if available
+            if session_id:
+                set_session_headers(session_id, headers)
+                logger.debug("Stored headers for session %s: %s", session_id, list(headers.keys()))
+            # Also store globally as fallback
+            set_global_auth_headers(headers)
+            logger.debug("handle_messages: Stored headers globally: %s", list(headers.keys()))
+
+        return await sse_transport.handle_post_message(
+            request.scope,
+            request.receive,
+            request._send,
+        )
+
+    # Create Starlette app with MCP routes
+    routes = [
+        Route("/sse", endpoint=handle_sse),
+        Route("/messages/", endpoint=handle_messages, methods=["POST"]),
+    ]
+
+    app = Starlette(routes=routes)
+
+    # Add our header capture middleware
+    app.add_middleware(HeaderCaptureMiddleware)
+
+    logger.info("Running SSE server with header capture middleware on port %d", port)
+
+    # Run with uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=port)
+
+
+def run_server(transport: str | None = None, port: int | None = None) -> None:
     """Run the MCP server with the specified transport.
 
     Args:
-        transport: Transport type - 'stdio', 'sse', or 'http'
-        port: Port number for SSE/HTTP transports (default: 8080)
+        transport: Transport type - 'stdio', 'sse', or 'http'. If None, uses MCP_SERVER_TRANSPORT env var.
+        port: Port number for SSE/HTTP transports. If None, uses MCP_SERVER_PORT env var.
 
     Raises:
         ValueError: If transport type is not supported
     """
+    settings = get_settings()
+
+    # Use config defaults if not specified
+    transport = transport or settings.mcp_server_transport
+    port = port or settings.mcp_server_port
+
     mcp = create_mcp_server()
 
     if transport == "stdio":
@@ -183,8 +286,8 @@ def run_server(transport: str = "stdio", port: int = 8080) -> None:
         mcp.run(transport="stdio")
     elif transport == "sse":
         logger.info("Starting MCP server with SSE transport on port %d", port)
-        mcp.settings.port = port
-        mcp.run(transport="sse")
+        # Use custom SSE server with header capture middleware
+        _run_sse_with_middleware(mcp, port)
     elif transport == "http":
         logger.info("Starting MCP server with HTTP transport on port %d", port)
         mcp.settings.port = port

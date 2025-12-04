@@ -20,12 +20,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from backend.core.enhanced_logging import get_logger
-from backend.mcp_server.permissions import DefaultPermissionSets, MCPPermissions
+from core.enhanced_logging import get_logger
+from mcp_server.permissions import DefaultPermissionSets, MCPPermissions
 
 # SPIFFE imports are optional - used only when SPIFFE auth is configured
 if TYPE_CHECKING:
-    from backend.core.spiffe_auth import AgentPrincipal
+    from core.spiffe_auth import AgentPrincipal
 
 logger = get_logger(__name__)
 
@@ -165,7 +165,7 @@ class MCPAuthenticator:
         """
         try:
             # Import the existing SPIFFE authenticator which has proper validation
-            from backend.core.spiffe_auth import get_spiffe_authenticator
+            from core.spiffe_auth import get_spiffe_authenticator
 
             authenticator = get_spiffe_authenticator()
 
@@ -226,7 +226,7 @@ class MCPAuthenticator:
         Returns:
             List of MCP permission strings
         """
-        from backend.core.spiffe_auth import AgentCapability
+        from core.spiffe_auth import AgentCapability
 
         # Mapping from SPIFFE capabilities to MCP permissions
         capability_to_permission = {
@@ -268,8 +268,13 @@ class MCPAuthenticator:
                 logger.warning("JWT_SECRET_KEY not configured")
                 return MCPAuthContext()
 
-            # Decode and validate the JWT
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            # Decode and validate the JWT with expiration check
+            payload = jwt.decode(
+                token,
+                secret_key,
+                algorithms=["HS256"],
+                options={"verify_exp": True},  # Explicitly verify expiration
+            )
 
             user_id = payload.get("sub") or payload.get("user_id")
             username = payload.get("email") or payload.get("username")
@@ -329,10 +334,10 @@ class MCPAuthenticator:
             MCPAuthContext with user identity
         """
         # Import here to avoid circular imports
-        from backend.rag_solution.repository.database import get_db
-
-        from backend.core.config import get_settings
-        from backend.rag_solution.services.user_service import UserService
+        from core.config import get_settings
+        from rag_solution.file_management.database import get_db
+        from rag_solution.models.user import User
+        from rag_solution.services.user_service import UserService
 
         db_gen = None
         db_session = None
@@ -340,16 +345,25 @@ class MCPAuthenticator:
             db_gen = get_db()
             db_session = next(db_gen)
             settings = get_settings()
-            user_service = UserService(db_session, settings)
 
-            # Use get_or_create to handle trusted proxy authentication
-            # This ensures the user exists in our system
-            user = user_service.get_or_create_user_by_fields(
-                ibm_id=user_email,  # Use email as ibm_id for trusted proxy
-                email=user_email,
-                name=user_email.split("@")[0],  # Extract name from email
-                role="user",
-            )
+            # First, try to find existing user by email (not ibm_id)
+            # This handles the case where user was created with a different ibm_id
+            existing_user = db_session.query(User).filter(User.email == user_email).first()
+
+            if existing_user:
+                user = existing_user
+                logger.debug("Found existing user by email: %s (id=%s)", user_email, user.id)
+            else:
+                # Create new user if not found by email
+                user_service = UserService(db_session, settings)
+                user = user_service.get_or_create_user_by_fields(
+                    ibm_id=user_email,  # Use email as ibm_id for new trusted proxy users
+                    email=user_email,
+                    name=user_email.split("@")[0],  # Extract name from email
+                    role="user",
+                )
+                logger.debug("Created new user for trusted proxy: %s (id=%s)", user_email, user.id)
+
             if user:
                 return MCPAuthContext(
                     user_id=user.id,

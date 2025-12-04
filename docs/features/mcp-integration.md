@@ -587,6 +587,7 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 
 | Tool | Description | Required Permissions |
 |------|-------------|---------------------|
+| `rag_whoami` | Get current authenticated user info | None (uses auth headers) |
 | `rag_search` | Search documents and generate answers | `rag:search` |
 | `rag_list_collections` | List accessible collections | `rag:list` |
 | `rag_ingest` | Ingest documents into collections | `rag:ingest`, `rag:write` |
@@ -595,6 +596,29 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 | `rag_get_document` | Retrieve document metadata | `rag:read` |
 
 ### Tool Examples
+
+#### Whoami
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_whoami",
+    "arguments": {}
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "user_id": "d1f93297-3e3c-42b0-8da7-09efde032c25",
+  "username": "dev@example.com",
+  "auth_method": "trusted_proxy",
+  "permissions": ["rag:read", "rag:write", "rag:search", "rag:list", "rag:ingest"]
+}
+```
 
 #### Search
 
@@ -756,6 +780,47 @@ Error types:
 └────────────────────────────────────────────────────────────────────┘
 ```
 
+## Testing with MCP Inspector
+
+The MCP server can be tested using [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+### SSE Transport
+
+```bash
+# Start the MCP server with SSE transport
+cd backend
+poetry run python -m mcp_server --transport sse --port 8080 --log-level DEBUG
+
+# In MCP Inspector, connect to:
+# URL: http://localhost:8080/sse
+# Headers:
+#   X-Authenticated-User: dev@example.com
+```
+
+### Testing Authentication
+
+1. **Connect** to `http://localhost:8080/sse` with the `X-Authenticated-User` header
+2. **Call** `rag_whoami` to verify authentication
+3. **Call** `rag_list_collections` to see the user's collections
+
+### Header Capture Middleware
+
+The MCP server uses middleware to capture authentication headers from SSE connections
+and make them available to tool handlers. Headers are stored in:
+
+1. **Context variables**: For synchronous requests
+2. **Session storage**: Keyed by session ID for async SSE tool calls
+3. **Global storage**: Fallback for single-user testing scenarios
+
+Captured headers:
+
+- `Authorization`: Bearer tokens
+- `X-API-Key`: API key authentication
+- `X-Authenticated-User`: Trusted proxy user identity
+- `X-SPIFFE-JWT`: SPIFFE JWT-SVID for workload identity
+
+---
+
 ## Development
 
 ### Module Structure
@@ -768,6 +833,7 @@ backend/mcp_server/
 ├── tools.py            # MCP tool implementations
 ├── resources.py        # MCP resource implementations
 ├── auth.py             # Authentication handlers
+├── middleware.py       # Header capture middleware for SSE
 ├── types.py            # Type definitions and utilities
 └── permissions.py      # Permission constants
 ```

@@ -3,14 +3,22 @@
 This module provides a command-line interface for running the MCP server
 with different transport options.
 
+Configuration:
+    Default values come from environment variables (see .env.example):
+    - MCP_SERVER_TRANSPORT: Default transport type (stdio, sse, http)
+    - MCP_SERVER_PORT: Default port for SSE/HTTP transports
+
 Usage:
-    # Run with stdio transport (for Claude Desktop)
+    # Run with default transport from config (or stdio if not set)
     python -m mcp_server
 
-    # Run with SSE transport (for web clients)
-    python -m mcp_server --transport sse --port 8080
+    # Run with SSE transport on default port from config (or 8080)
+    python -m mcp_server --transport sse
 
-    # Run with HTTP transport (for API clients)
+    # Run with SSE transport on custom port
+    python -m mcp_server --transport sse --port 9000
+
+    # Run with HTTP transport
     python -m mcp_server --transport http --port 8080
 """
 
@@ -18,10 +26,14 @@ import argparse
 import logging
 import sys
 
-from backend.core.enhanced_logging import get_logger
-from backend.mcp_server.server import run_server
+from core.config import get_settings
+from core.enhanced_logging import get_logger
+from mcp_server.server import run_server
 
 logger = get_logger(__name__)
+
+# Get config defaults
+_settings = get_settings()
 
 
 def main() -> None:
@@ -45,15 +57,15 @@ Examples:
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse", "http"],
-        default="stdio",
-        help="Transport type (default: stdio)",
+        default=_settings.mcp_server_transport,
+        help=f"Transport type (default: {_settings.mcp_server_transport}, from MCP_SERVER_TRANSPORT)",
     )
 
     parser.add_argument(
         "--port",
         type=int,
-        default=8080,
-        help="Port for SSE/HTTP transports (default: 8080)",
+        default=_settings.mcp_server_port,
+        help=f"Port for SSE/HTTP transports (default: {_settings.mcp_server_port}, from MCP_SERVER_PORT)",
     )
 
     parser.add_argument(

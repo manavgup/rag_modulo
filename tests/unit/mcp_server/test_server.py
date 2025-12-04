@@ -64,32 +64,17 @@ class TestMCPServerContext:
 
     def test_context_creation(self) -> None:
         """Test creating MCPServerContext with all fields."""
-        mock_db = MagicMock()
-        mock_search = MagicMock()
-        mock_collection = MagicMock()
-        mock_podcast = MagicMock()
-        mock_question = MagicMock()
-        mock_file = MagicMock()
+        mock_db_factory = MagicMock()
         mock_auth = MagicMock()
         mock_settings = MockSettings()
 
         ctx = MCPServerContext(
-            db_session=mock_db,
-            search_service=mock_search,
-            collection_service=mock_collection,
-            podcast_service=mock_podcast,
-            question_service=mock_question,
-            file_service=mock_file,
+            db_session_factory=mock_db_factory,
             authenticator=mock_auth,
             settings=mock_settings,
         )
 
-        assert ctx.db_session == mock_db
-        assert ctx.search_service == mock_search
-        assert ctx.collection_service == mock_collection
-        assert ctx.podcast_service == mock_podcast
-        assert ctx.question_service == mock_question
-        assert ctx.file_service == mock_file
+        assert ctx.db_session_factory == mock_db_factory
         assert ctx.authenticator == mock_auth
         assert ctx.settings == mock_settings
 
@@ -167,80 +152,69 @@ class TestServerLifespan:
     """Tests for server lifespan management."""
 
     @pytest.mark.asyncio
-    async def test_lifespan_initializes_services(self) -> None:
-        """Test that lifespan context initializes all services."""
+    async def test_lifespan_provides_factory(self) -> None:
+        """Test that lifespan context provides db_session_factory for per-request sessions."""
         from backend.mcp_server.server import server_lifespan
 
         mock_server = MagicMock()
-        mock_db_session = MagicMock()
+        mock_get_db = MagicMock()
         mock_settings = MockSettings()
+        mock_authenticator = MagicMock()
 
         # Mock for local imports
         mock_database_module = MagicMock()
-        mock_database_module.get_db.return_value = iter([mock_db_session])
-
-        # Service mocks
-        mock_search_service = MagicMock()
-        mock_collection_service = MagicMock()
-        mock_podcast_service = MagicMock()
-        mock_question_service = MagicMock()
-        mock_file_service = MagicMock()
-        mock_authenticator = MagicMock()
+        mock_database_module.get_db = mock_get_db
 
         with (
             patch.dict(
                 sys.modules,
                 {
-                    "backend.rag_solution.repository.database": mock_database_module,
+                    "backend.rag_solution.file_management.database": mock_database_module,
                 },
             ),
             patch("backend.mcp_server.server.get_settings", return_value=mock_settings),
-            patch("backend.mcp_server.server.SearchService", return_value=mock_search_service),
-            patch("backend.mcp_server.server.CollectionService", return_value=mock_collection_service),
-            patch("backend.mcp_server.server.PodcastService", return_value=mock_podcast_service),
-            patch("backend.mcp_server.server.QuestionService", return_value=mock_question_service),
-            patch("backend.mcp_server.server.FileManagementService", return_value=mock_file_service),
             patch("backend.mcp_server.server.MCPAuthenticator", return_value=mock_authenticator),
         ):
             async with server_lifespan(mock_server) as ctx:
                 assert isinstance(ctx, MCPServerContext)
-                assert ctx.db_session == mock_db_session
-                assert ctx.search_service == mock_search_service
-                assert ctx.collection_service == mock_collection_service
+                # Lifespan provides factory, not session
+                assert ctx.db_session_factory == mock_get_db
+                assert ctx.authenticator == mock_authenticator
+                assert ctx.settings == mock_settings
 
     @pytest.mark.asyncio
-    async def test_lifespan_closes_db_on_exit(self) -> None:
-        """Test that lifespan closes database session on exit."""
+    async def test_lifespan_no_shared_session(self) -> None:
+        """Test that lifespan does not create a shared database session.
+
+        Services are now created per-request with their own sessions,
+        not shared across all concurrent requests.
+        """
         from backend.mcp_server.server import server_lifespan
 
         mock_server = MagicMock()
-        mock_db_session = MagicMock()
+        mock_get_db = MagicMock()
         mock_settings = MockSettings()
 
         # Mock for local imports
         mock_database_module = MagicMock()
-        mock_database_module.get_db.return_value = iter([mock_db_session])
+        mock_database_module.get_db = mock_get_db
 
         with (
             patch.dict(
                 sys.modules,
                 {
-                    "backend.rag_solution.repository.database": mock_database_module,
+                    "backend.rag_solution.file_management.database": mock_database_module,
                 },
             ),
             patch("backend.mcp_server.server.get_settings", return_value=mock_settings),
-            patch("backend.mcp_server.server.SearchService"),
-            patch("backend.mcp_server.server.CollectionService"),
-            patch("backend.mcp_server.server.PodcastService"),
-            patch("backend.mcp_server.server.QuestionService"),
-            patch("backend.mcp_server.server.FileManagementService"),
             patch("backend.mcp_server.server.MCPAuthenticator"),
         ):
-            async with server_lifespan(mock_server):
-                pass
-
-            # DB session should be closed after exiting context
-            mock_db_session.close.assert_called_once()
+            async with server_lifespan(mock_server) as ctx:
+                # Verify factory is provided, not a session instance
+                assert callable(ctx.db_session_factory)
+                # get_db should NOT be called during lifespan init
+                # Sessions are created per-request, not at startup
+                mock_get_db.assert_not_called()
 
 
 class TestRunServer:

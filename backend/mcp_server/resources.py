@@ -15,7 +15,7 @@ from uuid import UUID
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy.orm import Session
 
-from backend.core.enhanced_logging import get_logger
+from core.enhanced_logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ def db_session_context() -> Generator[Session, None, None]:
     Raises:
         Exception: Any database errors are propagated after cleanup
     """
-    from backend.rag_solution.repository.database import get_db
+    from rag_solution.file_management.database import get_db
 
     db_gen = get_db()
     db_session = next(db_gen)
@@ -79,8 +79,8 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid collection_id: {e}"})
 
         try:
-            from backend.core.config import get_settings
-            from backend.rag_solution.services.file_management_service import FileManagementService
+            from core.config import get_settings
+            from rag_solution.services.file_management_service import FileManagementService
 
             settings = get_settings()
 
@@ -132,8 +132,8 @@ def register_rag_resources(mcp: FastMCP) -> None:
         logger.info("Fetching stats for collection %s", collection_id)
 
         try:
-            from backend.core.config import get_settings
-            from backend.rag_solution.services.collection_service import CollectionService
+            from core.config import get_settings
+            from rag_solution.services.collection_service import CollectionService
 
             settings = get_settings()
             collection_uuid = UUID(collection_id)
@@ -196,8 +196,8 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid user_id: {e}"})
 
         try:
-            from backend.core.config import get_settings
-            from backend.rag_solution.services.collection_service import CollectionService
+            from core.config import get_settings
+            from rag_solution.services.collection_service import CollectionService
 
             settings = get_settings()
 

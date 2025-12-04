@@ -1,6 +1,7 @@
 """MCP Tools for RAG Modulo.
 
 This module defines all MCP tools that expose RAG Modulo functionality:
+- rag_whoami: Get current authenticated user info (user_id, username, permissions)
 - rag_search: Search documents in a collection
 - rag_ingest: Ingest documents into a collection
 - rag_list_collections: List available collections
@@ -17,17 +18,23 @@ from typing import Any
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 
-from backend.core.enhanced_logging import get_logger
-from backend.mcp_server.permissions import TOOL_PERMISSIONS
-from backend.mcp_server.types import (
+from core.enhanced_logging import get_logger
+from mcp_server.permissions import TOOL_PERMISSIONS
+from mcp_server.types import (
     MCPErrorType,
     MCPServerContext,
     create_error_response,
+    db_session_context,
     get_app_context,
     parse_uuid,
     validate_auth,
 )
-from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.question_service import QuestionService
+from rag_solution.services.search_service import SearchService
 
 logger = get_logger(__name__)
 
@@ -38,6 +45,51 @@ def register_rag_tools(mcp: FastMCP) -> None:
     Args:
         mcp: The FastMCP server instance to register tools with
     """
+
+    @mcp.tool()
+    async def rag_whoami(
+        ctx: Context[ServerSession, MCPServerContext, Any],
+    ) -> dict[str, Any]:
+        """Get current authenticated user information.
+
+        Returns the user_id, username, and permissions of the currently
+        authenticated user. Call this tool first to discover your user_id
+        for use in other RAG tools.
+
+        This is the recommended first step when using RAG Modulo via MCP,
+        as it provides the user_id required by other tools.
+
+        Returns:
+            Dictionary containing:
+            - user_id: UUID of the authenticated user
+            - username: Username or email of the user
+            - permissions: List of permissions granted to the user
+            - auth_method: How the user was authenticated
+
+        Raises:
+            PermissionError: If authentication fails
+        """
+        # Debug: Log what we can see in the context
+        from mcp_server.types import _extract_headers_from_context
+
+        headers = _extract_headers_from_context(ctx)
+        logger.info("rag_whoami: Extracted headers: %s", headers)
+
+        try:
+            auth_context = await validate_auth(ctx, TOOL_PERMISSIONS["rag_whoami"])
+        except PermissionError as e:
+            logger.warning("Whoami authorization failed: %s", e)
+            return create_error_response(e, MCPErrorType.AUTHORIZATION)
+
+        await ctx.info(f"Authenticated as {auth_context.username}")
+
+        return {
+            "user_id": str(auth_context.user_id),
+            "username": auth_context.username,
+            "permissions": auth_context.permissions,
+            "auth_method": auth_context.auth_method if hasattr(auth_context, "auth_method") else "unknown",
+            "_debug_headers_received": headers,  # Temporary debug field
+        }
 
     @mcp.tool()
     async def rag_search(
@@ -61,7 +113,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
         Args:
             question: The question or query to search for
             collection_id: UUID of the collection to search in
-            user_id: UUID of the user making the request
+            user_id: UUID of the user performing the search
             ctx: MCP context with server resources
             enable_cot: Enable Chain of Thought reasoning for complex questions
             show_cot_steps: Include reasoning steps in the response
@@ -88,6 +140,18 @@ def register_rag_tools(mcp: FastMCP) -> None:
             logger.warning("Search authorization failed: %s", e)
             return create_error_response(e, MCPErrorType.AUTHORIZATION)
 
+        # Validate input parameters
+        if not 1 <= max_results <= 50:
+            return create_error_response(
+                f"max_results must be between 1 and 50, got {max_results}",
+                MCPErrorType.VALIDATION,
+            )
+        if not 100 <= max_chunk_length <= 2000:
+            return create_error_response(
+                f"max_chunk_length must be between 100 and 2000, got {max_chunk_length}",
+                MCPErrorType.VALIDATION,
+            )
+
         await ctx.info(f"Searching collection {collection_id} for: {question[:50]}...")
 
         try:
@@ -109,8 +173,10 @@ def register_rag_tools(mcp: FastMCP) -> None:
                 config_metadata=config_metadata,
             )
 
-            # Execute search
-            result: SearchOutput = await app_ctx.search_service.search(search_input)
+            # Execute search with per-request database session
+            with db_session_context(app_ctx.db_session_factory) as db:
+                search_service = SearchService(db=db, settings=app_ctx.settings)
+                result: SearchOutput = await search_service.search(search_input)
 
             # Convert to MCP-friendly format
             response = {
@@ -157,13 +223,13 @@ def register_rag_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """List all collections accessible to the user.
 
-        Retrieves a list of document collections that the specified user
+        Retrieves a list of document collections that the authenticated user
         has access to, optionally including statistics about each collection.
 
         Requires 'rag:list' permission.
 
         Args:
-            user_id: UUID of the user requesting collections
+            user_id: UUID of the user whose collections to list
             ctx: MCP context with server resources
             include_stats: Include document counts and chunk statistics
 
@@ -184,13 +250,14 @@ def register_rag_tools(mcp: FastMCP) -> None:
             logger.warning("List collections authorization failed: %s", e)
             return create_error_response(e, MCPErrorType.AUTHORIZATION)
 
-        await ctx.info(f"Listing collections for user {user_id}")
-
         try:
             user_uuid = parse_uuid(user_id, "user_id")
+            await ctx.info(f"Listing collections for user {user_uuid}")
 
-            # Get user's collections
-            collections = app_ctx.collection_service.get_user_collections(user_uuid)
+            # Get user's collections with per-request database session
+            with db_session_context(app_ctx.db_session_factory) as db:
+                collection_service = CollectionService(db=db, settings=app_ctx.settings)
+                collections = collection_service.get_user_collections(user_uuid)
 
             collection_list = []
             for coll in collections:
@@ -229,8 +296,8 @@ def register_rag_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def rag_ingest(
         collection_id: str,
-        user_id: str,
         file_urls: list[str],
+        user_id: str,
         ctx: Context[ServerSession, MCPServerContext, Any],
         collection_name: str | None = None,
         description: str | None = None,
@@ -250,8 +317,8 @@ def register_rag_tools(mcp: FastMCP) -> None:
 
         Args:
             collection_id: UUID of existing collection, or "new" to create one
-            user_id: UUID of the user performing the ingestion
             file_urls: List of URLs or file paths to ingest
+            user_id: UUID of the user performing the ingestion
             ctx: MCP context with server resources
             collection_name: Name for new collection (required if collection_id="new")
             description: Description for new collection
@@ -281,29 +348,32 @@ def register_rag_tools(mcp: FastMCP) -> None:
         try:
             user_uuid = parse_uuid(user_id, "user_id")
 
-            # Handle new collection creation
-            if collection_id.lower() == "new":
-                if not collection_name:
-                    return create_error_response(
-                        "collection_name required when creating new collection",
-                        MCPErrorType.VALIDATION,
+            # Handle new collection creation with per-request database session
+            with db_session_context(app_ctx.db_session_factory) as db:
+                collection_service = CollectionService(db=db, settings=app_ctx.settings)
+
+                if collection_id.lower() == "new":
+                    if not collection_name:
+                        return create_error_response(
+                            "collection_name required when creating new collection",
+                            MCPErrorType.VALIDATION,
+                        )
+
+                    # Create new collection
+                    from rag_solution.schemas.collection_schema import CollectionInput
+
+                    collection_input = CollectionInput(
+                        name=collection_name,
+                        is_private=False,  # Default to public for MCP-created collections
                     )
+                    collection = collection_service.create_collection(collection_input)
+                    collection_uuid = collection.id
+                    await ctx.info(f"Created new collection: {collection.name}")
+                else:
+                    collection_uuid = parse_uuid(collection_id, "collection_id")
 
-                # Create new collection
-                from backend.rag_solution.schemas.collection_schema import CollectionInput
-
-                collection_input = CollectionInput(
-                    name=collection_name,
-                    is_private=False,  # Default to public for MCP-created collections
-                )
-                collection = app_ctx.collection_service.create_collection(collection_input)
-                collection_uuid = collection.id
-                await ctx.info(f"Created new collection: {collection.name}")
-            else:
-                collection_uuid = parse_uuid(collection_id, "collection_id")
-
-            # Validate collection exists and user has access
-            collection = app_ctx.collection_service.get_collection(collection_uuid)
+                # Validate collection exists and user has access
+                collection = collection_service.get_collection(collection_uuid)
             if not collection:
                 return create_error_response(
                     f"Collection {collection_id} not found",
@@ -383,7 +453,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
 
         Args:
             collection_id: UUID of the collection to generate podcast from
-            user_id: UUID of the user requesting the podcast
+            user_id: UUID of the user generating the podcast
             ctx: MCP context with server resources
             title: Optional title for the podcast
             description: Optional description for the podcast
@@ -416,7 +486,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
             collection_uuid = parse_uuid(collection_id, "collection_id")
             user_uuid = parse_uuid(user_id, "user_id")
 
-            from backend.rag_solution.schemas.podcast_schema import (
+            from rag_solution.schemas.podcast_schema import (
                 PodcastDuration,
                 PodcastGenerationInput,
                 VoiceSettings,
@@ -456,7 +526,10 @@ def register_rag_tools(mcp: FastMCP) -> None:
                 await ctx.report_progress(progress=0.3, total=1.0, message="Generating script...")
 
                 try:
-                    script_result = await app_ctx.podcast_service.generate_script_only(podcast_input)
+                    # Use per-request database session for podcast service
+                    with db_session_context(app_ctx.db_session_factory) as db:
+                        podcast_service = PodcastService(db=db, settings=app_ctx.settings)
+                        script_result = await podcast_service.generate_script_only(podcast_input)
                     await ctx.info("Script generation completed")
 
                     return {
@@ -554,13 +627,15 @@ def register_rag_tools(mcp: FastMCP) -> None:
 
         try:
             collection_uuid = parse_uuid(collection_id, "collection_id")
-            # Validate user_id format (may be used for future authorization)
+            # Validate user_id (may be used for future authorization)
             _user_uuid = parse_uuid(user_id, "user_id")
 
-            # Get existing collection questions
+            # Get existing collection questions with per-request database session
             # Note: Generating new questions requires LLM provider config and document texts.
             # Use the REST API for full question generation functionality.
-            questions = app_ctx.question_service.get_collection_questions(collection_uuid)
+            with db_session_context(app_ctx.db_session_factory) as db:
+                question_service = QuestionService(db=db, settings=app_ctx.settings)
+                questions = question_service.get_collection_questions(collection_uuid)
 
             if not questions:
                 await ctx.info("No pre-generated questions found. Use REST API to generate new questions.")
@@ -614,11 +689,17 @@ def register_rag_tools(mcp: FastMCP) -> None:
 
         Requires 'rag:read' permission.
 
+        Note:
+            The include_chunks parameter is not yet fully implemented.
+            Currently returns empty chunks list with a note to use rag_search
+            for content retrieval. Full chunk retrieval will require vector
+            store query integration.
+
         Args:
             document_id: UUID of the document to retrieve
             collection_id: UUID of the collection containing the document
             ctx: MCP context with server resources
-            include_chunks: Include document content chunks in response
+            include_chunks: Include document content chunks in response (not yet implemented)
             max_chunk_length: Maximum length of each chunk to return
 
         Returns:
@@ -627,7 +708,7 @@ def register_rag_tools(mcp: FastMCP) -> None:
             - filename: Original filename
             - file_type: Document type (pdf, docx, etc.)
             - created_at: Document creation timestamp
-            - chunks: List of content chunks if requested
+            - chunks: Empty list (not yet implemented - use rag_search for content)
 
         Raises:
             PermissionError: If authentication fails or user lacks required permissions
@@ -648,8 +729,10 @@ def register_rag_tools(mcp: FastMCP) -> None:
             # Validate collection_id format (for future use in collection-scoped queries)
             _ = parse_uuid(collection_id, "collection_id")
 
-            # Get document from file service
-            doc = app_ctx.file_service.get_file_by_id(document_uuid)
+            # Get document from file service with per-request database session
+            with db_session_context(app_ctx.db_session_factory) as db:
+                file_service = FileManagementService(db=db, settings=app_ctx.settings)
+                doc = file_service.get_file_by_id(document_uuid)
 
             if not doc:
                 return create_error_response(
@@ -686,4 +769,4 @@ def register_rag_tools(mcp: FastMCP) -> None:
             await ctx.warning(f"Document retrieval failed: {e}")
             return create_error_response(e, MCPErrorType.OPERATION)
 
-    logger.info("Registered 6 RAG tools with MCP server")
+    logger.info("Registered 7 RAG tools with MCP server")

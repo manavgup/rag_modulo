@@ -76,6 +76,7 @@ class TestGetCollectionDocumentsResource:
         mock_file_service.get_files_by_collection.return_value = [mock_file]
 
         # Create mock modules for local imports
+        # Note: resources.py uses db_session_context which imports from file_management/database.py
         mock_database_module = MagicMock()
         mock_database_module.get_db.return_value = iter([mock_db])
 
@@ -85,7 +86,8 @@ class TestGetCollectionDocumentsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                # db_session_context imports from repository/database.py
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.file_management_service": mock_file_service_module,
             },
         ):
@@ -97,7 +99,8 @@ class TestGetCollectionDocumentsResource:
         assert data["total"] == 1
         assert data["documents"][0]["filename"] == "test.pdf"
         assert data["documents"][0]["status"] == "processed"
-        mock_db.close.assert_called_once()
+        # Session cleanup is now handled by the db_session_context context manager
+        # which exhausts the get_db generator, triggering its cleanup code
 
     def test_get_documents_invalid_collection_id(self) -> None:
         """Test document listing with invalid collection ID."""
@@ -148,7 +151,7 @@ class TestGetCollectionDocumentsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.file_management_service": mock_file_service_module,
             },
         ):
@@ -188,7 +191,7 @@ class TestGetCollectionDocumentsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.file_management_service": mock_file_service_module,
             },
         ):
@@ -236,7 +239,7 @@ class TestGetCollectionDocumentsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.file_management_service": mock_file_service_module,
             },
         ):
@@ -294,7 +297,7 @@ class TestGetCollectionStatsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -341,7 +344,7 @@ class TestGetCollectionStatsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -414,7 +417,7 @@ class TestGetCollectionStatsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -471,7 +474,7 @@ class TestGetUserCollectionsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -517,7 +520,7 @@ class TestGetUserCollectionsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -583,7 +586,7 @@ class TestGetUserCollectionsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
@@ -634,7 +637,7 @@ class TestGetUserCollectionsResource:
         with patch.dict(
             sys.modules,
             {
-                "backend.rag_solution.repository.database": mock_database_module,
+                "backend.rag_solution.file_management.database": mock_database_module,
                 "backend.rag_solution.services.collection_service": mock_collection_service_module,
                 "backend.core.config": mock_config_module,
             },
