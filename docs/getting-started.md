@@ -26,7 +26,7 @@ cd rag-modulo
 
 ```bash
 # Copy the example environment file
-cp env.example .env
+cp .env.example .env
 
 # Edit .env with your API keys
 nano .env  # or use your preferred editor

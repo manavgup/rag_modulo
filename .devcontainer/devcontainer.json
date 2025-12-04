@@ -118,7 +118,7 @@
     "IBM_CLIENT_SECRET": "${localEnv:IBM_CLIENT_SECRET}"
   },
   "onCreateCommand": "bash -c 'cp .env.example .env && echo \"✅ Environment file created from .env.example\"'",
-  "postCreateCommand": "bash -c 'curl -sSL https://install.python-poetry.org | python3 - && export PATH=\"$HOME/.local/bin:$PATH\" && cd backend && poetry config virtualenvs.in-project true && poetry install --with dev,test && cd ../frontend && npm install && echo \"✅ Dependencies installed (Poetry + npm)\"'",
+  "postCreateCommand": "bash -c 'curl -sSL https://install.python-poetry.org | python3 - && export PATH=\"$HOME/.local/bin:$PATH\" && poetry config virtualenvs.in-project true && poetry install --with dev,test && cd frontend && npm install && echo \"✅ Dependencies installed (Poetry + npm)\"'",
   "postStartCommand": "bash -c 'docker compose -f docker-compose-infra.yml up -d && echo \"✅ Infrastructure containers started (Postgres, Milvus, MinIO, MLFlow)\"'",
   "postAttachCommand": "bash -c 'echo \"\" && echo \"🚀 RAG Modulo Codespace Ready!\" && echo \"\" && echo \"Quick Start:\" && echo \"  Terminal 1: make local-dev-backend\" && echo \"  Terminal 2: make local-dev-frontend\" && echo \"\" && echo \"Or run: make local-dev-all (starts everything in background)\" && echo \"\"'"
 }
