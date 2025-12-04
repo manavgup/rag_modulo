@@ -159,15 +159,15 @@ local-dev-all: venv
 		fi; \
 	fi; \
 	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
-	cd frontend && DANGEROUSLY_DISABLE_HOST_CHECK=true npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
-	sleep 2; \
-	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
-			exit 1; \
-		fi; \
+	cd frontend && DANGEROUSLY_DISABLE_HOST_CHECK=true npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & \
+	sleep 3; \
+	FRONTEND_PID=$$(lsof -i :3000 2>/dev/null | grep node | awk '{print $$2}' | head -1); \
+	if [ -n "$$FRONTEND_PID" ] && kill -0 $$FRONTEND_PID 2>/dev/null; then \
+		echo $$FRONTEND_PID > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
+		echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
+	else \
+		echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
+		exit 1; \
 	fi; \
 	echo "$(GREEN)✅ Local development environment running!$(NC)"; \
 	echo "$(CYAN)💡 Services:$(NC)"; \
