@@ -308,6 +308,17 @@ class Settings(BaseSettings):
     # Maximum concurrent MCP tool invocations
     mcp_max_concurrent: Annotated[int, Field(default=5, ge=1, le=20, alias="MCP_MAX_CONCURRENT")]
 
+    # MCP Server settings (for exposing RAG Modulo as an MCP server)
+    # Port for MCP server when using SSE/HTTP transport
+    mcp_server_port: Annotated[int, Field(default=8080, ge=1024, le=65535, alias="MCP_SERVER_PORT")]
+    # Default transport for MCP server: stdio, sse, or http
+    mcp_server_transport: Annotated[str, Field(default="stdio", alias="MCP_SERVER_TRANSPORT")]
+    # Base URL for RAG Modulo REST API (called by MCP tools)
+    # In Kubernetes: set to service name (e.g., http://backend:8000)
+    # In Docker Compose: set to container name (e.g., http://backend:8000)
+    # Local development: uses default http://localhost:8000
+    rag_api_base_url: Annotated[str, Field(default="http://localhost:8000", alias="RAG_API_BASE_URL")]
+
     # Testing settings
     testing: Annotated[bool, Field(default=False, alias="TESTING")]
     skip_auth: Annotated[bool, Field(default=False, alias="SKIP_AUTH")]

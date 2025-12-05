@@ -17,19 +17,30 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import uvicorn
 from mcp.server.fastmcp import FastMCP
+from mcp.server.sse import SseServerTransport
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.routing import Route
 
 from core.config import get_settings
 from core.enhanced_logging import get_logger
 from mcp_server.auth import MCPAuthenticator
+from mcp_server.middleware import HeaderCaptureMiddleware
+from mcp_server.resources import register_rag_resources
+from mcp_server.tools import register_rag_tools
 
 # Re-export from types for backward compatibility
 from mcp_server.types import (
     MCPServerContext,
     get_app_context,
     parse_uuid,
+    set_global_auth_headers,
+    set_session_headers,
     validate_auth,
 )
+from rag_solution.file_management.database import get_db
 
 logger = get_logger(__name__)
 
@@ -107,9 +118,6 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[MCPServerContext]:
     """
     logger.info("Initializing RAG Modulo MCP Server...")
 
-    # Import here to avoid circular imports
-    from rag_solution.file_management.database import get_db
-
     # Get settings instance
     settings = get_settings()
 
@@ -141,10 +149,6 @@ def create_mcp_server() -> FastMCP:
     Returns:
         Configured FastMCP server instance ready to run
     """
-    # Import here to avoid circular imports
-    from mcp_server.resources import register_rag_resources
-    from mcp_server.tools import register_rag_tools
-
     mcp = FastMCP(
         name="RAG Modulo",
         lifespan=server_lifespan,
@@ -168,19 +172,11 @@ def _run_sse_with_middleware(mcp: FastMCP, port: int) -> None:
         mcp: The FastMCP server instance
         port: Port number to listen on
     """
-    import uvicorn
-    from mcp.server.sse import SseServerTransport
-    from starlette.applications import Starlette
-    from starlette.routing import Route
-
-    from mcp_server.middleware import HeaderCaptureMiddleware
-    from mcp_server.types import set_global_auth_headers, set_session_headers
-
     # Create SSE transport for MCP
     sse_transport = SseServerTransport("/messages/")
 
     # Create handler that connects SSE transport to MCP server
-    async def handle_sse(request):
+    async def handle_sse(request: Request) -> None:
         # Capture auth headers from the SSE connection and store globally
         # This ensures headers are available to tool handlers even when
         # context variables don't propagate across async boundaries
@@ -213,7 +209,7 @@ def _run_sse_with_middleware(mcp: FastMCP, port: int) -> None:
             )
 
     # Create handler for MCP messages
-    async def handle_messages(request):
+    async def handle_messages(request: Request) -> None:
         # Extract session_id and store headers before delegating to SSE transport
         # This ensures headers are available to tool handlers even in different async context
         session_id = request.query_params.get("session_id")
@@ -240,7 +236,7 @@ def _run_sse_with_middleware(mcp: FastMCP, port: int) -> None:
             set_global_auth_headers(headers)
             logger.debug("handle_messages: Stored headers globally: %s", list(headers.keys()))
 
-        return await sse_transport.handle_post_message(
+        await sse_transport.handle_post_message(
             request.scope,
             request.receive,
             request._send,

@@ -15,7 +15,11 @@ from uuid import UUID
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy.orm import Session
 
+from core.config import get_settings
 from core.enhanced_logging import get_logger
+from rag_solution.file_management.database import get_db
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
 
 logger = get_logger(__name__)
 
@@ -37,8 +41,6 @@ def db_session_context() -> Generator[Session, None, None]:
     Raises:
         Exception: Any database errors are propagated after cleanup
     """
-    from rag_solution.file_management.database import get_db
-
     db_gen = get_db()
     db_session = next(db_gen)
     try:
@@ -56,7 +58,7 @@ def register_rag_resources(mcp: FastMCP) -> None:
         mcp: The FastMCP server instance to register resources with
     """
 
-    @mcp.resource("rag://collection/{collection_id}/documents")
+    @mcp.resource("rag://collection/{collection_id}/documents")  # type: ignore[misc]
     def get_collection_documents(collection_id: str) -> str:
         """Get list of documents in a collection.
 
@@ -79,9 +81,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid collection_id: {e}"})
 
         try:
-            from core.config import get_settings
-            from rag_solution.services.file_management_service import FileManagementService
-
             settings = get_settings()
 
             with db_session_context() as db_session:
@@ -95,10 +94,8 @@ def register_rag_resources(mcp: FastMCP) -> None:
                         "id": str(f.id),
                         "filename": f.filename,
                         "file_type": f.file_type,
-                        "file_size": f.file_size,
-                        "created_at": f.created_at.isoformat() if f.created_at else None,
-                        "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-                        "status": f.status.value if hasattr(f.status, "value") else str(f.status),
+                        "file_size_bytes": f.file_size_bytes,
+                        "document_id": f.document_id,
                     }
                     for f in files
                 ]
@@ -116,7 +113,7 @@ def register_rag_resources(mcp: FastMCP) -> None:
             logger.exception("Failed to fetch collection documents")
             return json.dumps({"error": str(e)})
 
-    @mcp.resource("rag://collection/{collection_id}/stats")
+    @mcp.resource("rag://collection/{collection_id}/stats")  # type: ignore[misc]
     def get_collection_stats(collection_id: str) -> str:
         """Get statistics for a collection.
 
@@ -132,9 +129,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
         logger.info("Fetching stats for collection %s", collection_id)
 
         try:
-            from core.config import get_settings
-            from rag_solution.services.collection_service import CollectionService
-
             settings = get_settings()
             collection_uuid = UUID(collection_id)
 
@@ -150,10 +144,10 @@ def register_rag_resources(mcp: FastMCP) -> None:
                 stats = {
                     "collection_id": str(collection.id),
                     "name": collection.name,
-                    "description": collection.description,
                     "status": collection.status.value
                     if hasattr(collection.status, "value")
                     else str(collection.status),
+                    "is_private": collection.is_private,
                     "created_at": collection.created_at.isoformat() if collection.created_at else None,
                     "updated_at": collection.updated_at.isoformat() if collection.updated_at else None,
                 }
@@ -173,7 +167,7 @@ def register_rag_resources(mcp: FastMCP) -> None:
             logger.exception("Failed to fetch collection stats")
             return json.dumps({"error": str(e)})
 
-    @mcp.resource("rag://user/{user_id}/collections")
+    @mcp.resource("rag://user/{user_id}/collections")  # type: ignore[misc]
     def get_user_collections(user_id: str) -> str:
         """Get all collections for a user.
 
@@ -196,9 +190,6 @@ def register_rag_resources(mcp: FastMCP) -> None:
             return json.dumps({"error": f"Invalid user_id: {e}"})
 
         try:
-            from core.config import get_settings
-            from rag_solution.services.collection_service import CollectionService
-
             settings = get_settings()
 
             with db_session_context() as db_session:
@@ -211,8 +202,8 @@ def register_rag_resources(mcp: FastMCP) -> None:
                     {
                         "id": str(c.id),
                         "name": c.name,
-                        "description": c.description,
                         "status": c.status.value if hasattr(c.status, "value") else str(c.status),
+                        "is_private": c.is_private,
                         "created_at": c.created_at.isoformat() if c.created_at else None,
                     }
                     for c in collections

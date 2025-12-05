@@ -79,12 +79,12 @@ class HeaderCaptureMiddleware(BaseHTTPMiddleware):
                 headers[header_name] = value
                 logger.debug("HeaderCaptureMiddleware: Found header %s", header_name)
 
-        # Log all incoming headers for debugging
-        logger.info(
-            "HeaderCaptureMiddleware: All request headers: %s",
-            dict(request.headers),
+        # Log headers at debug level to avoid noise and prevent sensitive data exposure
+        logger.debug(
+            "HeaderCaptureMiddleware: Request headers present: %s",
+            list(request.headers.keys()),
         )
-        logger.info("HeaderCaptureMiddleware: Captured auth headers: %s", headers)
+        logger.debug("HeaderCaptureMiddleware: Captured auth headers: %s", list(headers.keys()))
 
         # Store headers in context variable for tool handlers
         set_current_request_headers(headers)
@@ -103,7 +103,7 @@ class HeaderCaptureMiddleware(BaseHTTPMiddleware):
             session_id = request.query_params.get("session_id")
             if session_id:
                 set_session_headers(session_id, headers)
-                logger.info(
+                logger.debug(
                     "HeaderCaptureMiddleware: Stored headers for session %s",
                     session_id,
                 )
@@ -112,20 +112,3 @@ class HeaderCaptureMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         return response
-
-
-def create_header_capture_app(app: object) -> object:
-    """Wrap a Starlette app with header capture middleware.
-
-    This function wraps an existing Starlette application with
-    HeaderCaptureMiddleware to enable header extraction for MCP tools.
-
-    Args:
-        app: The Starlette application to wrap
-
-    Returns:
-        The wrapped application with middleware added
-    """
-    # Note: We can't add middleware to an existing app instance easily
-    # This is a utility for future use if needed
-    return app

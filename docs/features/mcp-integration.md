@@ -548,7 +548,7 @@ such as Claude Desktop, enabling LLMs to interact with your document collections
 
 The MCP Server exposes:
 
-- **Tools**: 6 tools for search, ingestion, collection management, and more
+- **Tools**: 4 tools for search, collections, and podcast generation (calls REST API)
 - **Resources**: Collection documents, statistics, and user collections
 - **Authentication**: SPIFFE JWT-SVID, Bearer tokens, API keys, trusted proxy
 
@@ -585,15 +585,19 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 
 ## Available Tools
 
+The MCP server exposes four core tools that call the RAG Modulo REST API:
+
 | Tool | Description | Required Permissions |
 |------|-------------|---------------------|
 | `rag_whoami` | Get current authenticated user info | None (uses auth headers) |
-| `rag_search` | Search documents and generate answers | `rag:search` |
 | `rag_list_collections` | List accessible collections | `rag:list` |
-| `rag_ingest` | Ingest documents into collections | `rag:ingest`, `rag:write` |
+| `rag_search` | Search documents and generate answers | `rag:search` |
 | `rag_generate_podcast` | Generate podcasts from content | `rag:podcast`, `rag:read` |
-| `rag_smart_questions` | Generate follow-up questions | `rag:read` |
-| `rag_get_document` | Retrieve document metadata | `rag:read` |
+
+### Architecture Note
+
+All tools forward requests to the FastAPI REST API, ensuring consistent behavior
+with the web interface. Authentication headers are passed through to the API.
 
 ### Tool Examples
 
@@ -631,7 +635,6 @@ Response:
       "question": "What is machine learning?",
       "collection_id": "uuid-here",
       "user_id": "user-uuid",
-      "enable_cot": true,
       "max_results": 10
     }
   }
@@ -646,8 +649,24 @@ Response:
   "params": {
     "name": "rag_list_collections",
     "arguments": {
+      "user_id": "user-uuid"
+    }
+  }
+}
+```
+
+#### Generate Podcast
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_generate_podcast",
+    "arguments": {
+      "collection_id": "uuid-here",
       "user_id": "user-uuid",
-      "include_stats": true
+      "duration": "medium",
+      "language": "en"
     }
   }
 }
@@ -701,9 +720,17 @@ X-Authenticated-User: user@example.com
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `RAG_API_BASE_URL` | Base URL for RAG Modulo REST API | `http://localhost:8000` |
+| `MCP_SERVER_TRANSPORT` | Transport type (stdio, sse, http) | `stdio` |
+| `MCP_SERVER_PORT` | Port for SSE/HTTP transports | `8080` |
+| `MCP_TIMEOUT` | Request timeout in seconds | `30.0` |
 | `JWT_SECRET_KEY` | Secret for JWT validation | Required for Bearer auth |
 | `MCP_API_KEY` | API key for programmatic access | Optional |
-| `MCP_AUTH_REQUIRED` | Require authentication | `false` |
+
+**Deployment Note:** When deploying in containers (Docker/Kubernetes), set `RAG_API_BASE_URL` to the internal service name:
+
+- Docker Compose: `http://backend:8000`
+- Kubernetes: `http://backend-service:8000`
 
 ## Permissions
 

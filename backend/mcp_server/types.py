@@ -186,7 +186,7 @@ try:
     from fastmcp.server.dependencies import get_http_headers
 except ImportError:
     # Fallback if using older mcp package version
-    get_http_headers = None  # type: ignore[misc, assignment]
+    get_http_headers = None
 
 # Service imports must come after try/except block above to avoid circular imports
 from mcp_server.auth import MCPAuthContext, MCPAuthenticator  # noqa: E402
@@ -259,7 +259,8 @@ def get_app_context(ctx: Context[ServerSession, MCPServerContext, Any]) -> MCPSe
     Returns:
         The MCPServerContext with all initialized services
     """
-    return ctx.request_context.lifespan_context
+    lifespan_context: MCPServerContext = ctx.request_context.lifespan_context
+    return lifespan_context
 
 
 def parse_uuid(value: str, field_name: str = "id") -> UUID:

@@ -20,8 +20,15 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+import jwt
+
+from core.config import get_settings
 from core.enhanced_logging import get_logger
 from mcp_server.permissions import DefaultPermissionSets, MCPPermissions
+from rag_solution.file_management.database import get_db
+from rag_solution.models.user import User
+from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.user_service import UserService
 
 # SPIFFE imports are optional - used only when SPIFFE auth is configured
 if TYPE_CHECKING:
@@ -261,8 +268,6 @@ class MCPAuthenticator:
             MCPAuthContext with user identity if valid
         """
         try:
-            import jwt
-
             secret_key = getattr(self.settings, "JWT_SECRET_KEY", None)
             if not secret_key:
                 logger.warning("JWT_SECRET_KEY not configured")
@@ -333,12 +338,6 @@ class MCPAuthenticator:
         Returns:
             MCPAuthContext with user identity
         """
-        # Import here to avoid circular imports
-        from core.config import get_settings
-        from rag_solution.file_management.database import get_db
-        from rag_solution.models.user import User
-        from rag_solution.services.user_service import UserService
-
         db_gen = None
         db_session = None
         try:
@@ -349,6 +348,9 @@ class MCPAuthenticator:
             # First, try to find existing user by email (not ibm_id)
             # This handles the case where user was created with a different ibm_id
             existing_user = db_session.query(User).filter(User.email == user_email).first()
+
+            # Type annotation for user - can be User model or UserOutput schema
+            user: User | UserOutput | None = None
 
             if existing_user:
                 user = existing_user
