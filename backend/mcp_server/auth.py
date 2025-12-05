@@ -23,11 +23,11 @@ from uuid import UUID
 import jwt
 
 from core.config import get_settings
+from core.custom_exceptions import RepositoryError
 from core.enhanced_logging import get_logger
 from mcp_server.permissions import DefaultPermissionSets, MCPPermissions
+from rag_solution.core.exceptions import DomainError
 from rag_solution.file_management.database import get_db
-from rag_solution.models.user import User
-from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.user_service import UserService
 
 # SPIFFE imports are optional - used only when SPIFFE auth is configured
@@ -332,6 +332,10 @@ class MCPAuthenticator:
         This is used when the MCP server is behind a trusted proxy
         that has already authenticated the user.
 
+        Uses UserService.get_or_create_by_email() to properly look up users
+        by email address first, avoiding duplicate user creation when the
+        existing user has a different ibm_id.
+
         Args:
             user_email: The authenticated user's email from trusted proxy
 
@@ -339,43 +343,27 @@ class MCPAuthenticator:
             MCPAuthContext with user identity
         """
         db_gen = None
-        db_session = None
         try:
             db_gen = get_db()
             db_session = next(db_gen)
             settings = get_settings()
 
-            # First, try to find existing user by email (not ibm_id)
-            # This handles the case where user was created with a different ibm_id
-            existing_user = db_session.query(User).filter(User.email == user_email).first()
+            # Use service layer for proper email-based lookup
+            # This handles existing users AND creates new ones if needed
+            user_service = UserService(db_session, settings)
+            user = user_service.get_or_create_by_email(email=user_email)
 
-            # Type annotation for user - can be User model or UserOutput schema
-            user: User | UserOutput | None = None
+            logger.debug("Authenticated user via trusted proxy: %s (id=%s)", user_email, user.id)
 
-            if existing_user:
-                user = existing_user
-                logger.debug("Found existing user by email: %s (id=%s)", user_email, user.id)
-            else:
-                # Create new user if not found by email
-                user_service = UserService(db_session, settings)
-                user = user_service.get_or_create_user_by_fields(
-                    ibm_id=user_email,  # Use email as ibm_id for new trusted proxy users
-                    email=user_email,
-                    name=user_email.split("@")[0],  # Extract name from email
-                    role="user",
-                )
-                logger.debug("Created new user for trusted proxy: %s (id=%s)", user_email, user.id)
-
-            if user:
-                return MCPAuthContext(
-                    user_id=user.id,
-                    username=user.email,
-                    is_authenticated=True,
-                    auth_method="trusted_proxy",
-                    permissions=list(DefaultPermissionSets.TRUSTED_PROXY),
-                    metadata={"source": "trusted_proxy"},
-                )
-        except Exception as e:
+            return MCPAuthContext(
+                user_id=user.id,
+                username=user.email,
+                is_authenticated=True,
+                auth_method="trusted_proxy",
+                permissions=list(DefaultPermissionSets.TRUSTED_PROXY),
+                metadata={"source": "trusted_proxy"},
+            )
+        except (DomainError, RepositoryError) as e:
             logger.warning("Trusted user lookup failed: %s", e)
         finally:
             # Ensure proper cleanup of database session
