@@ -539,6 +539,344 @@ MCP_GATEWAY_URL=http://localhost:3002
 
 ---
 
+# RAG Modulo MCP Server
+
+RAG Modulo can also act as an **MCP Server**, exposing its RAG capabilities to MCP clients
+such as Claude Desktop, enabling LLMs to interact with your document collections.
+
+## Overview
+
+The MCP Server exposes:
+
+- **Tools**: 4 tools for search, collections, and podcast generation (calls REST API)
+- **Resources**: Collection documents, statistics, and user collections
+- **Authentication**: SPIFFE JWT-SVID, Bearer tokens, API keys, trusted proxy
+
+## Quick Start
+
+### Running the Server
+
+```bash
+# Run with stdio transport (for Claude Desktop)
+python -m mcp_server
+
+# Run with SSE transport (for web clients)
+python -m mcp_server --transport sse --port 8080
+
+# Run with HTTP transport (for API clients)
+python -m mcp_server --transport http --port 8080
+```
+
+### Claude Desktop Configuration
+
+Add to `~/.config/claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "rag-modulo": {
+      "command": "python",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/path/to/rag_modulo"
+    }
+  }
+}
+```
+
+## Available Tools
+
+The MCP server exposes four core tools that call the RAG Modulo REST API:
+
+| Tool | Description | Required Permissions |
+|------|-------------|---------------------|
+| `rag_whoami` | Get current authenticated user info | None (uses auth headers) |
+| `rag_list_collections` | List accessible collections | `rag:list` |
+| `rag_search` | Search documents and generate answers | `rag:search` |
+| `rag_generate_podcast` | Generate podcasts from content | `rag:podcast`, `rag:read` |
+
+### Architecture Note
+
+All tools forward requests to the FastAPI REST API, ensuring consistent behavior
+with the web interface. Authentication headers are passed through to the API.
+
+### Tool Examples
+
+#### Whoami
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_whoami",
+    "arguments": {}
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "user_id": "d1f93297-3e3c-42b0-8da7-09efde032c25",
+  "username": "dev@example.com",
+  "auth_method": "trusted_proxy",
+  "permissions": ["rag:read", "rag:write", "rag:search", "rag:list", "rag:ingest"]
+}
+```
+
+#### Search
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_search",
+    "arguments": {
+      "question": "What is machine learning?",
+      "collection_id": "uuid-here",
+      "user_id": "user-uuid",
+      "max_results": 10
+    }
+  }
+}
+```
+
+#### List Collections
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_list_collections",
+    "arguments": {
+      "user_id": "user-uuid"
+    }
+  }
+}
+```
+
+#### Generate Podcast
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "rag_generate_podcast",
+    "arguments": {
+      "collection_id": "uuid-here",
+      "user_id": "user-uuid",
+      "duration": "medium",
+      "language": "en"
+    }
+  }
+}
+```
+
+## Available Resources
+
+| Resource URI | Description |
+|-------------|-------------|
+| `rag://collection/{id}/documents` | List documents in a collection |
+| `rag://collection/{id}/stats` | Collection statistics |
+| `rag://user/{id}/collections` | User's collections |
+
+## Authentication
+
+The MCP server supports multiple authentication methods:
+
+### 1. SPIFFE JWT-SVID
+
+For workload identity in agent environments:
+
+```
+X-SPIFFE-JWT: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 2. Bearer Token
+
+For user API access:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 3. API Key
+
+For programmatic access:
+
+```
+X-API-Key: your-api-key
+```
+
+### 4. Trusted Proxy
+
+For deployment behind an authenticated proxy:
+
+```
+X-Authenticated-User: user@example.com
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RAG_API_BASE_URL` | Base URL for RAG Modulo REST API | `http://localhost:8000` |
+| `MCP_SERVER_TRANSPORT` | Transport type (stdio, sse, http) | `stdio` |
+| `MCP_SERVER_PORT` | Port for SSE/HTTP transports | `8080` |
+| `MCP_TIMEOUT` | Request timeout in seconds | `30.0` |
+| `JWT_SECRET_KEY` | Secret for JWT validation | Required for Bearer auth |
+| `MCP_API_KEY` | API key for programmatic access | Optional |
+
+**Deployment Note:** When deploying in containers (Docker/Kubernetes), set `RAG_API_BASE_URL` to the internal service name:
+
+- Docker Compose: `http://backend:8000`
+- Kubernetes: `http://backend-service:8000`
+
+## Permissions
+
+Permissions follow the pattern `rag:{action}`:
+
+| Permission | Description |
+|-----------|-------------|
+| `rag:search` | Perform semantic search queries |
+| `rag:read` | Read document content and metadata |
+| `rag:write` | Create, update, or delete documents |
+| `rag:list` | List collections and resources |
+| `rag:ingest` | Ingest documents into collections |
+| `rag:podcast` | Generate podcasts from content |
+| `rag:generate` | Use LLM generation features |
+| `rag:admin` | Administrative operations |
+
+## Error Handling
+
+All tools return consistent error responses:
+
+```json
+{
+  "error": "Collection not found",
+  "error_type": "not_found",
+  "details": {}
+}
+```
+
+Error types:
+
+- `authorization_error`: Authentication or permission failure
+- `validation_error`: Invalid input parameters
+- `not_found`: Requested resource does not exist
+- `operation_error`: Operation failed during execution
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                          MCP Client                                 │
+│           (Claude Desktop, Web Client, API Client)                  │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+                    stdio / SSE / HTTP
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     RAG Modulo MCP Server                           │
+│                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────┐  │
+│  │   MCPAuthenti-  │  │     FastMCP     │  │   MCPServerContext │  │
+│  │     cator       │  │     Server      │  │     (Services)     │  │
+│  └────────┬────────┘  └────────┬────────┘  └─────────┬──────────┘  │
+│           │                    │                     │             │
+│           └───────────┬────────┴─────────────────────┘             │
+│                       │                                             │
+│                       ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                        MCP Tools                             │   │
+│  │  ┌───────────────┐  ┌────────────────┐  ┌─────────────────┐ │   │
+│  │  │  rag_search   │  │ rag_list_colls │  │   rag_ingest    │ │   │
+│  │  └───────────────┘  └────────────────┘  └─────────────────┘ │   │
+│  │  ┌───────────────┐  ┌────────────────┐  ┌─────────────────┐ │   │
+│  │  │ rag_podcast   │  │ rag_questions  │  │  rag_get_doc    │ │   │
+│  │  └───────────────┘  └────────────────┘  └─────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+└────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     RAG Modulo Services                             │
+│  SearchService, CollectionService, PodcastService, etc.           │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+## Testing with MCP Inspector
+
+The MCP server can be tested using [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+### SSE Transport
+
+```bash
+# Start the MCP server with SSE transport
+cd backend
+poetry run python -m mcp_server --transport sse --port 8080 --log-level DEBUG
+
+# In MCP Inspector, connect to:
+# URL: http://localhost:8080/sse
+# Headers:
+#   X-Authenticated-User: dev@example.com
+```
+
+### Testing Authentication
+
+1. **Connect** to `http://localhost:8080/sse` with the `X-Authenticated-User` header
+2. **Call** `rag_whoami` to verify authentication
+3. **Call** `rag_list_collections` to see the user's collections
+
+### Header Capture Middleware
+
+The MCP server uses middleware to capture authentication headers from SSE connections
+and make them available to tool handlers. Headers are stored in:
+
+1. **Context variables**: For synchronous requests
+2. **Session storage**: Keyed by session ID for async SSE tool calls
+3. **Global storage**: Fallback for single-user testing scenarios
+
+Captured headers:
+
+- `Authorization`: Bearer tokens
+- `X-API-Key`: API key authentication
+- `X-Authenticated-User`: Trusted proxy user identity
+- `X-SPIFFE-JWT`: SPIFFE JWT-SVID for workload identity
+
+---
+
+## Development
+
+### Module Structure
+
+```
+backend/mcp_server/
+├── __init__.py         # Package exports
+├── __main__.py         # CLI entry point
+├── server.py           # FastMCP server creation and lifecycle
+├── tools.py            # MCP tool implementations
+├── resources.py        # MCP resource implementations
+├── auth.py             # Authentication handlers
+├── middleware.py       # Header capture middleware for SSE
+├── types.py            # Type definitions and utilities
+└── permissions.py      # Permission constants
+```
+
+### Running Tests
+
+```bash
+# Unit tests for MCP server
+poetry run pytest tests/unit/mcp_server/ -v
+
+# Integration tests
+poetry run pytest tests/integration/test_mcp_server.py -v
+```
+
+---
+
 ## Related Documentation
 
 - [MCP Context Forge Documentation](https://ibm.github.io/mcp-context-forge/)
@@ -546,3 +884,4 @@ MCP_GATEWAY_URL=http://localhost:3002
 - [Search & Retrieval](search-retrieval.md) - Core search functionality
 - [Chain of Thought](chain-of-thought/index.md) - Advanced reasoning
 - [LLM Integration](llm-integration.md) - Provider configuration
+- [FastMCP Documentation](https://github.com/anthropics/anthropic-sdk-python) - MCP SDK

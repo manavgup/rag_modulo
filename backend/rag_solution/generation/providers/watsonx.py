@@ -208,7 +208,9 @@ class WatsonXLLM(LLMBase):
             GenParams.TEMPERATURE: params.temperature,
             GenParams.TOP_K: params.top_k,
             GenParams.TOP_P: params.top_p,
-            GenParams.STOP_SEQUENCES: ["##", "\n\nQuestion:", "\n\n##"],  # Stop at markdown headers or new questions
+            # Stop sequences - avoid bare "##" which triggers too early on markdown headers
+            # Use more specific patterns to prevent premature truncation
+            GenParams.STOP_SEQUENCES: ["\n\nQuestion:", "\n\n---", "\nHuman:", "\nUser:"],
         }
 
     def generate_text(
