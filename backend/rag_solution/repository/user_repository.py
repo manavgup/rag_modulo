@@ -81,6 +81,30 @@ class UserRepository:
             logger.error(f"Error getting user by IBM ID {ibm_id}: {e!s}")
             raise RepositoryError(f"Failed to get user by IBM ID: {e!s}") from e
 
+    def get_by_email(self, email: str) -> UserOutput:
+        """Fetches user by email address.
+
+        Args:
+            email: The email address to look up
+
+        Returns:
+            UserOutput: The user with the given email
+
+        Raises:
+            NotFoundError: If user not found
+            RepositoryError: For database errors
+        """
+        try:
+            user = self.db.query(User).filter(User.email == email).options(joinedload(User.teams)).first()
+            if not user:
+                raise NotFoundError("User", identifier=f"email={email}")
+            return UserOutput.model_validate(user)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting user by email {email}: {e!s}")
+            raise RepositoryError(f"Failed to get user by email: {e!s}") from e
+
     def update(self, user_id: UUID4, user_update: UserInput) -> UserOutput:
         """Updates user data with validation.
 

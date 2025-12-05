@@ -56,6 +56,81 @@ class UserService:
             UserInput(ibm_id=ibm_id, email=email, name=name, role=role, preferred_provider_id=None)
         )
 
+    def get_user_by_email(self, email: str) -> UserOutput:
+        """Gets user by email address.
+
+        Args:
+            email: The email address to look up
+
+        Returns:
+            UserOutput: The user with the given email
+
+        Raises:
+            NotFoundError: If user not found
+        """
+        logger.info("Fetching user with email: %s", email)
+        return self.user_repository.get_by_email(email)
+
+    def get_or_create_by_email(self, email: EmailStr, name: str | None = None, role: str = "user") -> UserOutput:
+        """Gets existing user by email or creates new one.
+
+        This method first looks up the user by email address. If found, returns
+        the existing user. If not found, creates a new user using the email
+        as both the email and ibm_id (for trusted proxy scenarios).
+
+        This is the preferred method for trusted proxy authentication where
+        user identity comes from an email header.
+
+        Args:
+            email: The email address (used for lookup and as ibm_id for new users)
+            name: Optional display name (defaults to email prefix if not provided)
+            role: User role (defaults to "user")
+
+        Returns:
+            UserOutput: The existing or newly created user with all defaults initialized
+
+        Note:
+            For existing users, ensures required defaults (templates, parameters)
+            are present, reinitializing them if necessary.
+        """
+        try:
+            existing_user = self.user_repository.get_by_email(email)
+
+            # Defensive check: Ensure user has required defaults
+            templates = self.prompt_template_service.get_user_templates(existing_user.id)
+
+            if not templates or len(templates) < MIN_REQUIRED_TEMPLATES:
+                logger.warning(
+                    "User %s (email=%s) exists but missing defaults - attempting recovery...",
+                    existing_user.id,
+                    email,
+                )
+                try:
+                    _, reinit_templates, parameters = self.user_provider_service.initialize_user_defaults(
+                        existing_user.id
+                    )
+                    logger.info(
+                        "✅ Successfully recovered user %s: %d templates, %s parameters",
+                        existing_user.id,
+                        len(reinit_templates),
+                        "created" if parameters else "failed",
+                    )
+                except Exception as e:
+                    logger.error("❌ Failed to recover user %s: %s", existing_user.id, str(e))
+                    raise ValidationError(
+                        f"User {existing_user.id} missing required defaults and recovery failed: {e}",
+                        field="user_initialization",
+                    ) from e
+
+            return existing_user
+        except NotFoundError:
+            # User doesn't exist by email, create with email as ibm_id
+            display_name = name if name else email.split("@")[0]
+            logger.info("Creating new user for email: %s", email)
+            return self.create_user(
+                UserInput(ibm_id=email, email=email, name=display_name, role=role, preferred_provider_id=None)
+            )
+
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
         """Gets existing user or creates new one, ensuring all required defaults exist.
 
