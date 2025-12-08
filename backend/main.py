@@ -27,6 +27,7 @@ from core.loggingcors_middleware import LoggingCORSMiddleware
 
 # Database
 from rag_solution.file_management.database import Base, engine, get_db
+from rag_solution.router.agent_config_router import collection_agent_router, config_router as agent_config_router
 from rag_solution.router.agent_router import router as agent_router
 
 # Models
@@ -262,6 +263,8 @@ app.include_router(token_warning_router)
 app.include_router(voice_router)
 app.include_router(websocket_router)
 app.include_router(agent_router)
+app.include_router(agent_config_router)
+app.include_router(collection_agent_router)
 
 
 # Root endpoint
@@ -325,6 +328,22 @@ OPENAPI_TAGS = [
             "description": "SPIFFE Integration Architecture",
             "url": "https://spiffe.io/docs/latest/spire-about/spire-concepts/",
         },
+    },
+    {
+        "name": "agent-configs",
+        "description": (
+            "Agent configuration management for the 3-stage search pipeline. "
+            "Create and manage agent configurations for pre-search, post-search, "
+            "and response stages. Reference: GitHub Issue #697."
+        ),
+    },
+    {
+        "name": "collection-agents",
+        "description": (
+            "Collection-agent associations for the search pipeline. "
+            "Associate agent configurations with collections and manage "
+            "execution priorities. Reference: GitHub Issue #697."
+        ),
     },
     {
         "name": "podcast",
