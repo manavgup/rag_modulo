@@ -23,7 +23,7 @@ services:
   # Test PostgreSQL Database (Isolated from dev)
   # ============================================================================
   postgres-test:
-    image: postgres:13
+    image: postgres:16
     container_name: ${PROJECT_NAME:-rag-modulo}-postgres-test
     environment:
       - POSTGRES_USER=test_user
@@ -46,7 +46,7 @@ services:
   # Test Milvus Dependencies
   # ============================================================================
   etcd-test:
-    image: quay.io/coreos/etcd:v3.5.9
+    image: quay.io/coreos/etcd:v3.5.18
     container_name: ${PROJECT_NAME:-rag-modulo}-etcd-test
     environment:
       - ETCD_NAME=etcd-test
