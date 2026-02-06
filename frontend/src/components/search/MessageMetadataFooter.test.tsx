@@ -170,19 +170,19 @@ describe('MessageMetadataFooter', () => {
     it('should not render when no metadata is provided', () => {
       const { container } = render(<MessageMetadataFooter {...mockCallbacks} />);
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should not render when sourcesCount is 0', () => {
       const { container } = render(<MessageMetadataFooter sourcesCount={0} {...mockCallbacks} />);
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should not render when citationsCount is 0', () => {
       const { container } = render(<MessageMetadataFooter citationsCount={0} {...mockCallbacks} />);
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should not render sources when sourcesCount is 0 but render others', () => {
