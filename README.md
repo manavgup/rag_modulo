@@ -72,7 +72,7 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 | **🧠 Chain of Thought** | Automatic question decomposition with step-by-step reasoning | 40%+ better answer quality on complex queries |
 | **⚡ Auto Pipeline Resolution** | Zero-config search - backend handles pipeline selection | Simplified API, reduced client complexity |
 | **🎨 Reusable UI Components** | 8 accessible, type-safe components (Button, Input, Modal, etc.) | 44% code reduction, consistent design system |
-| **🔒 Security Hardening** | Multi-layer scanning (Trivy, Bandit, Gitleaks, Semgrep) | Production-grade security posture |
+| **🔒 Security Hardening** | Multi-layer scanning (Trivy, Bandit, Gitleaks, TruffleHog) | Production-grade security posture |
 | **🚀 Containerless Dev** | Local development without containers | 10x faster iteration, instant hot-reload |
 | **📄 IBM Docling** | Enhanced document processing for complex formats | Better PDF/DOCX/XLSX handling |
 | **🎙️ Podcast Generation** | AI-powered podcast creation with voice preview | Interactive content from documents |
@@ -137,11 +137,11 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/manavgup/rag-modulo.git
-cd rag-modulo
+git clone https://github.com/manavgup/rag_modulo.git
+cd rag_modulo
 
 # 2. Set up environment variables
-cp env.example .env
+cp .env.example .env
 # Edit .env with your API keys (WatsonX, OpenAI, Anthropic)
 
 # 3. Install all dependencies (one command!)
@@ -218,19 +218,16 @@ make local-dev-all
 
 ```bash
 # Clone repository
-git clone https://github.com/manavgup/rag-modulo.git
-cd rag-modulo
+git clone https://github.com/manavgup/rag_modulo.git
+cd rag_modulo
 
 # Set up environment
-cp env.example .env
+cp .env.example .env
 # Edit .env with your API keys
 
-# Start with pre-built images from GHCR
-make run-ghcr
-
-# OR build and run locally
-make build-all-local
-docker compose up -d
+# Build production images and start
+make build-all
+make prod-start
 ```
 
 **When to use:**
@@ -247,7 +244,7 @@ docker compose up -d
 1. **Go to repository** → "Code" → "Codespaces"
 2. **Click "Create codespace"** on your branch
 3. **Start coding** in browser-based VS Code
-4. **Run**: `make venv && make run-infra`
+4. **Run**: `make venv && make local-dev-infra`
 
 **When to use:**
 
@@ -504,8 +501,10 @@ make prod-stop
 Use pre-built images from GitHub Container Registry:
 
 ```bash
-# Pull latest images and start
+# Pull latest images
 docker compose -f docker-compose.production.yml pull
+
+# Start production environment
 make prod-start
 ```
 
@@ -555,7 +554,7 @@ Available images:
   - Unit tests for business logic and services
   - Integration tests for service interactions
   - API tests for endpoint validation
-- **Security Scanning**: Multi-layer security with Trivy (containers), Bandit (Python), Gitleaks (secrets), Semgrep (SAST)
+- **Security Scanning**: Multi-layer security with Trivy (containers), Bandit (Python), Gitleaks + TruffleHog (secrets)
 - **Code Quality**: Ruff linting, MyPy type checking, Pylint analysis, pre-commit hooks
 - **CI/CD Pipeline**: Multi-stage GitHub Actions with test isolation, builds, and comprehensive integration testing
 
@@ -574,7 +573,7 @@ Available images:
 ### 🔧 Configuration & Tools
 
 - **[⚙️ Configuration Guide](docs/configuration.md)** - Environment setup and configuration
-- **[🔌 API Reference](docs/api/README.md)** - Complete API documentation
+- **[🔌 API Reference](docs/api/index.md)** - Complete API documentation
 - **[🖥️ CLI Documentation](docs/cli/index.md)** - Command-line interface guide
 - **[🔐 Secret Management](docs/development/secret-management.md)** - Comprehensive guide for safe secret handling
 - **[🔗 MCP Integration](docs/features/mcp-integration.md)** - MCP Context Forge gateway setup and usage
@@ -626,8 +625,9 @@ make prod-stop
 #### 2. Pre-built Images from GHCR
 
 ```bash
-# Pull and run latest images from GitHub Container Registry
-make run-ghcr
+# Pull latest images and start production environment
+docker compose -f docker-compose.production.yml pull
+make prod-start
 ```
 
 **Available Images:**
@@ -641,8 +641,8 @@ make run-ghcr
 # Build local images
 make build-all
 
-# Start services
-make run-app
+# Start production services
+make prod-start
 ```
 
 ### Cloud Deployment Options
@@ -687,11 +687,8 @@ make run-app
 ### Kubernetes Deployment
 
 ```bash
-# Apply Kubernetes manifests
-kubectl apply -f deployment/k8s/
-
-# Or deploy with Helm (if charts exist)
-helm install rag-modulo ./charts/rag-modulo
+# Deploy with Helm chart
+helm install rag-modulo deployment/helm/rag-modulo
 ```
 
 ---
@@ -702,35 +699,18 @@ helm install rag-modulo ./charts/rag-modulo
 
 RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 
-#### 1. Code Quality & Testing (`.github/workflows/ci.yml`)
+#### 1. Code Quality & Testing (Separate Numbered Workflows)
 
-**Triggers:** Push to `main`, Pull Requests
+**On Every PR** (parallel, ~2-3 min total):
 
-**Stages:**
+- **`.github/workflows/01-lint.yml`** - Ruff, MyPy, Pylint, Pydocstyle (~60s)
+- **`.github/workflows/04-pytest.yml`** - Unit tests with coverage (~90s)
+- **`.github/workflows/07-frontend-lint.yml`** - ESLint for React/TypeScript (when frontend changes)
 
-1. **Lint and Unit Tests** (No infrastructure)
-   - Ruff linting (120 char line length)
-   - MyPy type checking
-   - Unit tests with pytest
-   - Fast feedback (~5-10 minutes)
+**On Push to Main:**
 
-2. **Build Docker Images**
-   - Backend image build
-   - Frontend image build
-   - Push to GitHub Container Registry (GHCR)
-   - Tagged with: `latest`, `sha-<commit>`, branch name
-
-3. **Integration Tests**
-   - Full stack deployment
-   - PostgreSQL, Milvus, MLFlow, MinIO
-   - API tests, integration tests
-   - End-to-end validation
-
-**Status Badges:**
-
-```markdown
-[![CI Pipeline](https://github.com/manavgup/rag_modulo/workflows/CI/badge.svg)](https://github.com/manavgup/rag_modulo/actions)
-```
+- **`.github/workflows/03-build-secure.yml`** - Docker builds + security scans
+- **`.github/workflows/05-ci.yml`** - Integration tests (full stack)
 
 #### 2. Security Scanning (`.github/workflows/02-security.yml`)
 
@@ -749,7 +729,6 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 - **Trivy**: Container vulnerability scanning
 - **Bandit**: Python security linting
 - **Safety**: Python dependency vulnerabilities
-- **Semgrep**: SAST code analysis
 
 **⚠️ IMPORTANT:** CI now **fails on ANY secret detection** (no `continue-on-error`). This ensures no secrets make their way to the repository.
 
@@ -763,15 +742,14 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 
 **See:** [`docs/development/secret-management.md`](docs/development/secret-management.md) for comprehensive guide
 
-#### 3. Documentation (`.github/workflows/docs.yml`)
+#### 3. Documentation (`.github/workflows/deploy-docs.yml`)
 
-**Triggers:** Push to `main`, Pull Requests to `docs/`
+**Triggers:** Push to `main`, changes to `docs/`
 
 **Actions:**
 
 - Build MkDocs site
 - Deploy to GitHub Pages
-- API documentation generation
 
 ### Local CI Validation
 
@@ -779,14 +757,12 @@ Test CI pipeline locally before pushing:
 
 ```bash
 # Run same checks as CI
-make ci-local
-
-# Validate CI workflows
-make validate-ci
+make quick-check           # Lint and format validation
+make test-unit-fast        # Unit tests
 
 # Security checks
-make security-check
-make scan-secrets
+make security-check        # Bandit + safety scans
+make pre-commit-run        # Full pre-commit hook suite
 ```
 
 ### Pre-commit Hooks
@@ -800,12 +776,10 @@ Optimized for developer velocity:
 - YAML syntax
 - File size limits
 
-**On Push** (slow, 30-60 sec):
+**On Push** (slower, 30-60 sec):
 
-- MyPy type checking
-- Pylint analysis
-- Security scans
-- Strangler pattern checks
+- Atomic tests (schema validation)
+- Fast unit tests (mocked dependencies)
 
 **In CI** (comprehensive):
 
@@ -852,13 +826,13 @@ make test-unit-fast
 # Specific test categories
 make test-atomic       # Schema and data structure tests
 make test-integration  # Service integration tests (requires infrastructure)
-make test-api          # API endpoint tests
+make test-e2e          # End-to-end tests
 
 # Full test suite with coverage
 make coverage
 
 # Run specific test file
-make test testfile=tests/unit/test_search_service.py
+poetry run pytest tests/unit/services/test_search_service.py -v
 ```
 
 ---
@@ -908,7 +882,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 
 - [x] Production deployment with GHCR images
 - [x] Multi-stage Docker builds
-- [x] Security hardening (Trivy, Bandit, Gitleaks, Semgrep)
+- [x] Security hardening (Trivy, Bandit, Gitleaks, TruffleHog)
 - [ ] Enhanced monitoring and observability
 - [ ] Performance optimization and caching
 - [ ] Authentication system improvements (OIDC)
@@ -954,7 +928,7 @@ docker compose -f docker-compose-infra.yml ps  # Check infrastructure
 ```bash
 # Problem: "Command not found" errors
 make venv                    # Creates Python venv (auto-installs Poetry)
-source backend/.venv/bin/activate
+source .venv/bin/activate
 
 # Problem: Services won't start
 make local-dev-stop          # Stop everything cleanly
@@ -1008,8 +982,7 @@ sudo apt install python3.12 python3.12-venv
 make clean-venv
 make local-dev-setup
 
-# Method 2: Manual Poetry setup
-cd backend
+# Method 2: Manual Poetry setup (from project root)
 poetry config virtualenvs.in-project true
 poetry cache clear . --all
 poetry install --with dev,test --sync
@@ -1019,11 +992,10 @@ source .venv/bin/activate
 #### Wrong Tool Versions (e.g., Ruff 0.5.7 instead of 0.14.0)
 
 ```bash
-# Ensure you're in Poetry venv
-cd backend
+# Ensure you're in Poetry venv (from project root)
 source .venv/bin/activate
-which python    # Should show: backend/.venv/bin/python
-which ruff      # Should show: backend/.venv/bin/ruff
+which python    # Should show: .venv/bin/python
+which ruff      # Should show: .venv/bin/ruff
 ruff --version  # Should be 0.14.0+
 
 # If wrong version, reinstall
@@ -1033,8 +1005,7 @@ poetry install --with dev,test --sync
 #### Import Errors
 
 ```bash
-# Verify PYTHONPATH and reinstall
-cd backend
+# Verify PYTHONPATH and reinstall (from project root)
 source .venv/bin/activate
 poetry install --with dev,test --sync
 python -c "import sys; print('\n'.join(sys.path))"
@@ -1118,15 +1089,14 @@ make local-dev-infra
 #### Tests Fail to Run
 
 ```bash
-# Ensure venv is activated
-source backend/.venv/bin/activate
+# Ensure venv is activated (from project root)
+source .venv/bin/activate
 
 # Install test dependencies
-cd backend
 poetry install --with test --sync
 
 # Run specific test with verbose output
-pytest tests/unit/test_example.py -vv -s
+poetry run pytest tests/unit/test_example.py -vv -s
 ```
 
 #### Database Connection Errors in Tests
@@ -1146,10 +1116,9 @@ make test-integration
 #### Import Errors in Tests
 
 ```bash
-# Check PYTHONPATH
-cd backend
+# Check PYTHONPATH (from project root)
 source .venv/bin/activate
-pytest tests/ --collect-only  # See what tests are collected
+poetry run pytest tests/ --collect-only  # See what tests are collected
 
 # If imports fail, reinstall
 poetry install --with dev,test --sync
@@ -1188,10 +1157,9 @@ make local-dev-backend
 # Check backend logs
 tail -f /tmp/rag-backend.log
 
-# Restart backend with debug
-cd backend
+# Restart backend with debug (from project root)
 source .venv/bin/activate
-LOG_LEVEL=DEBUG uvicorn main:app --reload --port 8000
+LOG_LEVEL=DEBUG uvicorn main:app --reload --port 8000 --app-dir backend
 ```
 
 </details>
@@ -1291,11 +1259,6 @@ make local-dev-infra
 <td><a href="https://github.com/manavgup/rag_modulo/discussions">discussions</a></td>
 </tr>
 <tr>
-<td>📖 <strong>IMMEDIATE_FIX.md</strong></td>
-<td>Quick fixes for common development issues</td>
-<td>See project root</td>
-</tr>
-<tr>
 <td>🔧 <strong>CLAUDE.md</strong></td>
 <td>Development best practices and architecture</td>
 <td>See project root</td>
@@ -1318,7 +1281,7 @@ make local-dev-infra
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**.
 
 ---
 
@@ -1341,7 +1304,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 Made with ❤️ by the RAG Modulo Team
 
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/manavgup/rag_modulo)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/ragmodulo/backend)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/manavgup/rag_modulo/pkgs/container/rag_modulo)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
 </div>
