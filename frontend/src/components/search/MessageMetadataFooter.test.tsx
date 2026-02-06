@@ -226,7 +226,7 @@ describe('MessageMetadataFooter', () => {
     it('should not render response time when responseTime is undefined', () => {
       render(<MessageMetadataFooter sourcesCount={5} {...mockCallbacks} />);
 
-      expect(screen.queryByText(/ms|s$/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\d+(ms|s)$/)).not.toBeInTheDocument();
     });
 
     it('should not render response time when responseTime is 0', () => {
