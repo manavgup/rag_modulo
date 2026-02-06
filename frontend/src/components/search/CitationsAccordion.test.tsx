@@ -202,13 +202,13 @@ describe('CitationsAccordion', () => {
     it('should not render when citations array is empty', () => {
       const { container } = render(<CitationsAccordion citations={[]} isOpen={true} onToggle={mockOnToggle} />);
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should not render when citations is null', () => {
       const { container } = render(<CitationsAccordion citations={null as any} isOpen={true} onToggle={mockOnToggle} />);
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should not render when citations is undefined', () => {
@@ -216,7 +216,7 @@ describe('CitationsAccordion', () => {
         <CitationsAccordion citations={undefined as any} isOpen={true} onToggle={mockOnToggle} />
       );
 
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it('should filter out citations with missing document_id', () => {
@@ -321,15 +321,17 @@ describe('CitationsAccordion', () => {
 
   describe('Key prop uniqueness', () => {
     it('should use document_id and chunk_id for unique keys when both available', () => {
-      const { container } = render(
+      render(
         <CitationsAccordion citations={mockCitations} isOpen={true} onToggle={mockOnToggle} />
       );
 
-      const citationCards = container.querySelectorAll('.source-card');
+      // We can find cards by the data-testid we added
+      // IDs are: doc-123-chunk-1, doc-456-chunk-2, doc-789-chunk-3
+      const citationCards = screen.getAllByTestId(/doc-.*-chunk-/);
       expect(citationCards).toHaveLength(3);
 
       // Keys should be unique combinations of document_id-chunk_id
-      expect(citationCards[0]).toHaveAttribute('data-testid'); // Would be set if we added test IDs
+      expect(citationCards[0]).toHaveAttribute('data-testid', 'doc-123-chunk-1');
     });
 
     it('should use document_id alone when chunk_id is missing', () => {

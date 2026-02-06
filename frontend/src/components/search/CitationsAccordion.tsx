@@ -109,7 +109,7 @@ const CitationsAccordion: React.FC<CitationsAccordionProps> = ({ citations, isOp
               : citation.document_id;
 
             return (
-              <div key={uniqueKey} className="source-card">
+              <div key={uniqueKey} data-testid={uniqueKey} className="source-card">
                 <div className="source-card-header">
                   <div className="source-card-title-section">
                     <BookmarkFilled className="source-card-icon" />
