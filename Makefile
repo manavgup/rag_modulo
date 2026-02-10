@@ -119,6 +119,7 @@ local-dev-setup:
 
 local-dev-infra:
 	@echo "$(CYAN)🏗️  Starting infrastructure (Postgres, Milvus, MinIO, MLFlow)...$(NC)"
+	@mkdir -p volumes/etcd volumes/milvus volumes/postgres
 	@if docker ps --format '{{.Names}}' | grep -q 'milvus-etcd'; then \
 		echo "$(YELLOW)⚠️  Infrastructure containers already running$(NC)"; \
 	else \
