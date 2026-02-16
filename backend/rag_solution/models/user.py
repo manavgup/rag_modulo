@@ -13,6 +13,7 @@ from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
     from rag_solution.models.agent import Agent
+    from rag_solution.models.agent_config import AgentConfig
     from rag_solution.models.conversation import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.llm_parameters import LLMParameters
@@ -55,6 +56,9 @@ class User(Base):
     podcasts: Mapped[list[Podcast]] = relationship("Podcast", back_populates="user", cascade="all, delete-orphan")
     voices: Mapped[list[Voice]] = relationship("Voice", back_populates="user", cascade="all, delete-orphan")
     agents: Mapped[list[Agent]] = relationship("Agent", back_populates="owner", cascade="all, delete-orphan")
+    agent_configs: Mapped[list[AgentConfig]] = relationship(
+        "AgentConfig", back_populates="owner", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return (
