@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import UUID4, BaseModel, ConfigDict
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from rag_solution.schemas.llm_usage_schema import TokenWarning
 from rag_solution.schemas.structured_output_schema import StructuredAnswer
@@ -22,7 +22,7 @@ class SearchInput(BaseModel):
         config_metadata: Optional search configuration parameters
     """
 
-    question: str
+    question: str = Field(min_length=1, max_length=4000)
     collection_id: UUID4
     user_id: UUID4
     config_metadata: dict[str, Any] | None = None

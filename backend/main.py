@@ -226,9 +226,11 @@ app = FastAPI(
 # Middleware
 app.add_middleware(
     SessionMiddleware,
-    secret_key=get_settings().ibm_client_secret or "default_secret",
+    secret_key=get_settings().jwt_secret_key,
     session_cookie="rag_modulo_session",
     max_age=3600,
+    https_only=False,  # Set to True when TLS is terminated at app layer (not load balancer)
+    same_site="lax",
 )
 
 app.add_middleware(
