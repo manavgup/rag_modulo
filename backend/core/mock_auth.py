@@ -36,13 +36,21 @@ def get_mock_token() -> str:
 def is_mock_token(token: str) -> bool:
     """Check if a token is a recognized mock token.
 
+    Only accepts tokens when authentication bypass mode is explicitly active.
+    This prevents mock tokens from being accepted in production environments
+    even if someone supplies them.
+
     Args:
         token: The token to check
 
     Returns:
-        bool: True if the token is a mock token
+        bool: True if the token is a mock token and bypass mode is active
     """
     if not token:
+        return False
+
+    # Only allow mock tokens when bypass mode is explicitly enabled
+    if not is_bypass_mode_active():
         return False
 
     mock_token = get_mock_token()
@@ -52,15 +60,7 @@ def is_mock_token(token: str) -> bool:
         return True
 
     # Check for legacy hardcoded mock token (for backward compatibility)
-    if token == "mock_token_for_testing":
-        return True
-
-    # Check for any token starting with "mock_token_"
-    if token.startswith("mock_token_"):
-        return True
-
-    # Check for dev tokens (new pattern)
-    return bool(token.startswith("dev-"))
+    return token == "mock_token_for_testing"
 
 
 def create_mock_user_data(user_uuid: str | None = None, settings: Settings | None = None) -> dict[str, Any]:

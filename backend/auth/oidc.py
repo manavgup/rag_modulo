@@ -70,12 +70,15 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
                 # UUID and role will be added by middleware from headers
             }
 
-        # Normal token verification
+        # Normal token verification with JWKS or configured secret
+        current_settings = get_settings()
         payload = jwt.decode(
             token,
+            current_settings.jwt_secret_key,
+            algorithms=[current_settings.jwt_algorithm],
             options={
-                "verify_signature": False,  # For testing environment
-                "verify_exp": False,
+                "verify_signature": True,
+                "verify_exp": True,
                 "verify_iat": False,
             },
         )

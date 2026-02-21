@@ -134,8 +134,6 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             user_uuid: The user UUID to set.
         """
         mock_data = create_mock_user_data(user_uuid)
-        # Allow role override via header for testing
-        mock_data["role"] = request.headers.get("X-User-Role", mock_data["role"])
         request.state.user = mock_data
         # Cache user data in request context to eliminate N+1 queries
         RequestContext.set_user(mock_data)

@@ -239,8 +239,8 @@ app.add_middleware(
         "https://prepiam.ice.ibmcloud.com",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*", "X-User-UUID"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-User-UUID", "Accept"],
 )
 
 app.add_middleware(AuthenticationMiddleware)

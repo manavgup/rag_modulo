@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from core.config import Settings, get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
-from core.mock_auth import ensure_mock_user_exists
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
@@ -27,85 +26,6 @@ logger = get_logger("router.collections")
 router = APIRouter(prefix="/api/collections", tags=["collections"])
 
 
-@router.post("/debug-form-data")
-async def debug_form_data(
-    request: Request,
-    collection_name: str = Form(...),
-) -> dict:
-    """Debug endpoint to test form data parsing without database dependency."""
-    # Get user from authenticated JWT token
-    current_user = request.state.user
-    user_id = current_user.get("uuid")
-
-    logger.debug("=== DEBUG FORM DATA ===")
-    logger.debug("Collection name: %s", collection_name)
-    logger.debug("User ID from JWT: %s", user_id)
-    logger.debug("Request URL: %s", request.url)
-    logger.debug("Request query params: %s", dict(request.query_params))
-    logger.debug("=== END DEBUG FORM DATA ===")
-
-    return {
-        "collection_name": collection_name,
-        "user_id": str(user_id),
-        "query_params": dict(request.query_params),
-    }
-
-
-@router.post("/debug-form-data-with-db")
-async def debug_form_data_with_db(
-    request: Request,
-    db: Annotated[Session, Depends(get_db)],
-    collection_name: str = Form(...),
-) -> dict:
-    """Debug endpoint to test form data parsing WITH database dependency."""
-    # Get user from authenticated JWT token
-    current_user = request.state.user
-    user_id = current_user.get("uuid")
-
-    logger.info("=== DEBUG FORM DATA WITH DB ===")
-    logger.info("Collection name: %s", collection_name)
-    logger.info("User ID from JWT: %s", user_id)
-    logger.info("Request URL: %s", request.url)
-    logger.info("Request query params: %s", dict(request.query_params))
-    logger.info("=== END DEBUG FORM DATA WITH DB ===")
-
-    return {
-        "collection_name": collection_name,
-        "user_id": str(user_id),
-        "query_params": dict(request.query_params),
-        "db_connected": db is not None,
-    }
-
-
-# TEST ENDPOINT - Remove this after debugging
-@router.get(
-    "/test",
-    summary="Test endpoint to list collections without auth",
-    response_model=list[CollectionOutput],
-)
-async def test_list_collections(
-    db: Annotated[Session, Depends(get_db)],
-) -> list[CollectionOutput]:
-    """Test endpoint to list collections without authentication."""
-    try:
-        # Use a mock user ID for testing
-
-        settings = get_settings()
-        mock_user_id = ensure_mock_user_exists(db, settings)
-
-        user_collection_service = UserCollectionService(db)
-        collections = user_collection_service.get_user_collections(mock_user_id)
-
-        logger.info(
-            "TEST: Retrieved %d collections for mock user %s",
-            len(collections),
-            str(mock_user_id),
-        )
-        return collections
-
-    except Exception as e:
-        logger.error("TEST: Error listing collections: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
 
 
 @router.get(
@@ -139,7 +59,7 @@ async def list_collections(
 
     except Exception as e:
         logger.error("Error listing collections: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post(
@@ -205,7 +125,7 @@ def create_collection(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error creating collection: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post(
@@ -280,7 +200,7 @@ async def create_collection_with_documents(  # pylint: disable=too-many-argument
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error creating collection with documents: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -368,7 +288,7 @@ def create_collection_question(
         raise e
     except Exception as e:
         logger.error("Error creating question for collection %s: %s", str(collection_id), str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -410,7 +330,7 @@ def get_collection_questions(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error getting questions for collection %s: %s", str(collection_id), str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -476,7 +396,7 @@ def download_file(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error downloading file: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -521,7 +441,7 @@ def delete_collection_question(
             str(collection_id),
             str(e),
         )
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -558,7 +478,7 @@ def delete_collection_questions(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error deleting questions for collection {collection_id}: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -598,7 +518,7 @@ def delete_collection(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error deleting collection: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -634,7 +554,7 @@ def get_collection_users(collection_id: UUID4, db: Annotated[Session, Depends(ge
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error getting collection users: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -667,7 +587,7 @@ def remove_all_users_from_collection(collection_id: UUID4, db: Annotated[Session
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error removing users from collection: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post(
@@ -749,7 +669,7 @@ async def upload_documents_to_collection(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error uploading documents to collection: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -797,7 +717,7 @@ def delete_document_by_id(
             str(collection_id),
             str(e),
         )
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -837,7 +757,7 @@ def get_collection_files(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error getting collection files: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get(
@@ -882,7 +802,7 @@ def get_file_path(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error getting file path: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete(
@@ -925,7 +845,7 @@ def delete_files(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error deleting files: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.put(
@@ -974,7 +894,7 @@ def update_file_metadata(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error updating file metadata: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/cleanup-orphaned")
@@ -1005,7 +925,7 @@ async def cleanup_orphaned_collections(
         return summary
     except Exception as e:
         logger.error("Error during orphaned collection cleanup: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {e!s}") from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post(
@@ -1091,4 +1011,4 @@ async def reindex_collection(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error starting reindexing: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to start reindexing: {e!s}") from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e

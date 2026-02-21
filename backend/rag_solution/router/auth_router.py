@@ -122,7 +122,7 @@ async def get_oidc_config(settings: Annotated[Settings, Depends(get_settings)]) 
 async def token_exchange(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """Exchange an authorization code for an access token."""
     form_data = await request.form()
-    logger.info("Token exchange request received. Form data: %s", form_data)
+    logger.info("Token exchange request received. grant_type=%s", form_data.get("grant_type"))
 
     token_request_data = dict(form_data)
     if settings.ibm_client_secret:
@@ -226,7 +226,6 @@ async def auth(
         logger.info("Received authentication callback")
         token = await oauth.ibm.authorize_access_token(request)
         logger.info("Successfully obtained access token")
-        logger.debug("Token content: %s", token)
 
         user = _extract_user_info(token)
 
