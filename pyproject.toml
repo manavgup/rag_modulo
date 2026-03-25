@@ -40,7 +40,6 @@ dependencies = [
     "itsdangerous>=2.1.2",
     "ibm-watsonx-ai>=1.1.22",
     "json-repair>=0.30.3",
-    "flatdict>=4.0.1",
     "validators>=0.34.0",
     "psutil (>=7.0.0,<8.0.0)",
     "docling (>=2.0.0)",

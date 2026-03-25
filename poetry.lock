@@ -1622,17 +1622,6 @@ files = [
 ]
 
 [[package]]
-name = "flatdict"
-version = "4.0.1"
-description = "Python module for interacting with nested dicts as a single level dict with delimited keys."
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "flatdict-4.0.1.tar.gz", hash = "sha256:cd32f08fd31ed21eb09ebc76f06b6bd12046a24f77beb1fd0281917e47f26742"},
-]
-
-[[package]]
 name = "fonttools"
 version = "4.55.3"
 description = "Tools to manipulate font files"
@@ -8480,4 +8469,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "d0e386cbf12853c2373cc897481e1cc464869f6698382cadaf6bb5a700cfa312"
+content-hash = "ea032b00893dafe77d9f6f2c3bdf3704713f2750e60dad07ed03aa868ab6e758"
