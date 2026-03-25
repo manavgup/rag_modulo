@@ -138,3 +138,4 @@ deployment/helm/*/charts/
 # Session/temporary documentation
 *_HANDOFF.md
 *_IMPLEMENTATION_PLAN.md
+.claude/settings.local.json
