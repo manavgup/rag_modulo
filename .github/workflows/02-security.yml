@@ -68,7 +68,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🔍 Scan Python dependencies (pyproject.toml, poetry.lock)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           scan-type: "fs"
           scan-ref: "backend/"
@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🔍 Scan Node dependencies (package.json, package-lock.json)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           scan-type: "fs"
           scan-ref: "frontend/"
