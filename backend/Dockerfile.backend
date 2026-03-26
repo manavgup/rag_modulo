@@ -103,6 +103,9 @@ COPY backend/auth/ ./auth/
 COPY backend/core/ ./core/
 COPY backend/cli/ ./cli/
 COPY backend/vectordbs/ ./vectordbs/
+# Note: mcp_server is intentionally excluded - it runs as a separate
+# process via `python -m mcp_server`, not as part of the main backend.
+# See backend/mcp_server/Dockerfile (future) for MCP server container.
 
 # Create a non-root user and group
 # /data directory: Used for file storage operations by the RAG system

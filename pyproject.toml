@@ -40,7 +40,6 @@ dependencies = [
     "itsdangerous>=2.1.2",
     "ibm-watsonx-ai>=1.1.22",
     "json-repair>=0.30.3",
-    "flatdict>=4.0.1",
     "validators>=0.34.0",
     "psutil (>=7.0.0,<8.0.0)",
     "docling (>=2.0.0)",
@@ -55,12 +54,13 @@ dependencies = [
 ]
 
 [tool.poetry]
-package-mode = false
+package-mode = true
 packages = [
     { include = "rag_solution", from = "backend" },
     { include = "core",        from = "backend" },
     { include = "auth",        from = "backend" },
-    { include = "vectordbs",   from = "backend" }
+    { include = "vectordbs",   from = "backend" },
+    { include = "mcp_server",  from = "backend" }
 ]
 
 [project.scripts]
@@ -261,7 +261,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Import sorting configuration
 [tool.ruff.lint.isort]
-known-first-party = ["main", "rag_solution", "core", "auth", "vectordbs"]
+known-first-party = ["main", "rag_solution", "core", "auth", "vectordbs", "mcp_server"]
 
 # Formatting configuration
 [tool.ruff.format]
