@@ -283,8 +283,9 @@ const LightweightSearchInterface: React.FC = () => {
           {
             timestamp: new Date().toISOString(),
             source: 'rest_api',
-            cot_enabled: !structuredOutputEnabled,  // Disable CoT when structured output is enabled
-            show_cot_steps: !structuredOutputEnabled,
+            // CoT is auto-detected by backend based on question complexity.
+            // Only send cot_enabled/show_cot_steps when structured output needs them off.
+            ...(structuredOutputEnabled ? { cot_enabled: false, show_cot_steps: false } : {}),
             structured_output_enabled: structuredOutputEnabled,
             referenced_message: referencedMessage ? {
               id: referencedMessage.id,
@@ -320,8 +321,9 @@ const LightweightSearchInterface: React.FC = () => {
           config_metadata: {
             timestamp: new Date().toISOString(),
             source: 'rest_api',
-            cot_enabled: !structuredOutputEnabled,  // Disable CoT when structured output is enabled
-            show_cot_steps: !structuredOutputEnabled,
+            // CoT is auto-detected by backend based on question complexity.
+            // Only send cot_enabled/show_cot_steps when structured output needs them off.
+            ...(structuredOutputEnabled ? { cot_enabled: false, show_cot_steps: false } : {}),
             structured_output_enabled: structuredOutputEnabled,
             referenced_message: referencedMessage ? {
               id: referencedMessage.id,

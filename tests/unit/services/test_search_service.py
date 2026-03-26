@@ -728,6 +728,7 @@ class TestSearchServiceDocumentRetrieval:
 # ============================================================================
 
 
+@pytest.mark.unit
 class TestSearchServiceChainOfThought:
     """Unit tests for Chain of Thought automatic detection."""
 
@@ -794,8 +795,8 @@ class TestSearchServiceChainOfThought:
     def test_should_use_cot_for_long_questions(
         self, search_service, sample_search_input
     ):
-        """Test CoT is used for long questions (>15 words)."""
-        sample_search_input.question = "This is a very long question with many words that exceeds the threshold for automatic chain of thought detection"
+        """Test CoT is used for long questions (>20 words)."""
+        sample_search_input.question = "This is a very long question with many words that exceeds the threshold for automatic chain of thought detection and requires detailed reasoning"
 
         result = search_service._should_use_chain_of_thought(sample_search_input)
 
@@ -820,6 +821,60 @@ class TestSearchServiceChainOfThought:
         result = search_service._should_use_chain_of_thought(sample_search_input)
 
         assert result is False
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "what were IBM results in 2020",
+            "What is the company revenue?",
+            "When was the product launched?",
+            "Who is the CEO of IBM?",
+            "List the key findings from the report",
+            "What did the annual report say about cloud?",
+            "Show me the financial highlights",
+            "What are the main products mentioned?",
+            "Tell me about the Q4 earnings",
+            "What was the stock price in January?",
+        ],
+    )
+    def test_should_not_use_cot_for_factual_lookups(
+        self, search_service, sample_search_input, question
+    ):
+        """Test CoT is NOT used for simple factual lookup queries.
+
+        These are direct retrieval questions that don't benefit from
+        multi-step reasoning. CoT adds ~8s latency with no quality gain.
+        Regression test for issue #768.
+        """
+        sample_search_input.question = question
+
+        result = search_service._should_use_chain_of_thought(sample_search_input)
+
+        assert result is False, (
+            f"CoT should NOT trigger for factual lookup: '{question}'. "
+            f"This adds ~8s latency with no quality benefit."
+        )
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "How does IBM's cloud strategy compare to AWS and what are the key differences?",
+            "Explain the relationship between revenue growth and R&D investment over the past 5 years",
+            "Why did the company's margins decline and what steps were taken to address it?",
+            "Compare the Q1 and Q4 results and analyze the trends in each business segment",
+        ],
+    )
+    def test_should_use_cot_for_genuinely_complex_questions(
+        self, search_service, sample_search_input, question
+    ):
+        """Test CoT IS used for questions that genuinely need multi-step reasoning."""
+        sample_search_input.question = question
+
+        result = search_service._should_use_chain_of_thought(sample_search_input)
+
+        assert result is True, (
+            f"CoT SHOULD trigger for complex question: '{question}'"
+        )
 
     def test_should_show_cot_steps_when_requested(
         self, search_service, sample_search_input

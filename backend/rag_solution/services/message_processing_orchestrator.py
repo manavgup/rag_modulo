@@ -285,8 +285,8 @@ class MessageProcessingOrchestrator:
             "session_id": str(session_id),
             "message_history": [msg.content for msg in messages[-10:]],
             "conversation_entities": context.context_metadata.get("extracted_entities", []),
-            "cot_enabled": True,
-            "show_cot_steps": False,  # Disable CoT steps visibility for context flow tests
+            # CoT auto-detected by cot_detection.should_use_cot() based on question complexity
+            "show_cot_steps": False,
             "conversation_aware": True,
         }
 

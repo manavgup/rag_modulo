@@ -22,6 +22,7 @@ from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.pipeline.cot_detection import should_use_cot
 from rag_solution.services.pipeline.pipeline_executor import PipelineExecutor
 from rag_solution.services.pipeline.search_context import SearchContext
 from rag_solution.services.pipeline.stages import (
@@ -194,81 +195,20 @@ class SearchService:
     def _should_use_chain_of_thought(self, search_input: SearchInput) -> bool:
         """Automatically determine if Chain of Thought should be used for this search.
 
+        Delegates to shared cot_detection.should_use_cot() for consistent
+        behavior with ReasoningStage._should_use_cot().
+
         CoT is used for complex questions that benefit from reasoning:
         - Multi-part questions (how, why, explain, compare, analyze)
         - Questions with multiple clauses or conditions
-        - Long questions requiring deep analysis
+        - Long questions requiring deep analysis (>20 words)
         - Questions explicitly asking for reasoning or explanations
 
-        Users can override with 'show_cot_steps' for visibility or 'cot_disabled' to disable.
+        Users can override with 'cot_enabled' or 'cot_disabled' in config_metadata.
         """
-        # Debug logging
-        logger.debug("CoT decision check for question: %s", search_input.question)
-        logger.debug("Config metadata: %s", search_input.config_metadata)
-
-        # Allow explicit override to disable CoT
-        if search_input.config_metadata and search_input.config_metadata.get("cot_disabled"):
-            logger.debug("CoT disabled by config")
-            return False
-
-        # Allow explicit override to enable CoT - FORCE ENABLED
-        if search_input.config_metadata and search_input.config_metadata.get("cot_enabled"):
-            logger.info("🚨 FORCED COT ENABLED by config")
-            return True
-
-        # Automatic detection based on question complexity
-        question = search_input.question.lower()
-        question_length = len(search_input.question.split())
-
-        # Complex question indicators
-        complex_patterns = [
-            "how does",
-            "how do",
-            "why does",
-            "why do",
-            "explain",
-            "compare",
-            "analyze",
-            "what are the differences",
-            "what is the relationship",
-            "how can i",
-            "what are the steps",
-            "walk me through",
-            "break down",
-            "elaborate",
-            "pros and cons",
-            "advantages and disadvantages",
-            "benefits and drawbacks",
-        ]
-
-        # Check for complex patterns
-        has_complex_patterns = any(pattern in question for pattern in complex_patterns)
-
-        # Check for multiple questions (indicated by multiple question marks or 'and')
-        multiple_questions = question.count("?") > 1 or (" and " in question and "?" in question)
-
-        # Long questions likely need more reasoning
-        is_long_question = question_length > 15
-
-        # Questions asking for reasoning
-        asks_for_reasoning = any(
-            word in question for word in ["because", "reason", "rationale", "justify", "evidence", "support"]
-        )
-
-        # Use CoT if any complexity indicators are present
-        should_use_cot = has_complex_patterns or multiple_questions or is_long_question or asks_for_reasoning
-
-        logger.debug(
-            "CoT decision: %s (patterns=%s, multiple=%s, long=%s, reasoning=%s, length=%d)",
-            should_use_cot,
-            has_complex_patterns,
-            multiple_questions,
-            is_long_question,
-            asks_for_reasoning,
-            question_length,
-        )
-
-        return should_use_cot
+        result = should_use_cot(search_input.question, search_input.config_metadata)
+        logger.debug("CoT decision: %s for question: %s", result, search_input.question)
+        return result
 
     def _should_show_cot_steps(self, search_input: SearchInput) -> bool:
         """Determine if Chain of Thought steps should be shown to the user."""
