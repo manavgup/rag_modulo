@@ -170,7 +170,7 @@ jobs:
       - name: 🔎 Trivy - Vulnerability Scan
         id: trivy
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
           format: "sarif"
@@ -199,7 +199,7 @@ jobs:
       - name: 🔎 Trivy - Critical CVE Check
         id: trivy-critical
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
           format: "table"
@@ -270,7 +270,7 @@ jobs:
       - name: 🔍 Trivy - Filesystem Scan
         id: trivy-fs
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           scan-type: "fs"
           scan-ref: ${{ matrix.context }}

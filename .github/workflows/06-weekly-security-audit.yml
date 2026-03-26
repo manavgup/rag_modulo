@@ -76,7 +76,7 @@ jobs:
           fi
 
       - name: 🔍 Trivy - Deep Vulnerability Scan (All Severities)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           image-ref: "${{ matrix.image_name }}:audit"
           format: "sarif"
@@ -92,7 +92,7 @@ jobs:
           wait-for-processing: false
 
       - name: 🔍 Trivy - Generate Detailed Report
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           image-ref: "${{ matrix.image_name }}:audit"
           format: "json"
@@ -117,7 +117,7 @@ jobs:
           docker run --rm -i hadolint/hadolint < ${{ matrix.dockerfile }} || true
 
       - name: 📦 Generate SBOM (Software Bill of Materials)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0 pinned to SHA
         with:
           image-ref: "${{ matrix.image_name }}:audit"
           format: "cyclonedx"
