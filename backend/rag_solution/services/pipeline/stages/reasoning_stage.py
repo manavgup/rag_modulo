@@ -8,6 +8,7 @@ Wraps the ChainOfThoughtService functionality.
 from core.logging_utils import get_logger
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.services.pipeline.base_stage import BaseStage, StageResult
+from rag_solution.services.pipeline.cot_detection import should_use_cot
 from rag_solution.services.pipeline.search_context import SearchContext
 
 logger = get_logger("services.pipeline.stages.reasoning")
@@ -102,33 +103,15 @@ class ReasoningStage(BaseStage):  # pylint: disable=too-few-public-methods
             return await self._handle_error(context, e)
 
     def _should_use_cot(self, context: SearchContext) -> bool:
+        """Determine if Chain of Thought should be used.
+
+        Delegates to shared cot_detection.should_use_cot() for consistent
+        behavior with SearchService._should_use_chain_of_thought().
         """
-        Determine if Chain of Thought should be used.
-
-        Args:
-            context: Search context
-
-        Returns:
-            True if CoT should be used, False otherwise
-        """
-        config_metadata = context.search_input.config_metadata or {}
-
-        # Explicit disable
-        if config_metadata.get("cot_disabled", False):
-            return False
-
-        # Explicit enable
-        if config_metadata.get("cot_enabled", False):
-            return True
-
-        # Automatic detection via ChainOfThoughtService
-        # For now, let's use a simple heuristic: complex questions (multi-part, long)
-        question = context.search_input.question
-        question_length = len(question.split())
-        has_multiple_parts = any(word in question.lower() for word in ["and", "also", "additionally", "furthermore"])
-
-        # Use CoT for complex questions (>15 words or multiple parts)
-        return question_length > 15 or has_multiple_parts
+        return should_use_cot(
+            context.search_input.question,
+            context.search_input.config_metadata,
+        )
 
     def _extract_context_documents(self, context: SearchContext) -> list[str]:
         """

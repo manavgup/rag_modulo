@@ -237,3 +237,45 @@ class TestReasoningStage:
         call_args = mock_cot_service.execute_chain_of_thought.call_args
         context_docs = call_args[0][1]
         assert len(context_docs) == 0
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "what were IBM results in 2020",
+            "What is the company revenue?",
+            "When was the product launched?",
+            "Who is the CEO of IBM?",
+            "List the key findings from the report",
+            "What did the annual report say about cloud?",
+        ],
+    )
+    async def test_cot_skipped_for_factual_lookups(
+        self, mock_cot_service: Mock, question: str
+    ) -> None:
+        """Test CoT is NOT triggered for simple factual lookup queries.
+
+        Regression test for issue #768: simple queries like
+        "what were IBM results in 2020" were taking 17.9s because
+        the frontend sent cot_enabled=True, triggering unnecessary
+        CoT reasoning. With the fix, the backend auto-detects and
+        skips CoT for simple factual questions.
+        """
+        user_id = uuid4()
+        collection_id = uuid4()
+        search_input = SearchInput(
+            user_id=user_id, collection_id=collection_id, question=question
+        )
+        context = SearchContext(
+            search_input=search_input, user_id=user_id, collection_id=collection_id
+        )
+        result1 = Mock()
+        result1.chunk = Mock()
+        result1.chunk.text = "Sample document text."
+        context.query_results = [result1]
+
+        stage = ReasoningStage(mock_cot_service)
+        result = await stage.execute(context)
+
+        assert result.success is True
+        assert result.context.cot_output is None
+        mock_cot_service.execute_chain_of_thought.assert_not_called()
