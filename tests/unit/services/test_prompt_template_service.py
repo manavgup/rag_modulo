@@ -252,6 +252,74 @@ class TestPromptTemplateServiceUnit:
 
         assert result is None
 
+
+@pytest.mark.unit
+class TestPromptBoundary:
+    """Test that generation prompts have clear question/context boundaries.
+
+    Regression tests for issue #770: Without explicit boundaries, the LLM
+    continues the context text instead of answering the question.
+    """
+
+    def test_rag_query_prompt_has_boundary_marker(self):
+        """RAG_QUERY prompt should contain a --- boundary between instructions and content."""
+        mock_repo = Mock()
+        service = PromptTemplateService(db=Mock())
+        service.repository = mock_repo
+
+        template = create_mock_template(
+            template_type=PromptTemplateType.RAG_QUERY,
+            system_prompt="Answer the question based on the context.",
+            template_format="Question: {question}\n\nContext:\n{context}\n\nAnswer:",
+        )
+
+        result = service._format_prompt_with_template(
+            template, {"context": "IBM had $73B revenue.", "question": "What were IBM results?"}
+        )
+
+        assert "---" in result, "Prompt must contain --- boundary between instructions and content"
+        assert "Do NOT continue or complete the context text" in result
+
+    def test_question_appears_before_context(self):
+        """Question should appear before context in the formatted prompt."""
+        mock_repo = Mock()
+        service = PromptTemplateService(db=Mock())
+        service.repository = mock_repo
+
+        template = create_mock_template(
+            template_type=PromptTemplateType.RAG_QUERY,
+            system_prompt="Answer the question.",
+            template_format="Question: {question}\n\nContext:\n{context}\n\nAnswer:",
+        )
+
+        result = service._format_prompt_with_template(
+            template, {"context": "Some context here.", "question": "What is the answer?"}
+        )
+
+        question_pos = result.index("Question: What is the answer?")
+        context_pos = result.index("Context:\nSome context here.")
+        assert question_pos < context_pos, "Question must appear before context in the prompt"
+
+    def test_prompt_has_explicit_question_label(self):
+        """Prompt should have explicit 'Question:' label to guide the LLM."""
+        mock_repo = Mock()
+        service = PromptTemplateService(db=Mock())
+        service.repository = mock_repo
+
+        template = create_mock_template(
+            template_type=PromptTemplateType.RAG_QUERY,
+            system_prompt="Answer the question.",
+            template_format="Question: {question}\n\nContext:\n{context}\n\nAnswer:",
+        )
+
+        result = service._format_prompt_with_template(
+            template, {"context": "Test context.", "question": "Test question?"}
+        )
+
+        assert "Question: Test question?" in result
+        assert "Context:\nTest context." in result
+        assert "Answer:" in result
+
     def test_get_by_type_handles_null_created_at(self, service, mock_repository):
         """Test get_by_type handles templates with null created_at."""
         user_id = uuid4()

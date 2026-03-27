@@ -123,7 +123,7 @@ class UserProviderService:
                 user_id=user_id,
                 template_type=PromptTemplateType.RAG_QUERY,
                 system_prompt="Answer the question based on the context using clear, well-formatted Markdown.",
-                template_format="{context}\n\n{question}",
+                template_format="Question: {question}\n\nContext:\n{context}\n\nAnswer:",
                 input_variables={
                     "context": "Retrieved context for answering the question",
                     "question": "User's question to answer",
