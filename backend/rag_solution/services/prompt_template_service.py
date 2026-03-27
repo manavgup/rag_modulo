@@ -256,7 +256,10 @@ class PromptTemplateService:
                 "### Key Points\n\n"
                 "- First important point\n"
                 "- Second important point\n\n"
-                "Explanatory paragraph with **key terms** highlighted."
+                "Explanatory paragraph with **key terms** highlighted.\n\n"
+                "---\n\n"
+                "Now answer the following question using the provided context.\n"
+                "Do NOT continue or complete the context text. Provide a direct answer."
             )
             parts.append(markdown_instructions)
 
