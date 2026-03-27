@@ -261,24 +261,26 @@ class TestPromptBoundary:
     continues the context text instead of answering the question.
     """
 
-    def test_rag_query_prompt_has_boundary_marker(self):
-        """RAG_QUERY prompt should contain a --- boundary between instructions and content."""
+    def test_rag_query_overrides_old_template_format(self):
+        """RAG_QUERY should enforce question-before-context even with old DB template."""
         mock_repo = Mock()
         service = PromptTemplateService(db=Mock())
         service.repository = mock_repo
 
+        # Old DB template has context first — the override should fix this
         template = create_mock_template(
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="Answer the question based on the context.",
-            template_format="Question: {question}\n\nContext:\n{context}\n\nAnswer:",
+            template_format="{context}\n\n{question}",
         )
 
         result = service._format_prompt_with_template(
             template, {"context": "IBM had $73B revenue.", "question": "What were IBM results?"}
         )
 
-        assert "---" in result, "Prompt must contain --- boundary between instructions and content"
-        assert "Do NOT continue or complete the context text" in result
+        assert "Question: What were IBM results?" in result
+        assert "Context:\nIBM had $73B revenue." in result
+        assert "Answer:" in result
 
     def test_question_appears_before_context(self):
         """Question should appear before context in the formatted prompt."""
