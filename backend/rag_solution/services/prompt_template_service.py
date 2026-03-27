@@ -256,14 +256,26 @@ class PromptTemplateService:
                 "### Key Points\n\n"
                 "- First important point\n"
                 "- Second important point\n\n"
-                "Explanatory paragraph with **key terms** highlighted.\n\n"
-                "---\n\n"
-                "Now answer the following question using the provided context.\n"
-                "Do NOT continue or complete the context text. Provide a direct answer."
+                "Explanatory paragraph with **key terms** highlighted."
             )
             parts.append(markdown_instructions)
 
-        parts.append(template.template_format.format(**variables))
+        # For RAG_QUERY templates, enforce question-before-context ordering
+        # regardless of what the DB template_format says. This prevents the LLM
+        # from treating context as text to continue rather than data to analyze.
+        # Issue #770: existing DB templates have "{context}\n\n{question}" which
+        # buries the question after a massive context blob.
+        if (
+            template.template_type == PromptTemplateType.RAG_QUERY
+            and "question" in variables
+            and "context" in variables
+        ):
+            question = variables["question"]
+            context = variables["context"]
+            formatted_content = f"\n\nQuestion: {question}\n\nContext:\n{context}\n\nAnswer:"
+            parts.append(formatted_content)
+        else:
+            parts.append(template.template_format.format(**variables))
         return "\n\n".join(parts)
 
     # Legacy method for backward compatibility - will be deprecated
