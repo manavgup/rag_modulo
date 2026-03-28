@@ -48,7 +48,7 @@ class PipelineConfig(Base):
     provider_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("llm_providers.id", ondelete="CASCADE"), nullable=False
     )
-    provider: Mapped[LLMProvider] = relationship("LLMProvider", lazy="selectin")
+    provider: Mapped[LLMProvider] = relationship("LLMProvider", lazy="select")
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

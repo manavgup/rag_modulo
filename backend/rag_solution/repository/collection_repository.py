@@ -4,6 +4,7 @@ import builtins
 import logging
 import os
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -112,6 +113,10 @@ class CollectionRepository:
         except SQLAlchemyError as e:
             logger.error("Error getting collection %s: %s", str(collection_id), str(e))
             raise
+
+    def get_by_id_scalar(self, collection_id: UUID) -> Collection | None:
+        """Get collection without loading relationships. For pipeline use."""
+        return self.db.query(Collection).filter(Collection.id == collection_id).first()
 
     def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
         """Get all collections for a specific user.
