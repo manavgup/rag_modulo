@@ -13,6 +13,7 @@ from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoun
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.llm_usage_schema import TokenWarning
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.search_service import SearchService
 from vectordbs.data_types import DocumentChunk as Chunk
 from vectordbs.data_types import DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
@@ -1189,6 +1190,17 @@ class TestSearchServiceLazyInitialization:
 
         assert pipeline_service is not None
         assert service._pipeline_service is not None
+
+    def test_pipeline_service_injection_skips_lazy_init(self, mock_db_session, mock_settings):
+        """Test that injected pipeline_service bypasses lazy initialization."""
+        mock_ps = Mock(spec=PipelineService)
+        service = SearchService(db=mock_db_session, settings=mock_settings, pipeline_service=mock_ps)
+
+        assert service._pipeline_service is mock_ps
+        with patch("rag_solution.services.search_service.PipelineService") as mock_cls:
+            result = service.pipeline_service
+            mock_cls.assert_not_called()
+        assert result is mock_ps
 
     def test_llm_provider_service_lazy_init(self, mock_db_session, mock_settings):
         """Test LLM provider service is lazily initialized on first access."""
