@@ -258,6 +258,10 @@ class PromptTemplateService:
                 "- Second important point\n\n"
                 "Explanatory paragraph with **key terms** highlighted.\n\n"
                 "---\n\n"
+                "CRITICAL: Answer using ONLY the context provided below. "
+                "Do NOT supplement with information from your training data. "
+                "If the context does not contain sufficient information to fully answer "
+                "the question, explicitly state what the context covers and what is missing.\n\n"
                 "Now answer the following question using the provided context.\n"
                 "Do NOT continue or complete the context text. Provide a direct answer."
             )

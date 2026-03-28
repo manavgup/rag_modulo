@@ -114,9 +114,10 @@ class ConversationContextService:
         # Start with the original question
         enhanced_question = question
 
-        # Add entity context if entities exist
-        if entities:
-            entity_context = f" (in the context of {', '.join(entities)})"
+        # Add entity context only for entities NOT already in the question
+        new_entities = [e for e in entities if e.lower() not in question.lower()]
+        if new_entities:
+            entity_context = f" (in the context of {', '.join(new_entities)})"
             enhanced_question = f"{enhanced_question}{entity_context}"
 
         # Add conversation context if question is ambiguous
