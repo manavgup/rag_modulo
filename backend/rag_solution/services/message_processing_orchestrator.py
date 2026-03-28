@@ -126,11 +126,14 @@ class MessageProcessingOrchestrator:
 
         return sanitized
 
-    async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
+    async def process_user_message(
+        self, message_input: ConversationMessageInput, session: Any = None
+    ) -> ConversationMessageOutput:
         """Process user message end-to-end with search, CoT, and token tracking.
 
         Args:
             message_input: User message input
+            session: Optional pre-fetched session (skips redundant DB query if provided)
 
         Returns:
             Assistant message output with full metadata, sources, and CoT output
@@ -150,10 +153,11 @@ class MessageProcessingOrchestrator:
         )
 
         # 1. Validate session exists and get user/collection context
-        try:
-            session = self.repository.get_session_by_id(message_input.session_id)
-        except NotFoundError:
-            raise ValueError("Session not found") from None
+        if session is None:
+            try:
+                session = self.repository.get_session_by_id(message_input.session_id)
+            except NotFoundError:
+                raise ValueError("Session not found") from None
 
         logger.info(
             f"📊 MESSAGE ORCHESTRATOR: Found session - user_id={session.user_id}, collection_id={session.collection_id}"
