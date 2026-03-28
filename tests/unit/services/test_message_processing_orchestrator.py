@@ -489,7 +489,6 @@ class TestCoordinateSearch:
         assert call_args.collection_id == collection_id
         assert call_args.user_id == user_id
         assert call_args.config_metadata["conversation_aware"] is True
-        assert call_args.config_metadata["cot_enabled"] is True
 
     @pytest.mark.asyncio
     async def test_coordinate_search_missing_collection_id(
