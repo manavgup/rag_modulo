@@ -156,6 +156,28 @@ Tests are configured with:
 - **Mocking**: Isolated testing
 - **Fixtures**: Reusable test data
 
+### Development Test Scripts
+
+In addition to the automated test suite, RAG Modulo includes manual development test scripts for debugging, feature exploration, and performance testing. These scripts are located in `backend/dev_tests/` and are NOT part of the CI/CD pipeline.
+
+For comprehensive documentation on all available development test scripts, including usage examples, prerequisites, and expected outputs, see:
+
+📖 **[Development Test Scripts Guide](dev-test-scripts.md)**
+
+Quick examples:
+```bash
+cd backend
+
+# Test Chain of Thought reasoning
+python dev_tests/manual/test_cot_comparison.py
+
+# Test embedding models
+python dev_tests/manual/test_embedding_models.py
+
+# Debug RAG failures
+python dev_tests/manual/debug_rag_failure.py
+```
+
 ## Development Workflow
 
 ### Daily Development
