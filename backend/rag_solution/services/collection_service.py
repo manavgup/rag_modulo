@@ -83,8 +83,20 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         """Generate a valid and unique collection name that works for vectordbs"""
         return IdentityService.generate_collection_name()
 
-    def create_collection(self, collection: CollectionInput) -> CollectionOutput:
-        """Create a new collection in the database and vectordb"""
+    def create_collection(self, collection: CollectionInput, creator_user_id: str | None = None) -> CollectionOutput:
+        """Create a new collection in the database and vectordb.
+
+        Args:
+            collection: The collection input data
+            creator_user_id: Optional creator user ID to ensure is included in the users list
+        """
+        # Ensure the creator is included in the users list
+        if creator_user_id:
+            if not collection.users:
+                collection.users = []
+            if creator_user_id not in collection.users:
+                collection.users.append(creator_user_id)
+
         # Check if collection with same name exists
         existing_collection = self.collection_repository.get_by_name(collection.name)
         if existing_collection:

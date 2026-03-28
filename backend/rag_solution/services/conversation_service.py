@@ -166,14 +166,21 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         return self.repository.delete_session(session_id)
 
-    async def list_sessions(self, user_id: UUID) -> list[ConversationSessionOutput]:
+    async def list_sessions(self, user_id: UUID, collection_id: UUID | None = None) -> list[ConversationSessionOutput]:
         """List all sessions for a user with eager loaded relationships.
 
         Uses unified repository's eager loading to eliminate N+1 queries.
         Previously: 54 queries (1 + 53 message counts)
         Now: 1 query with joinedload
+
+        Args:
+            user_id: The user whose sessions to list
+            collection_id: Optional filter to return only sessions for this collection
         """
-        return self.repository.get_sessions_by_user(user_id)
+        sessions = self.repository.get_sessions_by_user(user_id)
+        if collection_id:
+            sessions = [s for s in sessions if s.collection_id == collection_id]
+        return sessions
 
     async def add_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Add a message to a conversation session."""

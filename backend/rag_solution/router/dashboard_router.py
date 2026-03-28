@@ -1,6 +1,6 @@
 """Dashboard router for API endpoints related to dashboard statistics and recent activity."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
@@ -39,28 +39,25 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> DashboardStats:
 
 
 @router.get("/activity", response_model=list[RecentActivity])
-async def get_recent_activity(limit: int = 10, db: Session = Depends(get_db)) -> list[RecentActivity]:
+async def get_recent_activity(
+    limit: int = Query(default=10, ge=1, le=100), db: Session = Depends(get_db)
+) -> list[RecentActivity]:
     """
     Get recent system activity.
 
     Args:
-        limit: Maximum number of activities to return (default: 10)
+        limit: Maximum number of activities to return (default: 10, min: 1, max: 100)
 
     Returns:
         list[RecentActivity]: List of recent activities including searches,
                               document uploads, and workflow completions.
     """
     try:
-        if limit < 1 or limit > 100:
-            raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
-
         dashboard_service = DashboardService(db)
         activities = dashboard_service.get_recent_activity(limit=limit)
         logger.info("Retrieved {len(activities)} recent activities")
         return activities
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error("Error retrieving recent activity: %s", str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve recent activity") from e

@@ -86,12 +86,8 @@ async def list_conversations(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid user UUID format: {uuid_str}"
                 ) from ve
 
-        # Get all sessions for user
-        sessions = await conversation_service.list_sessions(target_user_id)
-
-        # Filter by collection_id if provided
-        if collection_id:
-            sessions = [s for s in sessions if s.collection_id == collection_id]
+        # Get sessions for user, optionally filtered by collection
+        sessions = await conversation_service.list_sessions(target_user_id, collection_id=collection_id)
 
         logger.info("Listed %d conversations for user %s", len(sessions), str(target_user_id))
         return sessions

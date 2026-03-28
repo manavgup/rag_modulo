@@ -184,16 +184,8 @@ def create_collection(
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
-        # Add current user to the collection users list
-        if not collection_input.users:
-            collection_input.users = []
-
-        # Ensure the creating user is always included
-        if user_id not in collection_input.users:
-            collection_input.users.append(user_id)
-
         service = CollectionService(db, settings)
-        return service.create_collection(collection_input)
+        return service.create_collection(collection_input, creator_user_id=user_id)
     except AlreadyExistsError as e:
         logger.error("Collection already exists: %s", str(e))
         raise HTTPException(status_code=409, detail=str(e)) from e
