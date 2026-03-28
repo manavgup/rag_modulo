@@ -276,8 +276,14 @@ def get_team_service(db: Session = Depends(get_db)) -> TeamService:
 
 
 def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> PipelineService:
-    """Get PipelineService instance with proper dependency injection."""
-    return PipelineService(db, settings)
+    """Get PipelineService instance with shared dependencies."""
+    return PipelineService(
+        db,
+        settings,
+        llm_provider_service=LLMProviderService(db),
+        prompt_template_service=PromptTemplateService(db),
+        llm_parameters_service=LLMParametersService(db, settings),
+    )
 
 
 def get_llm_provider_service(
@@ -350,10 +356,12 @@ def get_message_processing_orchestrator(
     Returns:
         MessageProcessingOrchestrator: Orchestrator for processing user messages
     """
+    from rag_solution.generation.providers.factory import LLMProviderFactory
     from rag_solution.repository.conversation_repository import ConversationRepository
     from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
     from rag_solution.services.conversation_context_service import ConversationContextService
     from rag_solution.services.entity_extraction_service import EntityExtractionService
+    from rag_solution.services.llm_model_service import LLMModelService
     from rag_solution.services.token_tracking_service import TokenTrackingService
 
     settings = get_settings()
@@ -361,19 +369,37 @@ def get_message_processing_orchestrator(
     # Create repository layer
     repository = ConversationRepository(db)
 
-    # Create service dependencies
-    search_service = SearchService(db, settings)
-    entity_extraction_service = EntityExtractionService(db, settings)
-    context_service = ConversationContextService(db, settings, entity_extraction_service)
-    token_tracking_service = TokenTrackingService(db, settings)
+    # Shared leaf services — created ONCE, injected into all consumers
     llm_provider_service = LLMProviderService(db)
+    prompt_template_service = PromptTemplateService(db)
+    llm_provider_factory = LLMProviderFactory(db, settings)
+    llm_model_service = LLMModelService(db)
+
+    # Composed services — receive shared leaves (no internal re-creation)
+    token_tracking_service = TokenTrackingService(db, settings, llm_model_service=llm_model_service)
+    search_service = SearchService(
+        db,
+        settings,
+        llm_provider_service=llm_provider_service,
+        llm_provider_factory=llm_provider_factory,
+    )
+    entity_extraction_service = EntityExtractionService(db, settings, provider_factory=llm_provider_factory)
+    context_service = ConversationContextService(db, settings, entity_extraction_service)
 
     # Create CoT service (optional)
     cot_service = None
     try:
         provider = llm_provider_service.get_default_provider()
         if provider and hasattr(provider, "llm_base"):
-            cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
+            cot_service = ChainOfThoughtService(
+                settings,
+                provider.llm_base,
+                search_service,
+                db,
+                llm_provider_service=llm_provider_service,
+                prompt_template_service=prompt_template_service,
+                token_tracking_service=token_tracking_service,
+            )
     except Exception as e:
         # CoT is optional, continue without it
         logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
