@@ -86,8 +86,21 @@ def handle_search_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 class SearchService:
     """Service for handling search operations through the RAG pipeline."""
 
-    def __init__(self, db: Session, settings: Settings) -> None:
-        """Initialize SearchService with dependencies."""
+    def __init__(
+        self,
+        db: Session,
+        settings: Settings,
+        llm_provider_service: LLMProviderService | None = None,
+        llm_provider_factory: Any | None = None,
+    ) -> None:
+        """Initialize SearchService with dependencies.
+
+        Args:
+            db: Database session
+            settings: Application settings
+            llm_provider_service: Optional pre-constructed LLM provider service (shared instance)
+            llm_provider_factory: Optional pre-constructed LLM provider factory (shared instance)
+        """
         logger.info("🔍 SEARCH SERVICE: __init__ called!")
         logger.debug("Initializing SearchService")
         self.db: Session = db
@@ -95,9 +108,10 @@ class SearchService:
         self._file_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
         self._pipeline_service: PipelineService | None = None
-        self._llm_provider_service: LLMProviderService | None = None
+        self._llm_provider_service: LLMProviderService | None = llm_provider_service
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
+        self._llm_provider_factory: Any | None = llm_provider_factory
         # Note: Reranking moved to PipelineService (P0-2 fix)
 
     @property
@@ -158,8 +172,8 @@ class SearchService:
                     # Justification: Lazy import to avoid circular dependency with LLMProviderFactory
                     from rag_solution.generation.providers.factory import LLMProviderFactory
 
-                    # Use the factory to create the provider instance properly
-                    factory = LLMProviderFactory(self.db, self.settings)
+                    # Reuse injected factory if available, otherwise create a new one
+                    factory = self._llm_provider_factory or LLMProviderFactory(self.db, self.settings)
                     llm_service = factory.get_provider(provider_config.name)
                     logger.debug("Using %s LLM provider for CoT service", provider_config.name)
                 except Exception as e:  # pylint: disable=broad-exception-caught

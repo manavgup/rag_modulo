@@ -51,18 +51,34 @@ logger = get_logger("services.pipeline")
 class PipelineService:
     """Service for managing and executing RAG pipelines."""
 
-    def __init__(self: Any, db: Session, settings: Settings) -> None:
-        """Initialize service with database session and settings injection."""
+    def __init__(
+        self: Any,
+        db: Session,
+        settings: Settings,
+        llm_provider_service: LLMProviderService | None = None,
+        prompt_template_service: PromptTemplateService | None = None,
+        llm_parameters_service: LLMParametersService | None = None,
+    ) -> None:
+        """Initialize service with database session and settings injection.
+
+        Args:
+            db: Database session
+            settings: Application settings
+            llm_provider_service: Optional pre-constructed LLM provider service (shared instance)
+            prompt_template_service: Optional pre-constructed prompt template service (shared instance)
+            llm_parameters_service: Optional pre-constructed LLM parameters service (shared instance)
+        """
         self.db = db
         if settings is None:
             raise ValueError("Settings must be provided to PipelineService")
         self.settings = settings
         self._pipeline_repository: PipelineConfigRepository | None = None
-        self._llm_parameters_service: LLMParametersService | None = None
-        self._prompt_template_service: PromptTemplateService | None = None
-        self._llm_provider_service: LLMProviderService | None = None
+        self._llm_parameters_service: LLMParametersService | None = llm_parameters_service
+        self._prompt_template_service: PromptTemplateService | None = prompt_template_service
+        self._llm_provider_service: LLMProviderService | None = llm_provider_service
         self._file_management_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
+        self._provider_factory: LLMProviderFactory | None = None
 
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
@@ -604,7 +620,9 @@ class PipelineService:
                 resource_id=str(pipeline_config.provider_id),
             )
 
-        provider = LLMProviderFactory(self.db, self.settings).get_provider(provider_output.name)
+        if self._provider_factory is None:
+            self._provider_factory = LLMProviderFactory(self.db, self.settings)
+        provider = self._provider_factory.get_provider(provider_output.name)
         if not provider:
             raise ConfigurationError("llm_provider", "Failed to initialize LLM provider")
 
