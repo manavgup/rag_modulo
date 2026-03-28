@@ -39,19 +39,20 @@ class TokenTrackingService:
         token_warning_repository: Repository for token warning data access
     """
 
-    def __init__(self, db: Session, settings: Settings) -> None:
+    def __init__(self, db: Session, settings: Settings, llm_model_service: LLMModelService | None = None) -> None:
         """Initialize the token tracking service.
 
         Args:
             db: Database session
             settings: Application settings
+            llm_model_service: Optional pre-constructed LLM model service (shared instance)
         """
         self.db = db
         self.settings = settings
         self.token_warning_repository = TokenWarningRepository(db)
 
         # Lazy initialization for LLM model service
-        self._llm_model_service: LLMModelService | None = None
+        self._llm_model_service: LLMModelService | None = llm_model_service
 
     @property
     def llm_model_service(self) -> LLMModelService:

@@ -41,8 +41,27 @@ logger = get_logger(__name__)
 class ChainOfThoughtService:
     """Service for Chain of Thought reasoning in RAG search."""
 
-    def __init__(self, settings: Settings, llm_service: LLMBase, search_service: "SearchService", db: Session) -> None:
-        """Initialize Chain of Thought service."""
+    def __init__(
+        self,
+        settings: Settings,
+        llm_service: LLMBase,
+        search_service: "SearchService",
+        db: Session,
+        llm_provider_service: LLMProviderService | None = None,
+        prompt_template_service: PromptTemplateService | None = None,
+        token_tracking_service: TokenTrackingService | None = None,
+    ) -> None:
+        """Initialize Chain of Thought service.
+
+        Args:
+            settings: Application settings
+            llm_service: LLM service instance for generation
+            search_service: Search service for document retrieval
+            db: Database session
+            llm_provider_service: Optional pre-constructed LLM provider service (shared instance)
+            prompt_template_service: Optional pre-constructed prompt template service (shared instance)
+            token_tracking_service: Optional pre-constructed token tracking service (shared instance)
+        """
         self.db = db
         self.settings = settings
         self.llm_service = llm_service
@@ -50,9 +69,9 @@ class ChainOfThoughtService:
         self._question_decomposer: QuestionDecomposer | None = None
         self._answer_synthesizer: AnswerSynthesizer | None = None
         self._source_attribution_service: SourceAttributionService | None = None
-        self._llm_provider_service: LLMProviderService | None = None
-        self._prompt_template_service: PromptTemplateService | None = None
-        self._token_tracking_service: TokenTrackingService | None = None
+        self._llm_provider_service: LLMProviderService | None = llm_provider_service
+        self._prompt_template_service: PromptTemplateService | None = prompt_template_service
+        self._token_tracking_service: TokenTrackingService | None = token_tracking_service
         self._cot_template_cache: dict[str, Any] = {}
 
     @property

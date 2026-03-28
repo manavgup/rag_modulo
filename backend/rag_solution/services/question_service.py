@@ -30,13 +30,21 @@ logger = get_logger("services.question")
 class QuestionService:
     """Service for managing question suggestions."""
 
-    def __init__(self, db: Session, settings: Settings) -> None:
+    def __init__(
+        self,
+        db: Session,
+        settings: Settings,
+        prompt_template_service: PromptTemplateService | None = None,
+        llm_parameters_service: LLMParametersService | None = None,
+    ) -> None:
         """
         Initialize question service with Chain of Thought support.
 
         Args:
             db: Database session
             settings: Configuration settings (injected via dependency injection)
+            prompt_template_service: Optional pre-constructed prompt template service (shared instance)
+            llm_parameters_service: Optional pre-constructed LLM parameters service (shared instance)
 
         Raises:
             ValidationError: If configuration is invalid
@@ -44,8 +52,8 @@ class QuestionService:
         self.db = db
         self.settings = settings
         self._question_repository: QuestionRepository | None = None
-        self._prompt_template_service: PromptTemplateService | None = None
-        self._llm_parameters_service: LLMParametersService | None = None
+        self._prompt_template_service: PromptTemplateService | None = prompt_template_service
+        self._llm_parameters_service: LLMParametersService | None = llm_parameters_service
         self._provider_factory = LLMProviderFactory(db, settings)
 
         # Enhanced configuration for better question generation

@@ -36,18 +36,20 @@ class EntityExtractionService:
         ['IBM', '2020', 'revenue', '$73.6B']
     """
 
-    def __init__(self, db: Session, settings: Settings):
+    def __init__(self, db: Session, settings: Settings, provider_factory: LLMProviderFactory | None = None):
         """Initialize entity extraction service.
 
         Args:
             db: SQLAlchemy database session
             settings: Application settings
+            provider_factory: Optional pre-constructed LLM provider factory (shared instance)
         """
         self.db = db
         self.settings = settings
         self._nlp: Any = None  # Lazy load spaCy
         self._entity_cache: dict[str, list[str]] = {}
         self._llm_provider_service: Any = None
+        self._provider_factory: LLMProviderFactory | None = provider_factory
 
     @property
     def nlp(self) -> Any:
@@ -208,7 +210,7 @@ class EntityExtractionService:
 
         # Get actual provider instance
         try:
-            factory = LLMProviderFactory(self.db, self.settings)
+            factory = self._provider_factory or LLMProviderFactory(self.db, self.settings)
             provider = factory.get_provider(provider_config.name)
         except (ImportError, ValueError, RuntimeError) as e:
             logger.error("Failed to get LLM provider: %s", e)
