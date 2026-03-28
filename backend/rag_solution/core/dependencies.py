@@ -372,16 +372,25 @@ def get_message_processing_orchestrator(
     # Shared leaf services — created ONCE, injected into all consumers
     llm_provider_service = LLMProviderService(db)
     prompt_template_service = PromptTemplateService(db)
+    llm_parameters_service = LLMParametersService(db, settings)
     llm_provider_factory = LLMProviderFactory(db, settings)
     llm_model_service = LLMModelService(db)
 
     # Composed services — receive shared leaves (no internal re-creation)
     token_tracking_service = TokenTrackingService(db, settings, llm_model_service=llm_model_service)
+    pipeline_service = PipelineService(
+        db,
+        settings,
+        llm_provider_service=llm_provider_service,
+        prompt_template_service=prompt_template_service,
+        llm_parameters_service=llm_parameters_service,
+    )
     search_service = SearchService(
         db,
         settings,
         llm_provider_service=llm_provider_service,
         llm_provider_factory=llm_provider_factory,
+        pipeline_service=pipeline_service,
     )
     entity_extraction_service = EntityExtractionService(db, settings, provider_factory=llm_provider_factory)
     context_service = ConversationContextService(db, settings, entity_extraction_service)

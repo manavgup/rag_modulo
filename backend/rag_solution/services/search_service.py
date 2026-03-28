@@ -92,6 +92,7 @@ class SearchService:
         settings: Settings,
         llm_provider_service: LLMProviderService | None = None,
         llm_provider_factory: Any | None = None,
+        pipeline_service: PipelineService | None = None,
     ) -> None:
         """Initialize SearchService with dependencies.
 
@@ -100,14 +101,15 @@ class SearchService:
             settings: Application settings
             llm_provider_service: Optional pre-constructed LLM provider service (shared instance)
             llm_provider_factory: Optional pre-constructed LLM provider factory (shared instance)
+            pipeline_service: Optional pre-constructed pipeline service (shared instance)
         """
-        logger.info("🔍 SEARCH SERVICE: __init__ called!")
+        logger.debug("SearchService initialized")
         logger.debug("Initializing SearchService")
         self.db: Session = db
         self.settings = settings
         self._file_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
-        self._pipeline_service: PipelineService | None = None
+        self._pipeline_service: PipelineService | None = pipeline_service
         self._llm_provider_service: LLMProviderService | None = llm_provider_service
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
