@@ -261,6 +261,48 @@ class TestPromptBoundary:
     continues the context text instead of answering the question.
     """
 
+    @pytest.fixture
+    def mock_db(self) -> Mock:
+        """Mock database session."""
+        return Mock()
+
+    @pytest.fixture
+    def mock_repository(self) -> Mock:
+        """Mock prompt template repository."""
+        return Mock()
+
+    @pytest.fixture
+    def service(self, mock_repository) -> PromptTemplateService:
+        """Service instance with mocked repository."""
+        svc = PromptTemplateService(Mock())
+        svc.repository = mock_repository
+        return svc
+
+    @pytest.fixture
+    def sample_template_input(self) -> PromptTemplateInput:
+        """Sample template input for testing."""
+        return PromptTemplateInput(
+            name="Test RAG Template",
+            user_id=uuid4(),
+            template_type=PromptTemplateType.RAG_QUERY,
+            system_prompt="You are a helpful AI assistant.",
+            template_format="Context: {context}\n\nQuestion: {question}",
+            input_variables={"context": "Document context", "question": "User question"},
+            is_default=False,
+        )
+
+    @pytest.fixture
+    def sample_template_output(self, sample_template_input) -> Mock:
+        """Sample template output (mock SQLAlchemy model)."""
+        template = create_mock_template(
+            name=sample_template_input.name,
+            user_id=sample_template_input.user_id,
+            template_type=sample_template_input.template_type,
+            system_prompt=sample_template_input.system_prompt,
+            template_format=sample_template_input.template_format,
+        )
+        return template
+
     def test_rag_query_prompt_has_boundary_marker(self):
         """RAG_QUERY prompt should contain a --- boundary between instructions and content."""
         mock_repo = Mock()
