@@ -210,7 +210,8 @@ async def process_user_message(
         message_data.session_id = session_id
 
         # NEW: Use MessageProcessingOrchestrator instead of ConversationService
-        response = await orchestrator.process_user_message(message_data)
+        # Pass pre-fetched session to skip redundant DB query
+        response = await orchestrator.process_user_message(message_data, session=session)
         return response
     except HTTPException:
         raise

@@ -353,8 +353,8 @@ async def process_conversation_message(
         # Ensure session_id matches
         message_data.session_id = session_id
 
-        # Process message using orchestrator
-        response = await orchestrator.process_user_message(message_data)
+        # Process message using orchestrator (pass pre-fetched session to skip redundant DB query)
+        response = await orchestrator.process_user_message(message_data, session=session)
         logger.info("Processed message for session %s, user %s", str(session_id), str(user_id))
         return response
 
