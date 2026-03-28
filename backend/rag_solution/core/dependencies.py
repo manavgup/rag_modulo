@@ -16,17 +16,24 @@ from core.config import Settings, get_settings
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.agent_service import AgentService
 from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.conversation_service import ConversationService
+from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.message_processing_orchestrator import MessageProcessingOrchestrator
 from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.team_service import TeamService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_service import UserService
 from rag_solution.services.user_team_service import UserTeamService
+from rag_solution.services.voice_service import VoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -295,3 +302,177 @@ def get_llm_parameters_service(
 ) -> LLMParametersService:
     """Get LLMParametersService instance with proper dependency injection."""
     return LLMParametersService(db, settings)
+
+
+def get_conversation_service(db: Session = Depends(get_db)) -> ConversationService:
+    """Get ConversationService instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        ConversationService instance
+    """
+    from rag_solution.repository.conversation_repository import ConversationRepository
+
+    settings = get_settings()
+    repository = ConversationRepository(db)
+    question_service = QuestionService(db, settings)
+
+    return ConversationService(db, settings, repository, question_service)
+
+
+def get_conversation_repository(db: Session = Depends(get_db)) -> "ConversationRepository":
+    """Get ConversationRepository instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        ConversationRepository instance
+    """
+    from rag_solution.repository.conversation_repository import ConversationRepository
+
+    return ConversationRepository(db)
+
+
+def get_message_processing_orchestrator(
+    db: Session = Depends(get_db),
+) -> MessageProcessingOrchestrator:
+    """Get MessageProcessingOrchestrator instance with all dependencies.
+
+    This factory method creates a MessageProcessingOrchestrator with all required
+    services, following dependency injection best practices.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        MessageProcessingOrchestrator: Orchestrator for processing user messages
+    """
+    from rag_solution.repository.conversation_repository import ConversationRepository
+    from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
+    from rag_solution.services.conversation_context_service import ConversationContextService
+    from rag_solution.services.entity_extraction_service import EntityExtractionService
+    from rag_solution.services.token_tracking_service import TokenTrackingService
+
+    settings = get_settings()
+
+    # Create repository layer
+    repository = ConversationRepository(db)
+
+    # Create service dependencies
+    search_service = SearchService(db, settings)
+    entity_extraction_service = EntityExtractionService(db, settings)
+    context_service = ConversationContextService(db, settings, entity_extraction_service)
+    token_tracking_service = TokenTrackingService(db, settings)
+    llm_provider_service = LLMProviderService(db)
+
+    # Create CoT service (optional)
+    cot_service = None
+    try:
+        provider = llm_provider_service.get_default_provider()
+        if provider and hasattr(provider, "llm_base"):
+            cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
+    except Exception as e:
+        # CoT is optional, continue without it
+        logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
+
+    return MessageProcessingOrchestrator(
+        db=db,
+        settings=settings,
+        conversation_repository=repository,
+        search_service=search_service,
+        context_service=context_service,
+        token_tracking_service=token_tracking_service,
+        llm_provider_service=llm_provider_service,
+        chain_of_thought_service=cot_service,
+    )
+
+
+def get_conversation_summarization_service(db: Session = Depends(get_db)) -> ConversationSummarizationService:
+    """Get ConversationSummarizationService instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        ConversationSummarizationService instance
+    """
+    settings = get_settings()
+    return ConversationSummarizationService(db, settings)
+
+
+def get_agent_service(db: Session = Depends(get_db)) -> AgentService:
+    """Get AgentService instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        AgentService instance
+    """
+    return AgentService(db)
+
+
+def get_prompt_template_service(db: Session = Depends(get_db)) -> PromptTemplateService:
+    """Get PromptTemplateService instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        PromptTemplateService instance
+    """
+    return PromptTemplateService(db)
+
+
+def get_user_team_service(db: Session = Depends(get_db)) -> UserTeamService:
+    """Get UserTeamService instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        UserTeamService instance
+    """
+    return UserTeamService(db)
+
+
+def get_podcast_service(
+    session: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> PodcastService:
+    """Get PodcastService instance with dependencies.
+
+    Args:
+        session: Database session
+        settings: Application settings
+
+    Returns:
+        Configured PodcastService
+    """
+    collection_service = CollectionService(session, settings)
+    search_service = SearchService(session, settings)
+
+    return PodcastService(
+        session=session,
+        collection_service=collection_service,
+        search_service=search_service,
+    )
+
+
+def get_voice_service(
+    session: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> VoiceService:
+    """Get VoiceService instance with dependencies.
+
+    Args:
+        session: Database session
+        settings: Application settings
+
+    Returns:
+        Configured VoiceService
+    """
+    return VoiceService(session=session, settings=settings)

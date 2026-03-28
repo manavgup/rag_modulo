@@ -5,10 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlalchemy.orm import Session
 
-from rag_solution.core.dependencies import verify_user_access
-from rag_solution.file_management.database import get_db
+from rag_solution.core.dependencies import get_prompt_template_service, verify_user_access
 from rag_solution.models.prompt_template import PromptTemplateType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput
 from rag_solution.schemas.user_schema import UserOutput
@@ -31,10 +29,11 @@ router = APIRouter()
     },
 )
 async def get_prompt_templates(
-    user_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]
+    user_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> list[PromptTemplateOutput]:
     """Retrieve all prompt templates for a user."""
-    service = PromptTemplateService(db)
     try:
         return service.get_user_templates(user_id)
     except Exception as e:
@@ -56,11 +55,10 @@ async def get_prompt_templates(
 async def create_prompt_template(
     user_id: UUID4,
     template_input: PromptTemplateInput,
-    db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> PromptTemplateOutput:
     """Create a new prompt template for a user."""
-    service = PromptTemplateService(db)
     try:
         if not template_input.user_id:
             template_input.user_id = user_id
@@ -86,11 +84,10 @@ async def update_prompt_template(
     user_id: UUID4,
     template_id: UUID4,
     template_input: PromptTemplateInput,
-    db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> PromptTemplateOutput:
     """Update an existing prompt template."""
-    service = PromptTemplateService(db)
     try:
         # Ensure user_id is set in the input
         if not template_input.user_id:
@@ -115,11 +112,10 @@ async def update_prompt_template(
 async def delete_prompt_template(
     user_id: UUID4,
     template_id: UUID4,
-    db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> bool:
     """Delete an existing prompt template."""
-    service = PromptTemplateService(db)
     try:
         return service.delete_template(user_id, template_id)
     except Exception as e:
@@ -141,11 +137,10 @@ async def delete_prompt_template(
 async def set_default_prompt_template(
     user_id: UUID4,
     template_id: UUID4,
-    db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> PromptTemplateOutput:
     """Set a specific prompt template as default."""
-    service = PromptTemplateService(db)
     try:
         return service.set_default_template(template_id)
     except Exception as e:
@@ -166,11 +161,10 @@ async def set_default_prompt_template(
 async def get_prompt_templates_by_type(
     user_id: UUID4,
     template_type: PromptTemplateType,
-    db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[PromptTemplateService, Depends(get_prompt_template_service)],
 ) -> list[PromptTemplateOutput]:
     """Retrieve prompt templates for a user by their type."""
-    service = PromptTemplateService(db)
     try:
         return service.get_templates_by_type(user_id, template_type)
     except Exception as e:

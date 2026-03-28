@@ -20,11 +20,10 @@ Reference: docs/architecture/spire-integration-architecture.md
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import UUID4
-from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
+from rag_solution.core.dependencies import get_agent_service
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
-from rag_solution.file_management.database import get_db
 from rag_solution.schemas.agent_schema import (
     AgentCapabilityUpdate,
     AgentInput,
@@ -99,7 +98,7 @@ def get_current_user_id(request: Request) -> UUID4:
 async def register_agent(
     request: Request,
     registration_request: AgentRegistrationRequest,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentRegistrationResponse:
     """Register a new agent with SPIFFE ID generation.
 
@@ -109,14 +108,13 @@ async def register_agent(
     Args:
         request: FastAPI request object
         registration_request: Agent registration data
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Registration response with agent data and SPIFFE ID
     """
     try:
         owner_user_id = get_current_user_id(request)
-        service = AgentService(db)
         return service.register_agent(registration_request, owner_user_id)
     except AlreadyExistsError as e:
         raise HTTPException(
@@ -146,21 +144,20 @@ async def register_agent(
 async def create_agent(
     request: Request,
     agent_input: AgentInput,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Create a new agent.
 
     Args:
         request: FastAPI request object
         agent_input: Agent creation data
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Created agent data
     """
     try:
         owner_user_id = get_current_user_id(request)
-        service = AgentService(db)
         return service.create_agent(agent_input, owner_user_id)
     except AlreadyExistsError as e:
         raise HTTPException(
@@ -194,7 +191,7 @@ async def list_agents(
     agent_status: str | None = Query(None, alias="status", description="Filter by status"),
     team_id: UUID4 | None = Query(None, description="Filter by team ID"),
     mine_only: bool = Query(False, description="Only show agents owned by current user"),
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentListResponse:
     """List agents with filtering and pagination.
 
@@ -206,7 +203,7 @@ async def list_agents(
         agent_status: Filter by status
         team_id: Filter by team
         mine_only: Only show owned agents
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Paginated agent list
@@ -216,7 +213,6 @@ async def list_agents(
         if mine_only:
             owner_user_id = get_current_user_id(request)
 
-        service = AgentService(db)
         return service.list_agents(
             skip=skip,
             limit=limit,
@@ -241,19 +237,18 @@ async def list_agents(
 )
 async def get_agent(
     agent_id: UUID4,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Get an agent by ID.
 
     Args:
         agent_id: UUID of the agent
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Agent data
     """
     try:
-        service = AgentService(db)
         return service.get_agent(agent_id)
     except NotFoundError as e:
         raise HTTPException(
@@ -276,19 +271,18 @@ async def get_agent(
 )
 async def get_agent_by_spiffe_id(
     spiffe_id: str,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Get an agent by SPIFFE ID.
 
     Args:
         spiffe_id: Full SPIFFE ID (e.g., spiffe://domain/agent/type/id)
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Agent data
     """
     try:
-        service = AgentService(db)
         return service.get_agent_by_spiffe_id(spiffe_id)
     except NotFoundError as e:
         raise HTTPException(
@@ -312,20 +306,19 @@ async def get_agent_by_spiffe_id(
 async def update_agent(
     agent_id: UUID4,
     agent_update: AgentUpdate,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Update an agent.
 
     Args:
         agent_id: UUID of the agent
         agent_update: Update data
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.update_agent(agent_id, agent_update)
     except NotFoundError as e:
         raise HTTPException(
@@ -353,16 +346,15 @@ async def update_agent(
 )
 async def delete_agent(
     agent_id: UUID4,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> None:
     """Delete an agent.
 
     Args:
         agent_id: UUID of the agent
-        db: Database session
+        service: AgentService instance
     """
     try:
-        service = AgentService(db)
         deleted = service.delete_agent(agent_id)
         if not deleted:
             raise HTTPException(
@@ -388,20 +380,19 @@ async def delete_agent(
 async def update_agent_status(
     agent_id: UUID4,
     status_update: AgentStatusUpdate,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Update agent status.
 
     Args:
         agent_id: UUID of the agent
         status_update: Status update request
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.update_agent_status(agent_id, status_update)
     except NotFoundError as e:
         raise HTTPException(
@@ -425,20 +416,19 @@ async def update_agent_status(
 async def update_agent_capabilities(
     agent_id: UUID4,
     capability_update: AgentCapabilityUpdate,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Update agent capabilities.
 
     Args:
         agent_id: UUID of the agent
         capability_update: Capabilities to add/remove
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.update_agent_capabilities(agent_id, capability_update)
     except NotFoundError as e:
         raise HTTPException(
@@ -462,7 +452,7 @@ async def update_agent_capabilities(
 async def validate_spiffe_token(
     request: Request,
     validation_request: SPIFFEValidationRequest,
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> SPIFFEValidationResponse:
     """Validate a SPIFFE JWT-SVID.
 
@@ -472,7 +462,7 @@ async def validate_spiffe_token(
     Args:
         request: FastAPI request object
         validation_request: Token to validate
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Validation response with agent identity
@@ -484,7 +474,6 @@ async def validate_spiffe_token(
     _ = get_current_user_id(request)
 
     try:
-        service = AgentService(db)
         return service.validate_jwt_svid(validation_request)
     except Exception as e:
         logger.error("Error validating SPIFFE token: %s", e)
@@ -503,20 +492,19 @@ async def validate_spiffe_token(
 async def suspend_agent(
     agent_id: UUID4,
     reason: str | None = Query(None, description="Reason for suspension"),
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Suspend an agent.
 
     Args:
         agent_id: UUID of the agent
         reason: Optional suspension reason
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.suspend_agent(agent_id, reason)
     except NotFoundError as e:
         raise HTTPException(
@@ -540,20 +528,19 @@ async def suspend_agent(
 async def activate_agent(
     agent_id: UUID4,
     reason: str | None = Query(None, description="Reason for activation"),
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Activate an agent.
 
     Args:
         agent_id: UUID of the agent
         reason: Optional activation reason
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.activate_agent(agent_id, reason)
     except NotFoundError as e:
         raise HTTPException(
@@ -577,20 +564,19 @@ async def activate_agent(
 async def revoke_agent(
     agent_id: UUID4,
     reason: str | None = Query(None, description="Reason for revocation"),
-    db: Session = Depends(get_db),
+    service: AgentService = Depends(get_agent_service),
 ) -> AgentOutput:
     """Revoke an agent.
 
     Args:
         agent_id: UUID of the agent
         reason: Optional revocation reason
-        db: Database session
+        service: AgentService instance
 
     Returns:
         Updated agent data
     """
     try:
-        service = AgentService(db)
         return service.revoke_agent(agent_id, reason)
     except NotFoundError as e:
         raise HTTPException(

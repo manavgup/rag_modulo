@@ -13,13 +13,11 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import UUID4
-from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.identity_service import IdentityService
-from rag_solution.core.dependencies import get_current_user
-from rag_solution.file_management.database import get_db
+from rag_solution.core.dependencies import get_current_user, get_podcast_service
 from rag_solution.schemas.podcast_schema import (
     PodcastAudioGenerationInput,
     PodcastGenerationInput,
@@ -29,9 +27,7 @@ from rag_solution.schemas.podcast_schema import (
     PodcastScriptOutput,
     PodcastStatus,
 )
-from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
-from rag_solution.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
@@ -66,32 +62,6 @@ def _extract_user_id_from_jwt(current_user: dict[str, Any]) -> UUID:
         return IdentityService.extract_user_id_from_jwt(current_user)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e)) from e
-
-
-# Dependency to get PodcastService
-def get_podcast_service(
-    session: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> PodcastService:
-    """
-    Create PodcastService instance with dependencies.
-
-    Args:
-        session: Database session
-        settings: Application settings
-
-    Returns:
-        Configured PodcastService
-    """
-    # Create service dependencies
-    collection_service = CollectionService(session, settings)
-    search_service = SearchService(session, settings)
-
-    return PodcastService(
-        session=session,
-        collection_service=collection_service,
-        search_service=search_service,
-    )
 
 
 @router.post(
