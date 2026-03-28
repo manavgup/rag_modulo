@@ -5,9 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlalchemy.orm import Session
 
-from rag_solution.core.dependencies import get_db, get_llm_parameters_service, verify_user_access
+from rag_solution.core.dependencies import get_llm_parameters_service, get_llm_provider_service, verify_user_access
 from rag_solution.schemas.llm_model_schema import LLMModelOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
@@ -132,10 +131,11 @@ async def set_default_llm_parameters(
     description="Retrieve all LLM providers for a user",
 )
 async def get_llm_providers(
-    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+    user_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> list[LLMProviderOutput]:
     """Retrieve all LLM providers for a user."""
-    service = LLMProviderService(db)
     try:
         return service.get_all_providers(is_active=True)
     except Exception as e:
@@ -152,10 +152,9 @@ async def create_llm_provider(
     user_id: UUID4,
     provider_input: LLMProviderInput,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> LLMProviderOutput:
     """Create a new LLM provider configuration."""
-    service = LLMProviderService(db)
     try:
         if not provider_input.user_id:
             provider_input.user_id = user_id
@@ -175,10 +174,9 @@ async def update_llm_provider(
     provider_id: UUID4,
     provider_input: LLMProviderInput,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> LLMProviderOutput | None:
     """Update an existing LLM provider configuration."""
-    service = LLMProviderService(db)
     try:
         update_data = provider_input.model_dump(exclude_unset=True)
         return service.update_provider(provider_id, update_data)
@@ -196,10 +194,9 @@ async def delete_llm_provider(
     user_id: UUID4,
     provider_id: UUID4,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> bool:
     """Delete an existing LLM provider configuration."""
-    service = LLMProviderService(db)
     try:
         return service.delete_provider(provider_id)
     except Exception as e:
@@ -213,10 +210,11 @@ async def delete_llm_provider(
     description="Retrieve all available models from providers",
 )
 async def get_provider_models(
-    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+    user_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> list[LLMModelOutput]:
     """Retrieve all available models from providers."""
-    service = LLMProviderService(db)
     try:
         # Get all active providers and their models
         providers = service.get_all_providers(is_active=True)
@@ -239,10 +237,9 @@ async def get_provider_specific_models(
     user_id: UUID4,
     provider_id: UUID4,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMProviderService, Depends(get_llm_provider_service)],
 ) -> list[LLMModelOutput]:
     """Retrieve all available models for a specific provider."""
-    service = LLMProviderService(db)
     try:
         return service.get_provider_models(provider_id)
     except Exception as e:

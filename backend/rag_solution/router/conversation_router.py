@@ -12,12 +12,14 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 
-from core.config import get_settings
-from rag_solution.core.dependencies import get_current_user
+from rag_solution.core.dependencies import (
+    get_conversation_service,
+    get_conversation_summarization_service,
+    get_current_user,
+    get_message_processing_orchestrator,
+)
 from rag_solution.core.exceptions import NotFoundError, ValidationError
-from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
     ContextSummarizationInput,
     ContextSummarizationOutput,
@@ -35,101 +37,13 @@ from rag_solution.schemas.conversation_schema import (
     SessionStatistics,
     SummarizationConfigInput,
 )
-from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
-from rag_solution.services.conversation_context_service import ConversationContextService
 from rag_solution.services.conversation_service import ConversationService
 from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
-from rag_solution.services.entity_extraction_service import EntityExtractionService
-from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.message_processing_orchestrator import MessageProcessingOrchestrator
-from rag_solution.services.search_service import SearchService
-from rag_solution.services.token_tracking_service import TokenTrackingService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
-
-
-def get_conversation_service(db: Session = Depends(get_db)) -> ConversationService:
-    """Get conversation service instance.
-
-    Args:
-        db: Database session dependency
-
-    Returns:
-        ConversationService instance
-    """
-    from rag_solution.repository.conversation_repository import ConversationRepository
-    from rag_solution.services.question_service import QuestionService
-
-    settings = get_settings()
-    repository = ConversationRepository(db)
-    question_service = QuestionService(db, settings)
-
-    return ConversationService(db, settings, repository, question_service)
-
-
-def get_summarization_service(db: Session = Depends(get_db)) -> ConversationSummarizationService:
-    """Get conversation summarization service instance.
-
-    Args:
-        db: Database session dependency
-
-    Returns:
-        ConversationSummarizationService instance
-    """
-    settings = get_settings()
-    return ConversationSummarizationService(db, settings)
-
-
-def get_message_processing_orchestrator(
-    db: Session = Depends(get_db),
-) -> MessageProcessingOrchestrator:
-    """Get message processing orchestrator instance with all dependencies.
-
-    This factory method creates a MessageProcessingOrchestrator with all required
-    services, following dependency injection best practices.
-
-    Args:
-        db: Database session dependency
-
-    Returns:
-        MessageProcessingOrchestrator: Orchestrator for processing user messages
-    """
-    from rag_solution.repository.conversation_repository import ConversationRepository
-
-    settings = get_settings()
-
-    # Create repository layer
-    repository = ConversationRepository(db)
-
-    # Create service dependencies
-    search_service = SearchService(db, settings)
-    entity_extraction_service = EntityExtractionService(db, settings)
-    context_service = ConversationContextService(db, settings, entity_extraction_service)
-    token_tracking_service = TokenTrackingService(db, settings)
-    llm_provider_service = LLMProviderService(db)
-
-    # Create CoT service (optional)
-    cot_service = None
-    try:
-        provider = llm_provider_service.get_default_provider()
-        if provider and hasattr(provider, "llm_base"):
-            cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
-    except Exception as e:
-        # CoT is optional, continue without it
-        logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
-
-    return MessageProcessingOrchestrator(
-        db=db,
-        settings=settings,
-        conversation_repository=repository,
-        search_service=search_service,
-        context_service=context_service,
-        token_tracking_service=token_tracking_service,
-        llm_provider_service=llm_provider_service,
-        chain_of_thought_service=cot_service,
-    )
 
 
 @router.get("", response_model=list[ConversationSessionOutput])
@@ -827,7 +741,7 @@ async def create_summary(
     session_id: UUID,
     summary_input: ConversationSummaryInput,
     current_user: dict = Depends(get_current_user),
-    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+    summarization_service: ConversationSummarizationService = Depends(get_conversation_summarization_service),
 ) -> ConversationSummaryOutput:
     """Create a conversation summary for the specified session.
 
@@ -868,7 +782,7 @@ async def get_session_summaries(
     session_id: UUID,
     current_user: dict = Depends(get_current_user),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of summaries to return"),
-    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+    summarization_service: ConversationSummarizationService = Depends(get_conversation_summarization_service),
 ) -> list[ConversationSummaryOutput]:
     """Get conversation summaries for a session.
 
@@ -908,7 +822,7 @@ async def summarize_for_context(
     session_id: UUID,
     summarization_input: ContextSummarizationInput,
     current_user: dict = Depends(get_current_user),
-    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+    summarization_service: ConversationSummarizationService = Depends(get_conversation_summarization_service),
 ) -> ContextSummarizationOutput:
     """Perform context-aware summarization for conversation management.
 
@@ -945,7 +859,7 @@ async def check_context_threshold(
     session_id: UUID,
     current_user: dict = Depends(get_current_user),
     config: SummarizationConfigInput = Depends(),
-    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+    summarization_service: ConversationSummarizationService = Depends(get_conversation_summarization_service),
 ) -> dict:
     """Check if a session has reached the context window threshold for summarization.
 
@@ -1116,7 +1030,7 @@ async def export_conversation_enhanced(
     export_input: ConversationExportInput,
     current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
-    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+    summarization_service: ConversationSummarizationService = Depends(get_conversation_summarization_service),
 ) -> ConversationExportOutput:
     """Export conversation with enhanced features including summaries and metadata.
 

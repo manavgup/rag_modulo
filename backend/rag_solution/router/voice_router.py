@@ -12,11 +12,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
-from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
-from rag_solution.core.dependencies import get_current_user
-from rag_solution.file_management.database import get_db
+from rag_solution.core.dependencies import get_current_user, get_voice_service
 from rag_solution.schemas.voice_schema import (
     VoiceListResponse,
     VoiceOutput,
@@ -38,24 +36,6 @@ AUDIO_MEDIA_TYPES = {
     "flac": "audio/flac",
     "ogg": "audio/ogg",
 }
-
-
-# Dependency to get VoiceService
-def get_voice_service(
-    session: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> VoiceService:
-    """
-    Create VoiceService instance with dependencies.
-
-    Args:
-        session: Database session
-        settings: Application settings
-
-    Returns:
-        Configured VoiceService
-    """
-    return VoiceService(session=session, settings=settings)
 
 
 @router.post(
