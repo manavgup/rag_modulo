@@ -65,9 +65,17 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
             # COMPREHENSIVE DEBUG LOGGING - Log retrieval parameters BEFORE retrieval
             self._log_retrieval_params(context.rewritten_query, str(context.collection_id), top_k)
 
-            # Retrieve documents using collection_id (PipelineService handles the lookup)
+            # Retrieve documents using collection_id (PipelineService handles the lookup).
+            # When PipelineContext is available, pass the pre-resolved vector_db_name
+            # to skip the DB query that maps collection_id -> vector_db_name.
+            pre_resolved_name = (
+                context.pipeline_context.vector_db_name if context.pipeline_context else None
+            ) or context.collection_name
             query_results = self.pipeline_service.retrieve_documents_by_id(
-                query=context.rewritten_query, collection_id=context.collection_id, top_k=top_k
+                query=context.rewritten_query,
+                collection_id=context.collection_id,
+                top_k=top_k,
+                vector_db_name=pre_resolved_name,
             )
 
             logger.info("Retrieved %d documents with top_k=%d", len(query_results), top_k)

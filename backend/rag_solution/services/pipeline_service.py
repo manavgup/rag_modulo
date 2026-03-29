@@ -58,6 +58,7 @@ class PipelineService:
         llm_provider_service: LLMProviderService | None = None,
         prompt_template_service: PromptTemplateService | None = None,
         llm_parameters_service: LLMParametersService | None = None,
+        llm_provider_factory: LLMProviderFactory | None = None,
     ) -> None:
         """Initialize service with database session and settings injection.
 
@@ -67,6 +68,10 @@ class PipelineService:
             llm_provider_service: Optional pre-constructed LLM provider service (shared instance)
             prompt_template_service: Optional pre-constructed prompt template service (shared instance)
             llm_parameters_service: Optional pre-constructed LLM parameters service (shared instance)
+            llm_provider_factory: Optional pre-constructed LLM provider factory (shared instance).
+                When provided, avoids creating a new factory (and its DB queries) during
+                ``_validate_configuration``.  Also propagated to the vector store for
+                embedding queries.
         """
         self.db = db
         if settings is None:
@@ -78,13 +83,17 @@ class PipelineService:
         self._llm_provider_service: LLMProviderService | None = llm_provider_service
         self._file_management_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
-        self._provider_factory: LLMProviderFactory | None = None
+        self._provider_factory: LLMProviderFactory | None = llm_provider_factory
 
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
         # Use factory with proper dependency injection
         factory = VectorStoreFactory(self.settings)
         self.vector_store = factory.get_datastore(self.settings.vector_db)
+
+        # Propagate factory to vector store for embedding queries
+        if self._provider_factory is not None and hasattr(self.vector_store, "_provider_factory"):
+            self.vector_store._provider_factory = self._provider_factory
         # Lazy initialize evaluator to avoid WatsonX client initialization at import time
         self._evaluator: RAGEvaluator | None = None
 
@@ -622,6 +631,10 @@ class PipelineService:
 
         if self._provider_factory is None:
             self._provider_factory = LLMProviderFactory(self.db, self.settings)
+            # Propagate factory to vector_store so embedding queries reuse it
+            # instead of creating a new DB session + factory per embedding call.
+            if hasattr(self.vector_store, "_provider_factory"):
+                self.vector_store._provider_factory = self._provider_factory
         provider = self._provider_factory.get_provider(provider_output.name)
         if not provider:
             raise ConfigurationError("llm_provider", "Failed to initialize LLM provider")
@@ -714,7 +727,9 @@ class PipelineService:
             logger.warning("Hierarchical retrieval failed: %s, returning original results", e)
             return results
 
-    def retrieve_documents_by_id(self, query: str, collection_id, top_k: int | None = None) -> list[QueryResult]:
+    def retrieve_documents_by_id(
+        self, query: str, collection_id: Any, top_k: int | None = None, vector_db_name: str | None = None
+    ) -> list[QueryResult]:
         """Retrieve documents using collection_id (modern pipeline interface).
 
         This is the preferred method for new code. It handles the collection_id
@@ -724,6 +739,8 @@ class PipelineService:
             query: The query text
             collection_id: UUID of the collection
             top_k: Number of documents to retrieve
+            vector_db_name: Optional pre-resolved Milvus collection name.
+                When provided, the DB query to look up the collection is skipped.
 
         Returns:
             List of query results
@@ -732,6 +749,9 @@ class PipelineService:
             ConfigurationError: If retrieval fails
             ValueError: If collection not found
         """
+        if vector_db_name:
+            return self._retrieve_documents(query, vector_db_name, top_k)
+
         from rag_solution.models.collection import Collection
 
         # Look up collection to get vector_db_name

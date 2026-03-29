@@ -185,7 +185,11 @@ class TestSearchImpl:
                     result = milvus_store._search_impl(request)
 
                     assert isinstance(result, list)
-                    mock_embed.assert_called_once_with("What is machine learning?", settings=milvus_store.settings)
+                    mock_embed.assert_called_once_with(
+                        "What is machine learning?",
+                        settings=milvus_store.settings,
+                        provider_factory=milvus_store._provider_factory,
+                    )
 
     def test_search_impl_missing_both_query_params(self, milvus_store):
         """Test that VectorSearchRequest validates query params at model creation."""

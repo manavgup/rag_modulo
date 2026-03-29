@@ -480,8 +480,9 @@ class TestCoordinateSearch:
             messages=messages_output,
         )
 
-        # Assert
-        assert result == sample_search_result
+        # Assert -- _coordinate_search now returns (search_result, pipeline_context)
+        search_result, _pipeline_context = result
+        assert search_result == sample_search_result
         mock_search_service.search.assert_called_once()
         call_args = mock_search_service.search.call_args[0][0]
         assert isinstance(call_args, SearchInput)

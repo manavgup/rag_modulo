@@ -382,7 +382,8 @@ class ConversationRepository:
 
             self.db.add(message)
             self.db.commit()
-            self.db.refresh(message)
+            # Note: db.refresh() removed -- id and created_at use Python-side defaults
+            # so they are already populated after commit (no server_default to fetch).
 
             logger.info(f"Created conversation message: {message.id}")
             return message
