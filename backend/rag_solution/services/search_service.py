@@ -18,6 +18,7 @@ from core.logging_utils import get_logger
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.llm_usage_schema import TokenWarning
+from rag_solution.schemas.pipeline_context import PipelineContext
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
@@ -518,17 +519,27 @@ class SearchService:
             raise ConfigurationError(f"Failed to create default pipeline for user {user_id}: {e}") from e
 
     @handle_search_errors
-    async def search(self, search_input: SearchInput) -> SearchOutput:
-        """Process a search query using modern pipeline architecture."""
-        logger.info("🔍 Processing search query: %s", search_input.question)
+    async def search(self, search_input: SearchInput, pipeline_context: PipelineContext | None = None) -> SearchOutput:
+        """Process a search query using modern pipeline architecture.
+
+        Args:
+            search_input: The search request parameters.
+            pipeline_context: Optional pre-fetched config snapshot.  When
+                provided the pipeline stages skip their individual DB queries
+                and read from this context instead, reducing total queries
+                from ~48 to ~3.
+        """
+        logger.info("Processing search query: %s", search_input.question)
 
         # Validate search input before executing pipeline
         self._validate_search_input(search_input)
         self._validate_collection_access(search_input.collection_id, search_input.user_id)
 
-        return await self._search_with_pipeline(search_input)
+        return await self._search_with_pipeline(search_input, pipeline_context=pipeline_context)
 
-    async def _search_with_pipeline(self, search_input: SearchInput) -> SearchOutput:
+    async def _search_with_pipeline(
+        self, search_input: SearchInput, pipeline_context: PipelineContext | None = None
+    ) -> SearchOutput:
         """New stage-based pipeline architecture (Week 4).
 
         This method uses the modern pipeline architecture with explicit stages:
@@ -544,16 +555,20 @@ class SearchService:
 
         Args:
             search_input: The search request
+            pipeline_context: Optional pre-fetched config snapshot.
 
         Returns:
             SearchOutput with answer, documents, and metadata
         """
-        logger.info("✨ Starting NEW pipeline architecture execution")
+        logger.info("Starting pipeline architecture execution")
         logger.info("Question: %s", search_input.question)
 
         # Create initial search context
         context = SearchContext(
-            search_input=search_input, user_id=search_input.user_id, collection_id=search_input.collection_id
+            search_input=search_input,
+            user_id=search_input.user_id,
+            collection_id=search_input.collection_id,
+            pipeline_context=pipeline_context,
         )
 
         # Create pipeline executor (pass empty list, stages will be added below)

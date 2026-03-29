@@ -73,6 +73,10 @@ class MilvusStore(VectorStore):
         self.index_params = {"metric_type": "COSINE", "index_type": "IVF_FLAT", "params": {"nlist": 1024}}
         self.search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
 
+        # Optional: reuse a caller-supplied LLMProviderFactory for embedding queries
+        # to avoid creating a new DB session + factory per embedding call.
+        self._provider_factory: "LLMProviderFactory | None" = None
+
     def _connect(self, attempts: int = 3) -> None:
         """Connect to Milvus with retry logic and connection reuse.
 
@@ -353,7 +357,9 @@ class MilvusStore(VectorStore):
             number_of_results,
         )
 
-        query_embeddings = get_embeddings_for_vector_store(query, settings=self.settings)
+        query_embeddings = get_embeddings_for_vector_store(
+            query, settings=self.settings, provider_factory=self._provider_factory
+        )
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
 
@@ -397,7 +403,9 @@ class MilvusStore(VectorStore):
             if request.query_vector:
                 query_embedding = request.query_vector
             elif request.query_text:
-                embeddings_list = get_embeddings_for_vector_store(request.query_text, settings=self.settings)
+                embeddings_list = get_embeddings_for_vector_store(
+                    request.query_text, settings=self.settings, provider_factory=self._provider_factory
+                )
                 if not embeddings_list:
                     raise DocumentError("Failed to generate embeddings for query text")
                 query_embedding = embeddings_list[0]

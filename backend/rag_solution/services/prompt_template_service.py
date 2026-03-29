@@ -40,6 +40,23 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to retrieve templates: {e!s}") from e
 
+    def get_by_id(self, template_id: UUID4) -> PromptTemplateOutput | None:
+        """Get a template by its primary key.
+
+        Args:
+            template_id: Template UUID
+
+        Returns:
+            PromptTemplateOutput if found, None otherwise
+        """
+        try:
+            template = self.repository.get_by_id(template_id)
+            return PromptTemplateOutput.model_validate(template)
+        except NotFoundError:
+            return None
+        except Exception as e:
+            raise ValidationError(f"Failed to retrieve template by ID: {e!s}") from e
+
     def get_by_type(self, user_id: UUID4, template_type: PromptTemplateType) -> PromptTemplateOutput | None:
         """Get single template by type and user ID.
 

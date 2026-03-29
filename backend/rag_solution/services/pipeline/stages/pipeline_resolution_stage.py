@@ -41,6 +41,10 @@ class PipelineResolutionStage(BaseStage):  # pylint: disable=too-few-public-meth
         """
         Execute pipeline resolution.
 
+        If a ``PipelineContext`` is already attached to the search context
+        (pre-fetched in a single composite query), use it directly and skip
+        the per-service DB queries entirely.
+
         Args:
             context: Current search context
 
@@ -53,7 +57,27 @@ class PipelineResolutionStage(BaseStage):  # pylint: disable=too-few-public-meth
         self._log_stage_start(context)
 
         try:
-            # Resolve user's default pipeline (creates if doesn't exist)
+            # Fast path: PipelineContext was pre-fetched -- skip DB queries
+            if context.pipeline_context is not None:
+                context.pipeline_id = context.pipeline_context.pipeline_id
+                context.collection_name = context.pipeline_context.vector_db_name
+                context.add_metadata(
+                    "pipeline_resolution",
+                    {
+                        "pipeline_id": str(context.pipeline_context.pipeline_id),
+                        "success": True,
+                        "source": "pipeline_context",
+                    },
+                )
+                logger.info(
+                    "Using pre-fetched PipelineContext for pipeline %s",
+                    context.pipeline_context.pipeline_id,
+                )
+                result = StageResult(success=True, context=context)
+                self._log_stage_complete(result)
+                return result
+
+            # Legacy path: resolve via individual DB queries
             pipeline_id = await self._resolve_user_default_pipeline(context.user_id)
 
             # Update context

@@ -70,7 +70,10 @@ class TestRetrievalStage:
         assert result.context.metadata["retrieval"]["results_count"] == 5
 
         mock_pipeline_service.retrieve_documents_by_id.assert_called_once_with(
-            query="enhanced test question", collection_id=search_context.collection_id, top_k=10
+            query="enhanced test question",
+            collection_id=search_context.collection_id,
+            top_k=10,
+            vector_db_name=None,
         )
 
     async def test_successful_retrieval_custom_top_k(
@@ -91,7 +94,10 @@ class TestRetrievalStage:
         assert result.context.metadata["retrieval"]["top_k"] == 20
 
         mock_pipeline_service.retrieve_documents_by_id.assert_called_once_with(
-            query="enhanced test question", collection_id=search_context.collection_id, top_k=20
+            query="enhanced test question",
+            collection_id=search_context.collection_id,
+            top_k=20,
+            vector_db_name=None,
         )
 
     async def test_retrieval_no_results(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.conversation_repository import ConversationRepository
+from rag_solution.repository.pipeline_context_repository import PipelineContextRepository
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     ConversationMessageOutput,
@@ -169,7 +170,10 @@ class MessageProcessingOrchestrator:
             # Simple token estimation for user message
             user_token_count = max(5, int(len(message_input.content.split()) * 1.3))  # Rough estimation
 
-        # 3. Store user message
+        # 3. Get existing messages BEFORE inserting (avoids a separate get_messages_by_session query after insert)
+        existing_messages = self.repository.get_messages_by_session(message_input.session_id)
+
+        # 4. Store user message
         user_message_input = ConversationMessageInput(
             session_id=message_input.session_id,
             content=message_input.content,
@@ -179,21 +183,21 @@ class MessageProcessingOrchestrator:
             token_count=int(user_token_count),
             execution_time=message_input.execution_time or 0.0,
         )
-        self.repository.create_message(user_message_input)
+        new_message = self.repository.create_message(user_message_input)
 
-        # 4. Get conversation messages and build context
-        messages = self.repository.get_messages_by_session(message_input.session_id)
-        messages_output = [ConversationMessageOutput.from_db_message(msg) for msg in messages]
+        # 5. Build messages list by appending the just-created message (skip re-query)
+        all_messages = [*existing_messages, new_message]
+        messages_output = [ConversationMessageOutput.from_db_message(msg) for msg in all_messages]
         context = await self.context_service.build_context_from_messages(message_input.session_id, messages_output)
 
-        # 5. Enhance question with conversation context
+        # 6. Enhance question with conversation context
         enhanced_question = await self.context_service.enhance_question_with_context(
             message_input.content,
             context.context_window,
             [msg.content for msg in messages_output[-5:]],  # Last 5 messages
         )
 
-        # 6. Extract and validate user-provided config_metadata from message input
+        # 7. Extract and validate user-provided config_metadata from message input
         user_config_metadata = None
         if message_input.metadata:
             raw_config = None
@@ -224,8 +228,8 @@ class MessageProcessingOrchestrator:
                 logger.error("❌ MESSAGE ORCHESTRATOR: Failed to extract config_metadata: %s", e)
                 # Continue without user config on unexpected errors
 
-        # 7. Execute search with context and user config
-        search_result = await self._coordinate_search(
+        # 8. Execute search with context and user config
+        search_result, pipeline_context = await self._coordinate_search(
             enhanced_question=enhanced_question,
             session_id=message_input.session_id,
             collection_id=session.collection_id,
@@ -235,12 +239,15 @@ class MessageProcessingOrchestrator:
             user_config_metadata=user_config_metadata,
         )
 
-        # 8. Serialize response and calculate tokens
+        # 9. Serialize response and calculate tokens
         serialized_response, assistant_response_tokens = await self._serialize_response(
-            search_result=search_result, user_token_count=user_token_count, user_id=session.user_id
+            search_result=search_result,
+            user_token_count=user_token_count,
+            user_id=session.user_id,
+            pipeline_context=pipeline_context,
         )
 
-        # 9. Store assistant message with full metadata
+        # 10. Store assistant message with full metadata
         assistant_message = await self._store_assistant_message(
             session_id=message_input.session_id,
             search_result=search_result,
@@ -248,6 +255,7 @@ class MessageProcessingOrchestrator:
             assistant_response_tokens=assistant_response_tokens,
             user_token_count=user_token_count,
             user_id=session.user_id,
+            pipeline_context=pipeline_context,
         )
 
         logger.info(
@@ -264,7 +272,7 @@ class MessageProcessingOrchestrator:
         context: Any,
         messages: list[ConversationMessageOutput],
         user_config_metadata: dict[str, Any] | None = None,
-    ) -> SearchResult:
+    ) -> tuple[SearchResult, Any]:
         """Coordinate search with conversation context.
 
         Args:
@@ -277,7 +285,9 @@ class MessageProcessingOrchestrator:
             user_config_metadata: Optional user-provided config metadata (e.g., structured_output_enabled)
 
         Returns:
-            Search result with answer, documents, and CoT output
+            Tuple of (SearchResult, PipelineContext or None) -- the context is
+            forwarded to post-generation methods so they can skip redundant
+            provider lookups.
         """
         # Validate IDs
         if not collection_id or not user_id:
@@ -308,17 +318,32 @@ class MessageProcessingOrchestrator:
             config_metadata=conversation_config,
         )
 
-        # Execute search - this will automatically use CoT if appropriate
-        search_result = await self.search_service.search(search_input)
+        # Pre-fetch all pipeline config in a single composite query (48 -> 3 queries)
+        pipeline_context = None
+        try:
+            ctx_repo = PipelineContextRepository(self.db)
+            pipeline_context = ctx_repo.get_context(user_id, collection_id)
+            if pipeline_context:
+                logger.info(
+                    "MESSAGE ORCHESTRATOR: Pre-fetched PipelineContext for pipeline %s", pipeline_context.pipeline_id
+                )
+            else:
+                logger.debug("MESSAGE ORCHESTRATOR: PipelineContext not available, falling back to legacy queries")
+        except Exception as e:
+            logger.warning("MESSAGE ORCHESTRATOR: Failed to pre-fetch PipelineContext: %s", e)
 
-        logger.info("📊 MESSAGE ORCHESTRATOR: Search completed successfully")
-        return search_result
+        # Execute search - this will automatically use CoT if appropriate
+        search_result = await self.search_service.search(search_input, pipeline_context=pipeline_context)
+
+        logger.info("MESSAGE ORCHESTRATOR: Search completed successfully")
+        return search_result, pipeline_context
 
     async def _serialize_response(
         self,
         search_result: SearchResult,
         user_token_count: int,  # noqa: ARG002
         user_id: UUID,
+        pipeline_context: Any = None,
     ) -> tuple[dict[str, Any], int]:
         """Serialize search result and calculate token usage.
 
@@ -326,6 +351,8 @@ class MessageProcessingOrchestrator:
             search_result: Search result from SearchService
             user_token_count: User message token count (unused, reserved for future enhancements)
             user_id: User ID
+            pipeline_context: Optional pre-fetched PipelineContext.  When provided,
+                skips the ``get_user_provider`` DB query for token estimation.
 
         Returns:
             Tuple of (serialized_response_dict, assistant_response_tokens)
@@ -384,26 +411,32 @@ class MessageProcessingOrchestrator:
 
         serialized_documents = self._serialize_documents(result_documents, result_query_results)
 
-        # Calculate assistant response tokens
-        try:
-            provider = self.llm_provider_service.get_user_provider(user_id)
-            provider_client = getattr(provider, "client", None) if provider else None
-            tokenize_method = getattr(provider_client, "tokenize", None) if provider_client else None
-
-            if tokenize_method:
-                try:
-                    assistant_tokens_result = tokenize_method(text=search_result.answer)
-                    assistant_response_tokens = len(assistant_tokens_result.get("result", []))
-                    logger.info("✅ Real token count from provider: assistant=%d", assistant_response_tokens)
-                except (ValueError, KeyError, AttributeError) as e:
-                    logger.info("Provider tokenize failed, using improved estimation: %s", str(e))
-                    assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
-            else:
-                assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
-
-        except (ValueError, KeyError, AttributeError) as e:
-            logger.info("Using improved token estimation: %s", str(e))
+        # Calculate assistant response tokens.
+        # When pipeline_context is available, skip the DB query for provider lookup
+        # and use token estimation directly (the real tokenizer is a nice-to-have,
+        # not worth an extra DB round-trip).
+        if pipeline_context is not None:
             assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
+        else:
+            try:
+                provider = self.llm_provider_service.get_user_provider(user_id)
+                provider_client = getattr(provider, "client", None) if provider else None
+                tokenize_method = getattr(provider_client, "tokenize", None) if provider_client else None
+
+                if tokenize_method:
+                    try:
+                        assistant_tokens_result = tokenize_method(text=search_result.answer)
+                        assistant_response_tokens = len(assistant_tokens_result.get("result", []))
+                        logger.info("✅ Real token count from provider: assistant=%d", assistant_response_tokens)
+                    except (ValueError, KeyError, AttributeError) as e:
+                        logger.info("Provider tokenize failed, using improved estimation: %s", str(e))
+                        assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
+                else:
+                    assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
+
+            except (ValueError, KeyError, AttributeError) as e:
+                logger.info("Using improved token estimation: %s", str(e))
+                assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
 
         # Add CoT token usage
         cot_token_usage = 0
@@ -441,6 +474,7 @@ class MessageProcessingOrchestrator:
         assistant_response_tokens: int,
         user_token_count: int,
         user_id: UUID,
+        pipeline_context: Any = None,
     ) -> ConversationMessageOutput:
         """Store assistant message with full metadata and token tracking.
 
@@ -451,6 +485,7 @@ class MessageProcessingOrchestrator:
             assistant_response_tokens: Assistant response token count
             user_token_count: User message token count
             user_id: User ID
+            pipeline_context: Optional pre-fetched PipelineContext
 
         Returns:
             Created assistant message
@@ -485,6 +520,7 @@ class MessageProcessingOrchestrator:
             user_token_count=user_token_count,
             assistant_response_tokens=assistant_response_tokens,
             user_id=user_id,
+            pipeline_context=pipeline_context,
         )
 
         # Build metadata dictionary
@@ -569,7 +605,11 @@ class MessageProcessingOrchestrator:
         return assistant_message_output
 
     async def _generate_token_warning(
-        self, user_token_count: int, assistant_response_tokens: int, user_id: UUID
+        self,
+        user_token_count: int,
+        assistant_response_tokens: int,
+        user_id: UUID,
+        pipeline_context: Any = None,
     ) -> dict[str, Any] | None:
         """Generate token warning if usage exceeds thresholds.
 
@@ -577,16 +617,22 @@ class MessageProcessingOrchestrator:
             user_token_count: User message token count
             assistant_response_tokens: Assistant response token count
             user_id: User ID
+            pipeline_context: Optional pre-fetched PipelineContext
 
         Returns:
             Token warning dictionary or None
         """
         try:
-            # Get model name from provider
-            provider = self.llm_provider_service.get_user_provider(user_id)
-            model_name = getattr(provider, "model_id", None) if provider else None
+            # Get model name -- prefer PipelineContext to avoid a DB query
+            model_name: str | None = None
+            if pipeline_context is not None and pipeline_context.models:
+                # Use the first model from the pre-fetched list
+                model_name = pipeline_context.models[0][0]
             if not model_name:
-                model_name = getattr(provider, "model_name", "default-model") if provider else "default-model"
+                provider = self.llm_provider_service.get_user_provider(user_id)
+                model_name = getattr(provider, "model_id", None) if provider else None
+                if not model_name:
+                    model_name = getattr(provider, "model_name", "default-model") if provider else "default-model"
 
             # Create LLMUsage object for warning check
             current_usage = LLMUsage(

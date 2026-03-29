@@ -9,6 +9,8 @@ import re
 from typing import Any
 
 from core.logging_utils import get_logger
+from rag_solution.generation.providers.base import LLMBase
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.structured_output_schema import StructuredOutputConfig
 from rag_solution.services.pipeline.base_stage import BaseStage, StageResult
 from rag_solution.services.pipeline.search_context import SearchContext
@@ -106,20 +108,39 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
         """
         Generate answer using LLM from documents.
 
+        When a ``PipelineContext`` is available on the search context the
+        expensive ``_validate_configuration`` / ``_get_templates`` DB queries
+        are skipped -- the provider is obtained directly from the factory using
+        the pre-fetched provider name, LLM parameters are built from the
+        pre-fetched context, and only 1 PK lookup is needed for the template.
+
         Args:
             context: Search context
 
         Returns:
             Generated answer text
         """
-        # Validate configuration and get required components
-        _, llm_parameters, provider = self.pipeline_service._validate_configuration(
-            context.pipeline_id,
-            context.user_id,  # pylint: disable=protected-access
-        )
+        pc = context.pipeline_context
+        if pc is not None and pc.template_id is not None:
+            # --- Fast path: use PipelineContext (skips ~9 DB queries) ---
+            provider, llm_parameters = self._resolve_provider_and_params(context)
 
-        # Get templates
-        rag_template, _ = self.pipeline_service._get_templates(context.user_id)  # pylint: disable=protected-access
+            # Single PK lookup for the template (replaces _get_templates' filter-by-type query)
+            rag_template = self.pipeline_service.prompt_template_service.get_by_id(pc.template_id)
+            if rag_template is None:
+                # Fallback to legacy path if template disappeared
+                logger.warning("Template %s not found, falling back to legacy path", pc.template_id)
+                return await self._generate_answer_from_documents_legacy(context)
+        else:
+            # --- Legacy path: full DB lookups ---
+            _, llm_parameters, provider = self.pipeline_service._validate_configuration(  # pylint: disable=protected-access
+                context.pipeline_id,
+                context.user_id,
+            )
+            rag_template, _ = self.pipeline_service._get_templates(context.user_id)  # pylint: disable=protected-access
+
+        # Store provider on context for potential reuse by structured-output fallback
+        context.provider_instance = provider
 
         # Format context from query results
         context_text = self.pipeline_service._format_context(  # pylint: disable=protected-access
@@ -139,6 +160,67 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
 
         return answer
 
+    async def _generate_answer_from_documents_legacy(self, context: SearchContext) -> str:
+        """Legacy path using full DB lookups (fallback when PipelineContext is incomplete)."""
+        _, llm_parameters, provider = self.pipeline_service._validate_configuration(  # pylint: disable=protected-access
+            context.pipeline_id,
+            context.user_id,
+        )
+        rag_template, _ = self.pipeline_service._get_templates(context.user_id)  # pylint: disable=protected-access
+        context_text = self.pipeline_service._format_context(  # pylint: disable=protected-access
+            rag_template.id, context.query_results
+        )
+        query = context.rewritten_query or context.search_input.question
+        self._log_llm_context(query, context_text, context.query_results, context.user_id)
+        answer = self.pipeline_service._generate_answer(  # pylint: disable=protected-access
+            context.user_id, query, context_text, provider, llm_parameters, rag_template
+        )
+        return answer
+
+    def _resolve_provider_and_params(self, context: SearchContext) -> tuple[LLMBase, LLMParametersInput]:
+        """Resolve provider and LLM parameters from PipelineContext (0 DB queries).
+
+        Uses the cached provider from the factory and builds LLMParametersInput
+        directly from the pre-fetched PipelineContext values.
+
+        Args:
+            context: Search context with pipeline_context set
+
+        Returns:
+            Tuple of (provider instance, LLM parameters)
+        """
+        pc = context.pipeline_context
+        assert pc is not None
+
+        # Reuse provider instance if already resolved earlier in the pipeline
+        if context.provider_instance is not None:
+            provider = context.provider_instance
+        else:
+            # Get provider from factory (cached after first creation, 0 DB queries)
+            if self.pipeline_service._provider_factory is None:  # pylint: disable=protected-access
+                from rag_solution.generation.providers.factory import LLMProviderFactory
+
+                self.pipeline_service._provider_factory = LLMProviderFactory(  # pylint: disable=protected-access
+                    self.pipeline_service.db, self.pipeline_service.settings
+                )
+            provider = self.pipeline_service._provider_factory.get_provider(  # pylint: disable=protected-access
+                pc.provider_name
+            )
+            context.provider_instance = provider
+
+        # Build LLM parameters from PipelineContext (no DB query)
+        llm_parameters = LLMParametersInput(
+            user_id=context.user_id,
+            name="pipeline_context_params",
+            max_new_tokens=pc.max_new_tokens,
+            temperature=pc.temperature,
+            top_k=pc.top_k,
+            top_p=pc.top_p,
+            repetition_penalty=pc.repetition_penalty,
+        )
+
+        return provider, llm_parameters
+
     async def _generate_structured_answer(self, context: SearchContext) -> str:
         """
         Generate structured answer with citations using LLM.
@@ -149,14 +231,20 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
         Returns:
             Generated answer text (extracted from structured answer)
         """
-        # Validate configuration and get required components
-        _, llm_parameters, provider = self.pipeline_service._validate_configuration(
-            context.pipeline_id,
-            context.user_id,  # pylint: disable=protected-access
-        )
-
-        # Get templates
-        rag_template, _ = self.pipeline_service._get_templates(context.user_id)  # pylint: disable=protected-access
+        pc = context.pipeline_context
+        if pc is not None and pc.template_id is not None:
+            provider, llm_parameters = self._resolve_provider_and_params(context)
+            rag_template = self.pipeline_service.prompt_template_service.get_by_id(pc.template_id)
+            if rag_template is None:
+                return await self._generate_answer_from_documents_legacy(context)
+        else:
+            _, llm_parameters, provider = self.pipeline_service._validate_configuration(  # pylint: disable=protected-access
+                context.pipeline_id,
+                context.user_id,
+            )
+            rag_template, _ = self.pipeline_service._get_templates(  # pylint: disable=protected-access
+                context.user_id
+            )
 
         # Build context documents from query results with metadata
         context_documents = []

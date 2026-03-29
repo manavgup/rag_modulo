@@ -426,8 +426,6 @@ class TestMessageOperations:
             message_metadata=sample_message_input.metadata or {},
             created_at=datetime.now(UTC),
         )
-        mock_db.refresh.side_effect = lambda x: setattr(x, "id", mock_message.id)
-
         # Act
         result = repository.create_message(sample_message_input)
 
@@ -435,7 +433,9 @@ class TestMessageOperations:
         assert isinstance(result, ConversationMessage)
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
+        # Note: db.refresh() was removed -- id and created_at use Python-side
+        # defaults so they are already populated after commit.
+        mock_db.refresh.assert_not_called()
 
     def test_create_message_session_not_found(
         self, repository: ConversationRepository, mock_db: MagicMock, sample_message_input: ConversationMessageInput

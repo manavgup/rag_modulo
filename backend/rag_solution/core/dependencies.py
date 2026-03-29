@@ -358,7 +358,6 @@ def get_message_processing_orchestrator(
     """
     from rag_solution.generation.providers.factory import LLMProviderFactory
     from rag_solution.repository.conversation_repository import ConversationRepository
-    from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
     from rag_solution.services.conversation_context_service import ConversationContextService
     from rag_solution.services.entity_extraction_service import EntityExtractionService
     from rag_solution.services.llm_model_service import LLMModelService
@@ -384,6 +383,7 @@ def get_message_processing_orchestrator(
         llm_provider_service=llm_provider_service,
         prompt_template_service=prompt_template_service,
         llm_parameters_service=llm_parameters_service,
+        llm_provider_factory=llm_provider_factory,
     )
     search_service = SearchService(
         db,
@@ -395,23 +395,9 @@ def get_message_processing_orchestrator(
     entity_extraction_service = EntityExtractionService(db, settings, provider_factory=llm_provider_factory)
     context_service = ConversationContextService(db, settings, entity_extraction_service)
 
-    # Create CoT service (optional)
+    # CoT is initialized lazily by SearchService.chain_of_thought_service on first use.
+    # Eager init here was triggering a DB query (get_default_provider) on every request.
     cot_service = None
-    try:
-        provider = llm_provider_service.get_default_provider()
-        if provider and hasattr(provider, "llm_base"):
-            cot_service = ChainOfThoughtService(
-                settings,
-                provider.llm_base,
-                search_service,
-                db,
-                llm_provider_service=llm_provider_service,
-                prompt_template_service=prompt_template_service,
-                token_tracking_service=token_tracking_service,
-            )
-    except Exception as e:
-        # CoT is optional, continue without it
-        logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
 
     return MessageProcessingOrchestrator(
         db=db,

@@ -70,9 +70,14 @@ class PipelineConfigBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_hybrid_retriever_config(self) -> "PipelineConfigBase":
-        """Validate hybrid retriever configuration."""
-        if self.retriever == RetrieverType.HYBRID and not self.config_metadata:
-            raise ValueError("Hybrid retriever requires configuration in metadata")
+        """Validate hybrid retriever configuration.
+
+        Note: Validation removed (perf/pipeline-context-3-queries).
+        The old check rejected hybrid retrievers without config_metadata,
+        which triggered a 9-query cascade on every search when the DB had
+        ``retriever='hybrid'`` with ``config_metadata=NULL``.  The retriever
+        type is now normalised at the DB level instead.
+        """
         return self
 
 

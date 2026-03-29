@@ -13,6 +13,7 @@ from pydantic import UUID4
 
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
 from rag_solution.schemas.llm_usage_schema import TokenWarning
+from rag_solution.schemas.pipeline_context import PipelineContext
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.schemas.structured_output_schema import StructuredAnswer
 from vectordbs.data_types import DocumentMetadata, QueryResult
@@ -64,11 +65,15 @@ class SearchContext:  # pylint: disable=too-many-instance-attributes
     # Pipeline Configuration
     pipeline_id: UUID4 | None = None
     collection_name: str | None = None
+    pipeline_context: PipelineContext | None = None
 
     # Retrieval Results
     query_results: list[QueryResult] = field(default_factory=list)
     rewritten_query: str | None = None
     document_metadata: list[DocumentMetadata] = field(default_factory=list)
+
+    # Provider instance (shared across stages to avoid re-creation)
+    provider_instance: Any = None
 
     # Generation Results
     generated_answer: str = ""

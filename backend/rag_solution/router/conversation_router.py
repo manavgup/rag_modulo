@@ -713,7 +713,8 @@ async def process_user_message(
         message_data.session_id = session_id
 
         # Use MessageProcessingOrchestrator for comprehensive message processing
-        response = await orchestrator.process_user_message(message_data)
+        # Pass pre-fetched session to skip redundant DB query
+        response = await orchestrator.process_user_message(message_data, session=session)
         logger.info("Processed message for session %s for user %s", str(session_id), str(user_id))
         return response
 
