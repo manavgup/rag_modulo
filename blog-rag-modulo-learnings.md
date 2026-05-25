@@ -583,6 +583,26 @@ If you fork: merge or cherry-pick #786 first, then run `make test-unit-fast` and
 | PRs to fix one deployment | 7 ([#633](https://github.com/manavgup/rag_modulo/pull/633)–[#640](https://github.com/manavgup/rag_modulo/pull/640)) |
 | Hotfixes for AI-introduced bugs | 12+ (e.g. #583, #587, #631, #775) |
 
+### When the Coding Actually Happened ([gitnapped](https://github.com/Solexma/gitnapped))
+
+Half the commits on this project happened outside working hours. `gitnapped` analyzes
+git timestamps to show when you were "gitnapped" — coding when you should have been sleeping.
+
+| Contributor | Commits | Gitnapped (outside 9–5) | Most Active Day |
+|---|---|---|---|
+| Manav Gupta | 1,037 | **53%** (556) | Aug 28, 2025 (48 commits) |
+| Maksym Tykhenko | 87 | 34% (30) | Nov 28, 2024 (13 commits) |
+| Luiz Almeida | 29 | 44% (13) | Oct 15, 2024 (7 commits) |
+| JS Lecointre | 25 | 48% (12) | Nov 11, 2024 (13 commits) |
+| **All authors** | **1,217** | **50%** (617) | **Aug 28, 2025** (58 commits) |
+
+Even with an extended 8am–10pm window, 28% of my commits were still late-night or early-morning.
+The most active day — August 28, 2025 — was the return from a 6-month pause,
+when I came back with Claude Code and fixed 643 linting issues in a single session.
+
+**Codebase at archive**: 1,149 files, 363,384 lines of code
+(613 `.py`, 281 `.md`, 61 `.tsx`, 42 `.yml`, 20 `.tf`).
+
 ### Methodology (for reproducibility)
 
 ```bash
@@ -590,6 +610,7 @@ git rev-list --count --all
 poetry run pytest --collect-only -q
 gh pr list --state all --limit 500 --json number,state,mergedAt,additions,deletions
 git log --all --format='%B' | grep -ci 'co-authored-by.*claude'
+gitnapped -d . -p 2Y -a "Manav Gupta" --most-active-day --show-total-stats --pretty
 ```
 
 ---
