@@ -1,0 +1,599 @@
+# Turning AI Slop Into a Production RAG Platform: Lessons from a failure
+
+*22 months. 446 PRs. 70,000+ lines of AI-generated garbage deleted. 2,615 tests. This article provides lessons learned building with AI agents.*
+
+---
+
+I'm archiving [RAG Modulo](https://github.com/manavgup/rag_modulo), a modular Retrieval-Augmented Generation platform I tried to build from May 2024 to March 2026. Python/FastAPI backend, React frontend, 5 vector databases, 3 LLM providers, and **2,615** automated tests (`poetry run pytest --collect-only`, March 2026).
+
+This article is about what happens when you use AI agents to build a real system over almost two years, the bugs they introduce, the slop they generate.
+
+AI Agents can be surprisingly good work they produce when you learn to direct them. And the things that go wrong that no tutorial prepares you for.
+
+I started building this as the models were getting better, Cline & Cursor were just introduced and the models were improving. This is the evolution of both the AI models, the scaffolding around them, and myself as a python programmer. Full disclosure - this was my first serious foray with Python after years of C/C++/Java/Perl.
+
+## What I Was Trying to Build
+
+![RAG Modulo Architecture](diagrams/06-architecture.svg)
+
+A modular RAG platform where every piece was swappable: any vector database, any LLM provider, any chunking strategy. The architecture ended up as strict 3-layer separation — **Router** (thin HTTP) → **Service** (business logic) → **Repository** (data access) — with 37 services, 21 repositories, 18 routers, and factory patterns for both LLM providers and vector stores.
+
+Deeper architecture notes live in [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md). Trace write-ups for the worst bugs: [`docs/debug/issue-773-rag-quality-investigation.md`](docs/debug/issue-773-rag-quality-investigation.md), [`docs/debug/issue-777-db-query-trace.md`](docs/debug/issue-777-db-query-trace.md).
+
+## How It Evolved
+
+![Evolution Timeline](diagrams/07-evolution-timeline.svg)
+
+The project had distinct eras, visible in the PR history:
+
+**May–Jul 2024: Learning Python with vector stores.** The first commits tell the real story: `"fixing milvus_storev2.py WIP"`, `"getting closer on milvus_store.py"`, `"happy with elasticsearch_store.py and the test cases"`. I was a C/C++/Java/Perl developer building my first serious Python project. I started with the hard part — getting 5 different vector databases working behind a common interface — because that was the piece I couldn't find a good library for.
+
+**Aug–Oct 2024: A team shows up.** Contributors joined: @mtykhenko brought build discipline (Poetry, modular Docker Compose, containerized tests), @luizerico built the Carbon Design UI, @jslecointre added MLFlow for evaluation. The project went from "one person's experiment" to "something with CI/CD, auth, and a real frontend." PRs like `"Merge duplicating/confusing APIs, rename resources"` (#22) show the growing pains of multiple people touching the same codebase.
+
+**Nov–Dec 2024: Actual RAG features.** Replaced the genai SDK with WatsonX (#30). Added question suggestion, async search, document processing. Then the big bet: multi-LLM provider architecture with Anthropic, OpenAI, and WatsonX behind a factory pattern (#71). December was a sprint — 22 PRs merged, mostly by me, building the configuration management system that would later balloon into 37 services.
+
+**Feb–Jul 2025: The pause.** Six months of near-zero activity. Life happened.
+
+**Aug–Sep 2025: Return with AI.** Came back with Claude Code as my primary tool. The first thing it did was fix 643 linting issues (#148). Then Chain of Thought reasoning (#230), conversation interface (#232), and a 7-phase defensive programming cleanup. This is when the velocity changed — 60 PRs in two months, most co-authored with Claude. But also when the AI slop started accumulating.
+
+**Oct 2025: The explosion.** 98 PRs merged in a single month. Podcasts, Docling integration, reranking, secret scanning, reusable UI components, search re-architecture from the ground up (#551). Also: a 16-PR saga trying to set up Codex automation (PRs #367-#382) — every single one failed. And the AI agent artifacts were piling up silently.
+
+**Nov 2025: Ship and fix.** Conversation refactoring (7 phases), structured output, MCP Gateway — real features shipped. But also: TRUNCATE_INPUT_TOKENS bug (#564) that broke all search, the deployment death march (#633-#640), and the first big cleanup (#584, -26K lines).
+
+**Mar 2026: The reckoning.** The Great AI Slop Cleanup (-44,777 lines). Trivy supply chain attack. CoT auto-detection fix. Hallucination investigation. DI optimization (8 PRs). PipelineContext. And finally, LESSONS_LEARNED.md — the artifact that made this blog post possible.
+
+---
+
+## PR Stats for rag_modulo
+
+Before the war stories: verified GitHub stats (May 2026).
+
+| Metric | Value |
+|---|---|
+| Pull requests (all states) | **446** (340 merged, 70 closed, 36 open) |
+| Commits (`git rev-list --all`) | **1,934** (~1,231 on `main` at archive time) |
+| Peak merge months | **Oct 2025: 101**, **Nov 2025: 88**, Sep 2025: 42 |
+| Largest merged PR | **#760** — +356 / −44,777 (deletion, not feature work) |
+| In-flight at archive | **#786** — PipelineContext (48+ DB queries → 3–4 per search) |
+
+**AI involvement in git history** (counted across all refs, `Co-authored-by` / author field):
+
+| Signal | Count |
+|---|---|
+| Commit bodies mentioning Claude co-author | **625** |
+| Commits with author `Claude` | **50** |
+| Commits from `google-labs-jules[bot]` | **17** |
+| Dependabot in `git shortlog` | **60** |
+
+Percentages depend on how you count (one co-authored line vs. primary author). Treat **~25–30% of commit history as AI-touched** as an order-of-magnitude truth, not a precise KPI.
+
+**Velocity vs. quality:** Post–Claude Code months merged more PRs per week, but median human PR time-to-merge rose (more multi-step sequences like #778–#785, more review). Raw PR count is a throughput metric, not a quality metric.
+
+---
+
+## Part 1: Working With AI Agents
+
+### The story in numbers
+
+Of **1,934** commits across all branches (first commit: 2024-05-05):
+
+- **625** commit messages include a Claude `Co-authored-by` trailer (human directed, AI executed)
+- **50** were authored entirely by Claude
+- **17** from Google Jules ([PR #685](https://github.com/manavgup/rag_modulo/pull/685) was the useful one)
+- **60** from Dependabot
+- The rest were human-written (plus contributors like [@mtykhenko](https://github.com/mtykhenko))
+
+The story isn't in the percentages — it's in *which* commits were which, and what happened after.
+
+### The 44,000-Line Cleanup ([#760](https://github.com/manavgup/rag_modulo/pull/760))
+
+The single most important PR in the project's history was a **deletion**. PR #760: +356 / -44,777. Two hundred and one files changed.
+
+![PR #760: The Great AI Slop Cleanup](diagrams/01-ai-slop-cleanup.svg)
+
+What happened: over the course of development, various AI coding tools and frameworks had deposited their artifacts into the repository. The `.claude/` directory had become a graveyard of generic configurations from tools I'd experimented with — Claude Flow, Hive Mind, Swarm, and others. Each left behind agent definitions, commands, and skills. By early 2026, the directory contained:
+
+- **80 agent definition files** (I needed 19) — including byzantine-coordinator, gossip-coordinator, quorum-manager, CRDT-synchronizer, and an entire consensus framework with 6 files totaling 3,400+ lines
+- **104 command files** (I needed 4) — spanning 13 directories: agents, analysis, automation, coordination, github, hive-mind, hooks, monitoring, optimization, sparc, swarm, training, and workflows
+- **25 generic skill files** (I needed 3) — agentdb-advanced, agentdb-learning, agentdb-vector-search, flow-nexus-neural, flow-nexus-platform, hive-mind-advanced, reasoningbank-intelligence, sparc-methodology, stream-chain, swarm-orchestration, and more
+- A 1,025-line `CLAUDE.md` file (I needed 63 lines)
+
+These weren't just dead files. They were **actively consuming tokens** — approximately 20-30K tokens loaded into context on every Claude Code session start. The AI was reading its own bloated output from previous sessions and using it to inform new work, compounding the problem. A single 997-line `crdt-synchronizer.md` agent definition — for a consensus protocol I never implemented — was eating more context than my entire project configuration needed.
+
+**The fix was four commits**:
+
+1. Slim CLAUDE.md from 1,025 to 63 lines
+2. Delete 60+ generic agents (-20,847 lines across 60 files)
+3. Delete 104 generic commands (-3,974 lines across 99 files)
+4. Replace 25 generic skills with 3 project-specific ones (-18,938 lines across 29 files)
+
+Add component-specific CLAUDE.md files (backend, frontend, tests, .github) and 3 project rules (python-style, security, git-commits). Net result: context cost per session dropped from ~20-30K tokens to ~2-3K.
+
+**What I learned**: AI agents are prolific generators of configuration scaffolding. Left unchecked, they build elaborate meta-frameworks around your actual project. You need a human with a machete, not a scalpel, to periodically cut it back. And you need to do it *before* the bloat starts degrading the AI's own performance — because it will read all that junk and use it to produce more junk.
+
+The same pattern happened in the codebase proper. [#584](https://github.com/manavgup/rag_modulo/pull/584) deleted **106 files** and **26,353 lines**: backup conftest files, disabled test files, duplicate AGENTS.md files, migration scripts, root-level test scripts, session summaries, implementation plans, analysis docs, TDD summaries. All generated during development sessions, none maintained afterward.
+
+**Rule #1 of AI-assisted development: schedule regular garbage collection.** Not of code — of artifacts. The AI leaves breadcrumbs everywhere, and they accumulate into a maze.
+
+### How Google Jules Fixed My Docker Build ([#685](https://github.com/manavgup/rag_modulo/pull/685))
+
+One PR came from Google Jules, Google's AI coding agent. The task: fix a failing Docker build cache issue in the security scanning workflow. Jules' solution: disable the cache entirely.
+
+> *"This is a temporary workaround to address the immediate issue of the failing build. The root cause of the caching issue should be investigated further."*
+
+The PR was 109 additions, 11 deletions, across 5 files. It worked. The build passed. But the "temporary workaround" note is telling — **AI agents are honest about their limitations when you let them be**. Jules correctly identified that disabling the cache was a band-aid, not a fix. A human developer might have done the same thing under time pressure but wouldn't have flagged it as clearly.
+
+**What I learned**: AI agents are useful as first responders. They can unblock CI, fix the immediate problem, and clearly document what they didn't solve. The danger is when you don't follow up on their "investigate further" notes.
+
+### The Hallucination Investigation ([#773](https://github.com/manavgup/rag_modulo/issues/773) / [#775](https://github.com/manavgup/rag_modulo/pull/775))
+
+This is the story that convinced me AI agents need supervision, not autonomy.
+
+![Anatomy of a RAG Hallucination](diagrams/04-hallucination-trace.svg)
+
+A user searched: *"what were the ibm results in 2020?"*
+
+- **Expected**: Revenue $73.6B, Net Income $5.59B, EPS $6.13
+- **Got (v1)**: Hallucinated data — Net Income $15.8B, EPS $7.52 — **completely fabricated numbers**
+- **Got (v2)**: Wall of narrative about COVID and digital transformation, zero financial figures
+- **Got (v3)**: Same narrative, 23-second response time
+
+I wrote a [full investigation document](docs/debug/issue-773-rag-quality-investigation.md) tracing the problem through every pipeline stage (reproducible ranks from direct Milvus inspection). The root cause chain:
+
+1. **Vector search systematically missed financial tables.** Chunk 46 (the actual financial summary: "Revenue $73,620M, Net Income $5,590M") ranked **72nd** out of 761 chunks. Flat tabular text like `"Revenue, 2020 = $ 73,620"` has low cosine similarity to natural language queries like "what were the ibm results."
+
+2. **The keyword search was silently crashing.** A `Source.PDF` enum bug caused TF-IDF retrieval to return 0 results, so RRF fusion was effectively pure vector search. Nobody noticed because the pipeline doesn't fail when a stage returns empty — it just proceeds with fewer candidates.
+
+3. **The cross-encoder reranker made it worse.** It scored narrative chunks (CEO letter, COVID overview) higher than tabular data, because narrative text is more "similar" to a broad query like "results."
+
+4. **The faithfulness constraint worked — sort of.** After I added `CRITICAL: Answer using ONLY the context provided`, the LLM stopped hallucinating numbers. But it couldn't produce financial data that wasn't in its context window, so it gave a coherent-but-useless narrative answer instead.
+
+5. **Entity extraction was appending junk to queries.** The query `"what were ibm results in 2020?"` was being rewritten to `"what were ibm results in 2020? (in the context of 2020)"` — and the LLM was treating the parenthetical as part of the prompt to continue, not as a query.
+
+The fix ([#775](https://github.com/manavgup/rag_modulo/pull/775)) was 489 lines: faithfulness constraints on all prompts, entity dedup fix, prompt boundary markers between instructions and context (building on [#771](https://github.com/manavgup/rag_modulo/pull/771)). But the real lesson was **how the problem composed**. Five independent, individually-reasonable design decisions combined to produce fabricated financial data. No single component was "wrong."
+
+**What I learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method we used in the [#773 investigation doc](docs/debug/issue-773-rag-quality-investigation.md).
+
+### The Bug That Cost 8 Seconds Per Query ([#769](https://github.com/manavgup/rag_modulo/pull/769))
+
+The frontend component `LightweightSearchInterface.tsx` had been sending `cot_enabled: true` in `config_metadata` on **every** search request. That overrode the backend's automatic complexity detection, forcing Chain of Thought on simple factual lookups.
+
+Result: every search took ~18 seconds instead of ~10 seconds. The extra 8 seconds was a WatsonX LLM call to decompose a simple question into sub-questions, search each, and synthesize — all unnecessary.
+
+The frontend change (Claude, in that session) added `cot_enabled: true` so CoT was easy to exercise during development. It was never removed. The backend had good auto-detection; the frontend override won.
+
+**Fixed in #769** (tighter CoT triggers + frontend only sends `cot_enabled: false` when structured output requires it). If you fork the repo, grep for `cot_enabled` before you trust latency numbers.
+
+**What I learned**: AI agents writing frontend code will add development defaults that make features testable — and then forget to remove them. Same class of bug humans make; AI makes it more often because "make it work now" beats "remove the dev flag."
+
+### The Config Passthrough Bug ([#631](https://github.com/manavgup/rag_modulo/pull/631))
+
+For weeks, user configuration from the frontend (structured output toggle, CoT toggle, show reasoning steps) was being **silently ignored** by the backend. The frontend sent `config_metadata` as a top-level field. The backend expected it nested inside `metadata.config_metadata`.
+
+926 lines changed to fix it. The data flow was: Frontend → MessageOrchestrator → SearchService → GenerationStage. The config was being lost at the first hop because the message schema expected a different nesting structure.
+
+**Impact**: The "Enable Citations" toggle didn't work. Users couldn't disable CoT. Preferences were ignored silently — no error, no warning, just defaults.
+
+This is the kind of bug AI agents create routinely: **interface mismatches between components they wrote at different times**. Claude wrote the frontend API client in one session and the backend orchestrator in another. Each session's code was internally consistent, but they disagreed on the schema shape. The mismatch was invisible until someone manually tested the toggle.
+
+**What I learned**: When AI agents write both sides of an API boundary, they can't be trusted to keep the contract consistent across sessions. You need integration tests that verify the full path, not just unit tests on each side. Or better: generate the client from the server's OpenAPI spec.
+
+---
+
+## Part 2: The Things That Go Wrong
+
+### Trace-Driven Debugging (Issues #773 and #777)
+
+The two investigations that changed how I work:
+
+1. **[#773 — RAG quality](docs/debug/issue-773-rag-quality-investigation.md)** — One query (*"what were the ibm results in 2020?"*). Direct Milvus inspection proved chunk 46 (the financial summary) ranked **72nd of 761**. Keyword search returned zero (silent `Source.PDF` enum crash). Reranking promoted narrative chunks. Generation was faithful to bad context — so v2/v3 weren't "hallucinations" in the classic sense; they were **correct answers to wrong retrieval**.
+
+2. **[#777 — DB query trace](docs/debug/issue-777-db-query-trace.md)** — One search request, **44 numbered SQL queries** mapped to call sites (duplicate `get_session` from frontend, orchestrator re-fetch, per-stage provider lookups). Fix: frozen snapshot threaded through stages:
+
+```7:14:backend/rag_solution/schemas/pipeline_context.py
+@dataclass(frozen=True)
+class PipelineContext:
+    """Read-only config snapshot for the search pipeline.
+
+    Fetched once per request via ``PipelineContextRepository.get_context()``,
+    then threaded through all pipeline stages so they never need to hit the DB
+    individually.
+    """
+```
+
+**Rule**: For RAG systems, keep investigation artifacts in-repo (rank tables, query maps). They're more valuable than another architecture PDF.
+
+### The TRUNCATE_INPUT_TOKENS Disaster (PR #564)
+
+A single configuration parameter — `TRUNCATE_INPUT_TOKENS: 3` in the WatsonX embedding config — was silently truncating every search query to **3 tokens** before generating embeddings.
+
+The query *"What percentage of IBM's workforce consists of women?"* (12 tokens) was being embedded as roughly *"What percentage of"*. The semantic information was destroyed. Wrong embeddings produced wrong chunks, which produced wrong answers.
+
+**This went undetected through thousands of unit tests** — every embedding path was mocked, so the suite stayed green. The bug surfaced only when someone manually compared search results between the direct Milvus path and the API path (`backend/dev_tests/manual/test_search_comparison.py`).
+
+We locked the fix in with an explicit regression test — default embed params must **not** include truncation:
+
+```19:37:tests/unit/services/test_watsonx.py
+    def test_get_wx_embeddings_client_no_truncation_in_defaults(self, integration_settings):
+        """Test that default embed_params does NOT include TRUNCATE_INPUT_TOKENS.
+
+        This validates the fix for the embedding truncation bug where
+        TRUNCATE_INPUT_TOKENS: 3 was destroying semantic meaning.
+        """
+        ...
+            assert EmbedParams.TRUNCATE_INPUT_TOKENS not in params
+```
+
+The production code still documents the incident in comments on `backend/vectordbs/utils/watsonx.py`.
+
+**What I learned**: If you mock your external services in every test, you can ship a bug that fundamentally breaks your core functionality and your entire test suite will be green. Integration tests that hit real embeddings aren't optional for RAG. The embedding configuration was one parameter; it broke everything downstream.
+
+### The Seven-Phase Conversation Refactoring Saga
+
+The conversation system started with three separate repositories (`ConversationSessionRepository`, `ConversationMessageRepository`, `ConversationSummaryRepository`), three separate models, and a monolithic `ConversationService` with a 423-line `process_user_message()` method.
+
+The consolidation was planned as 7 phases:
+
+| Phase | PR | Result |
+|---|---|---|
+| Phase 1-2: Model/Schema unification | #576 | +3,580 lines, shipped successfully |
+| Phase 3: Service consolidation | #576 | Introduced critical blockers |
+| Phase 3 hotfix | #583 | Fixed parameter name mismatch (`user_token_count` vs `_user_token_count`) |
+| Phase 3 hotfix #2 | #587 | Fixed repository returning Pydantic schemas instead of DB models — broke all chat |
+| Phase 4: Router unification | #589 | +1,157 lines |
+| Phase 5: Testing | #590 | +2,339 lines of test code |
+| Phase 6: Frontend migration | #591 | +65 lines (mercifully small) |
+| Phase 7: Cleanup | #592 | -2,469 lines (the payoff) |
+
+Phase 3 is where it got ugly. The AI-authored service consolidation (PR #576) introduced two bugs:
+
+1. A **parameter name mismatch** — one method expected `user_token_count`, the caller passed `_user_token_count` with a leading underscore. Three tests were skipped rather than fixed.
+2. A **layer violation** — the repository was converting DB models to Pydantic schemas, then the service was trying to convert them *again*. The `from_db_message()` call received an already-converted object and crashed with `AttributeError: 'ConversationMessageOutput' object has no attribute 'message_metadata'`.
+
+The second bug **completely broke chat functionality**. Users couldn't send messages. The first 500 a new contributor hit on local setup was [@mtykhenko](https://github.com/mtykhenko) — not an edge case, the happy path ([#587](https://github.com/manavgup/rag_modulo/pull/587)). Later, the same contributor fixed first-run friction in [#717](https://github.com/manavgup/rag_modulo/pull/717) / [#718](https://github.com/manavgup/rag_modulo/pull/718) (orphaned Vite processes, env naming). **Human contributors catch what AI review misses** because they actually run `make local-dev-all`.
+
+**What I learned**: AI agents are capable of executing large refactoring plans — Phase 1-2 shipped cleanly, Phase 4 shipped cleanly. But the complex phases (service consolidation with cross-cutting dependencies) produce subtle interface bugs. The pattern: AI writes both the old interface and the new interface, and introduces a mismatch that compiles but fails at runtime. **The leading underscore on a parameter name** is exactly the kind of thing an AI agent won't notice — it's a Python convention for "unused," and the AI was being "clean" by adding it.
+
+### The Deployment Death March (PRs #633–#640)
+
+Seven PRs in two days to fix one deployment:
+
+1. **#633**: Replace missing shell scripts with inline CLI commands (the scripts were referenced but never committed)
+2. **#634**: Remove Ansible version constraints that blocked installation
+3. **#635**: Hotfix — pin `community.kubernetes` to 2.0.1 (wrong version resolved)
+4. **#636**: Pin ALL Ansible packages to locally-verified versions (the global fix)
+5. **#637**: Replace failing IBM Cloud CLI `curl` installation (the install URL was returning an HTML documentation page instead of the script)
+6. **#638**: Additional IBM Cloud CLI fixes
+7. **#639-#640**: Add ca-tor region mapping for IBM Container Registry (region code wasn't in the mapping table)
+
+Each fix revealed the next problem. The shell scripts in #633 had been referenced in the workflow but never existed — an AI agent had written the workflow referencing scripts it planned to create later, but the scripts were never committed. The Ansible version constraints in #634 were auto-generated and pointed to incompatible combinations. The IBM Cloud CLI installation in #637 failed because a third-party URL changed from serving a script to serving an HTML page.
+
+**What I learned**: Infrastructure-as-code is where AI agents are most dangerous. They generate plausible configurations that reference resources that don't exist, version combinations that haven't been tested together, and external URLs that may have changed. The blast radius is large (broken deployments, CI failures visible to the whole team) and the feedback loop is slow (you have to push and wait for CI to discover the problem).
+
+### The Supply Chain Attack (PR #766)
+
+In March 2026, the Trivy GitHub Action was compromised. Attackers force-pushed malicious commits to version tags and `master`, injecting a three-stage credential harvester that exfiltrated CI secrets — environment variables, SSH keys, cloud credentials.
+
+I had 14 references to `aquasecurity/trivy-action@master` across 5 workflow files. All were vulnerable.
+
+PR #766 pinned every reference to a known-safe SHA: `aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1`. The PR also included a manual checklist: rotate CI/CD secrets, review audit logs, check for IOCs, block the exfiltration domain.
+
+**What I learned**: Pin your GitHub Actions to SHAs, not tags. Tags can be force-pushed. This isn't theoretical — it happened to me. And it happened specifically to the *security scanning* tool. The irony was not lost.
+
+---
+
+## Part 3: How to Guide AI Agents (The Hard-Won Playbook)
+
+After hundreds of Claude co-authored commits and 50 fully AI-authored ones, here's what I learned about making AI agents productive instead of destructive:
+
+### 1. Break Work Into Small, Sequenced PRs
+
+The DI optimization ([Issue #777](https://github.com/manavgup/rag_modulo/issues/777)) was executed as **8 merged PRs** plus one still open at archive time:
+
+| PR | Scope | Lines Changed | Status |
+|---|---|---|---|
+| [#778](https://github.com/manavgup/rag_modulo/pull/778) | Change eager to lazy loading on 2 models | +14/-9 | Merged |
+| [#779](https://github.com/manavgup/rag_modulo/pull/779) | Pass session from router to orchestrator | +13/-8 | Merged |
+| [#780](https://github.com/manavgup/rag_modulo/pull/780) | Add request-scoped ConfigCache | +176/-0 | Merged |
+| [#781](https://github.com/manavgup/rag_modulo/pull/781) | Move business logic from routers to services | +31/-27 | Merged |
+| [#782](https://github.com/manavgup/rag_modulo/pull/782) | Share service instances | +85/-23 | Merged |
+| [#783](https://github.com/manavgup/rag_modulo/pull/783) | Centralize factories in dependencies.py | +286/-383 | Merged |
+| [#784](https://github.com/manavgup/rag_modulo/pull/784) | Wire shared instances in orchestrator factory | +34/-8 | Merged |
+| [#785](https://github.com/manavgup/rag_modulo/pull/785) | Inject PipelineService into SearchService | +25/-2 | Merged |
+| [#786](https://github.com/manavgup/rag_modulo/pull/786) | PipelineContext — composite config fetch | +547/-103 | **Open** |
+
+Each merged PR was reviewable in isolation and revertible. The open #786 PR is the capstone: one composite query instead of dozens per search (see [query trace doc](docs/debug/issue-777-db-query-trace.md)).
+
+Compare this with the conversation refactoring, where Phase 3 (PR #576, +3,580 lines) shipped with critical blockers that required two follow-up hotfix PRs. **The smaller the PR, the fewer the bugs** — not because less code means fewer bugs per line, but because the AI agent can hold the entire change in context and maintain consistency.
+
+### 2. Don't Let the AI Skip Tests
+
+Three tests in PR #576 were **skipped** rather than fixed:
+
+```python
+@pytest.mark.skip(reason="Parameter mismatch needs investigation")
+```
+
+The AI agent wrote the code, encountered a test failure it didn't understand, and skipped the test to keep the PR green. This is the AI equivalent of `// TODO: fix this later` — except the AI won't remember later.
+
+Those three skipped tests were hiding a parameter name mismatch that broke production chat functionality. PR #583 un-skipped them, fixed the mismatch, and all 19 tests passed.
+
+**Rule**: Never let an AI agent mark tests as skipped. If a test fails, the test is telling you something. Either the test is wrong (update it) or the code is wrong (fix it). Skipping is not an option.
+
+### 3. Verify the Interface, Not Just the Implementation
+
+The most common class of AI-introduced bug was **interface mismatches between components**:
+
+- Frontend sending `config_metadata` at the wrong nesting level (#631)
+- Repository returning Pydantic schemas instead of DB models (#587)
+- `structured_answer` not being passed through `SearchOutput` (#632)
+- Entity extraction appending redundant query suffixes (#775)
+
+Each component worked correctly in isolation. The bugs lived at the boundaries. AI agents are excellent at implementing a component given a spec, but they can't reliably maintain interface contracts across sessions.
+
+**Rule**: After any AI-authored change that touches multiple components, write (or require) an integration test that exercises the full path. Not "does the service return the right shape" but "does the frontend toggle actually change the backend behavior."
+
+### 4. Watch for Reasonable-Looking Defaults That Are Wrong
+
+- `TRUNCATE_INPUT_TOKENS: 3` looked like a reasonable config value — it wasn't, it destroyed all semantic information (#564)
+- `cot_enabled: true` looked like a sensible development default — it wasn't, it added 8 seconds to every query (#769)
+- `@master` for GitHub Actions looked like standard practice — it wasn't, it was a supply chain attack vector (#766)
+
+AI agents are confident in their defaults. They pick values that look reasonable and move on. They don't test edge cases of configuration values. They don't think about "what happens when this default reaches production."
+
+**Rule**: Review every default value an AI agent sets. Especially: numerical parameters, boolean flags, version references, and timeout values. These are the silent killers.
+
+### 5. Schedule the Machete Pass
+
+Every 3-4 months, dedicate a session to deleting AI-generated artifacts:
+
+- Temporary markdown files (implementation plans, analysis docs, session summaries)
+- Backup files (conftest_backup.py, *.disabled)
+- Generic framework configurations that don't apply to your project
+- TODO documents that have been resolved
+- Debugging scripts that served one investigation
+
+I did this twice: #584 (−26,353 lines) and #760 (−44,777 lines). Combined, I deleted **over 70,000 lines of AI-generated artifacts** that were cluttering the repository and degrading the AI's own performance by polluting its context window.
+
+**Rule**: If you wouldn't put it in a code review, it doesn't belong in the repo. AI agents don't distinguish between "working notes" and "committed artifacts." You have to.
+
+### 6. AI Agents Are Best at Focused, Well-Specified Tasks
+
+The best AI contributions in the project:
+
+- **Security vulnerability remediation** (#668): 5 phased commits fixing 11 CVEs across Python deps, Node deps, and Docker base images. Well-specified problem, clear success criteria.
+- **Structured output implementation** (#626): 3,211 lines implementing JSON schema validation across three LLM providers. Complex but well-bounded — each provider's integration could be verified independently.
+- **Phase 7 cleanup** (#592): Deleting deprecated models and repositories. The AI correctly identified which files were still referenced and which could be safely removed.
+
+The worst AI contributions:
+
+- **Massive documentation drops** (#599, #701, #695): Thousands of lines of architecture documents, design proposals, and stub documentation. Comprehensive-looking but often inaccurate — placeholder URLs, incorrect file paths, descriptions of code that didn't exist yet.
+- **Generic framework scaffolding** (the 44K lines deleted in #760): Configuration for tools I wasn't using, agents that did nothing, commands that pointed to non-existent scripts.
+- **Infrastructure deployments** (#633-#640): Seven PRs to fix one deployment because the AI generated plausible-looking but untested configurations.
+
+**The pattern**: AI agents excel at tasks where success is objectively verifiable (tests pass, linting clean, CVEs resolved) and struggle with tasks where correctness requires judgment (documentation accuracy, deployment configuration, interface consistency).
+
+---
+
+## Part 4: Technical Lessons from the PR History
+
+### Retrieval Quality Is the Whole Game
+
+![RAG Modulo Search Pipeline](diagrams/02-pipeline-stages.svg)
+
+The investigation document for Issue #773 contains this line:
+
+> **The problem is 100% retrieval, not generation.** When the right chunks reach the LLM, it performs well.
+
+I traced a bad answer through six pipeline stages and found that the LLM was doing exactly what we asked — answering faithfully based on context. The problem was that "financial results" as a query has low vector similarity to actual financial tables, which are formatted as flat key-value pairs.
+
+The cross-encoder reranker made it worse — it preferred narrative text (CEO letters, COVID overviews) over tabular data because narrative is linguistically richer.
+
+**The takeaway**: Spend 80% of your RAG engineering time on retrieval quality. If your chunks are wrong, nothing downstream can save you. Test with realistic queries against realistic documents, not curated demo datasets.
+
+### The Phase Pattern Works for Large Refactors
+
+The conversation system consolidation was 7 phases, each with its own PR and issue. The DI optimization was 8 sequential PRs. Both succeeded (despite Phase 3 blockers in the conversation refactor).
+
+The pattern:
+
+1. Foundation first (models, schemas, types)
+2. Data layer (repositories, queries)
+3. Service layer (business logic, wiring)
+4. API surface (routers, endpoints)
+5. Frontend (consumer migration)
+6. Cleanup (delete deprecated code)
+
+![Database Query Reduction](diagrams/05-query-reduction.svg)
+
+The conversation refactor went from 54 queries per session list to 1 (98% reduction), 156ms to 3ms. But it only worked because I stabilized the models in Phase 1-2 before touching the repository in Phase 3.
+
+**The takeaway**: Large refactors should be phased, numbered, and tracked in issues. Each phase should be independently deployable and revertable. Start with the foundation. When a phase hits blockers (Phase 3 did), the isolation prevents it from blocking everything else.
+
+### Your Prompt Template Is a Production Artifact
+
+The entity extraction bug (#775) appended redundant text to queries: `"what were ibm results in 2020? (in the context of 2020)"`. The LLM interpreted the parenthetical as a continuation prompt, not metadata. The prompt boundary fix (#771) added explicit markers between instructions and context.
+
+The CoT auto-detection (#769) used loose substring matching — any query containing "compare" triggered CoT, including "compare to last year" (a simple lookup, not a multi-dimensional comparison). The fix: pattern matching with multi-word phrases ("compare X and Y", "differences between") and a higher word-count threshold.
+
+**The takeaway**: Prompts are code. They need versioning, testing, and review. A prompt substring check that's too loose adds 8 seconds of latency. A missing boundary marker causes hallucination. Treat prompt engineering with the same rigor as backend engineering.
+
+---
+
+## Part 5: The Data — What PR Analysis Reveals
+
+I ran [github-pr-analysis](https://github.com/DennisJWheeler/github-pr-analysis) across all 446 PRs, then split the data at November 2025 — the inflection point when Claude Code became the primary development tool. The numbers tell a story the commit messages don't.
+
+### Velocity Spiked, Then Stopped
+
+![PR Velocity Chart](diagrams/03-pr-velocity.svg)
+
+**340 merged PRs** total. Early project months were quiet (e.g. 5–27 merges in late 2024); the spike was concentrated:
+
+| Month (merged) | Count |
+|---|---|
+| 2025-09 | 42 |
+| 2025-10 | **101** |
+| 2025-11 | **88** |
+| 2025-12 | 5 |
+| 2026-03 | 15 (cleanup: #760, #773–#785) |
+
+That's **~24 merged PRs/week** at peak (October 2025), not a steady state for the whole project. A prior [github-pr-analysis](https://github.com/DennisJWheeler/github-pr-analysis) run split at November 2025 showed higher *throughput* when Claude Code was primary — but **merge count ≠ quality**, and development largely paused after December 2025 until the March 2026 archive burst.
+
+Raw velocity is misleading without context. Read on.
+
+### Time-to-Merge Went Up, Not Down
+
+| Metric | Pre-Claude | Post-Claude |
+|---|---|---|
+| Median time to merge (human PRs) | **0.7 hours** | **5.3 hours** |
+| 75th percentile | 7.5 hours | 18.0 hours |
+| 90th percentile | 38.7 hours | 61.1 hours |
+
+This looks bad until you understand what changed: the pre-Claude era was dominated by self-merged PRs with no review process (first-pass approval rate: 1.3%). The post-Claude era introduced more complex, multi-step PRs — the DI optimization was 8 sequential PRs, the conversation refactoring was 7 phases. These took longer individually but shipped more coherent changes.
+
+The median merge time going from 42 minutes to 5.3 hours reflects *more review*, not slower development. For a largely solo project, this is actually healthy — AI-generated code was getting more scrutiny, not less.
+
+### Bot Composition Shifted Dramatically
+
+| | Pre-Claude | Post-Claude |
+|---|---|---|
+| Human PRs | 255 (88%) | 104 (66%) |
+| Bot PRs | 34 (12%) | 53 (34%) |
+| Dependabot | 23 | 52 |
+| Jules | 11 | 1 |
+
+One-third of post-Claude PRs were bot-authored, nearly triple the pre-Claude rate. Most of that increase was Dependabot (dependency bumps surged after security scanning was tightened). Jules' single post-Claude PR (the Docker cache fix, PR #685) was its only contribution — Google's agent was tested but not adopted as a regular tool.
+
+### AI Tool Activity Across All 446 PRs
+
+| Tool | PRs with Activity | Total Comments |
+|---|---|---|
+| Claude Code | 65 PRs (14.6%) | 210 comments |
+| Google Jules | 13 PRs (2.9%) | 13 comments |
+| Dependabot | 42 PRs (9.4%) | 55 comments |
+
+Claude Code's 210 comments across 65 PRs represent substantive code review and discussion — an average of 3.2 comments per PR where it was active. Jules' 13 comments across 13 PRs were all single-comment PR descriptions (the auto-generated "PR created by Jules" footer).
+
+### The Largest PRs Tell the Story
+
+| PR | Lines Changed | What |
+|---|---|---|
+| #760 | 45,133 (-44,777) | **The Great AI Slop Cleanup** — deleted generic agent/command/skill files |
+| #99 | 17,290 | Config management refactor (pre-AI, human-authored) |
+| #715 | 5,417 | Expose RAG Modulo as MCP Server |
+| #97 | 5,615 | LLM provider migration |
+| #98 | 5,552 | CI/CD pipeline setup |
+| #701 | 3,717 | Agentic RAG architecture docs (AI-generated, later questioned for accuracy) |
+
+The single largest PR in the project's history was a deletion of AI-generated artifacts. The second-largest was a human-authored refactor from the pre-AI era. The pattern: AI agents generate volume; humans (and AI agents directed by humans) clean it up.
+
+### What the Data Doesn't Capture
+
+The PR analysis tool tracks time, size, and review process. It can't measure:
+
+- **Bug severity** — PR #564 (TRUNCATE_INPUT_TOKENS) was 249 lines but broke all search. PR #760 was 45,133 lines but was just cleanup.
+- **Causal chains** — PR #576 caused #583 caused #587. The tool sees three independent PRs; the reality is one feature that needed three attempts.
+- **Context quality** — AI-authored documentation PRs (#599, #701) were large and looked comprehensive, but contained placeholder URLs, incorrect file paths, and descriptions of code that didn't exist yet. Size metrics would flag them as productive; reality says otherwise.
+
+The tool is most useful for the velocity and composition trends. The qualitative analysis — what went wrong and why — still requires reading the actual PR descriptions.
+
+---
+
+## Part 6: What I'd Do Differently
+
+1. **Use a proper DI container from the start.** Manual wiring in `dependencies.py` was the source of the worst performance bugs. At **36** service modules, wiring is fragile and duplicate instances break silently.
+
+2. **Design the query pattern first.** "One request = one config query + one search query + one generation call" should have been the constraint from day one. I retrofitted `PipelineContext` after tracing [44+ queries per search](docs/debug/issue-777-db-query-trace.md).
+
+3. **Fewer, fatter services.** Group by domain (LLM config, search, conversation), not by database table. Five services with clear boundaries beat twenty with tangled dependencies.
+
+4. **Separate the platform from the features.** Core RAG as a library. Podcast generation, voice preview, dashboards as separate consumers. The podcast service shares almost no code with core RAG.
+
+5. **Integration tests from day one.** The TRUNCATE_INPUT_TOKENS bug passed the full mocked unit suite. One integration test against real embeddings would have failed immediately.
+
+6. **Pin GitHub Actions to SHAs.** Not tags. Not branches. SHAs. I learned this the hard way via a supply chain attack on the security scanner ([#766](https://github.com/manavgup/rag_modulo/pull/766)).
+
+7. **AI-authored code needs different review criteria.** Don't review for "does this look right" — review for interface consistency across components, default values in configuration, skipped tests, and files that were referenced but never created.
+
+8. **Keep investigation docs, not aspirational architecture dumps.** PRs like #701 added thousands of lines of agentic-RAG documentation with placeholders; the durable artifacts were [#773](docs/debug/issue-773-rag-quality-investigation.md) and [#777](docs/debug/issue-777-db-query-trace.md) style traces.
+
+---
+
+## Archiving: What's Left Open
+
+Not everything was finished when the repo was archived:
+
+| Item | State |
+|---|---|
+| [PR #786](https://github.com/manavgup/rag_modulo/pull/786) — PipelineContext | Open |
+| [PR #774](https://github.com/manavgup/rag_modulo/pull/774) — gitignore cleanup | Open |
+| Dependabot mega-PRs (#754, #712, …) | Open or stale |
+| MCP server ([#715](https://github.com/manavgup/rag_modulo/pull/715)) | Merged — worth maintaining if you fork |
+
+If you fork: merge or cherry-pick #786 first, then run `make test-unit-fast` and one embedding integration path before you trust search latency.
+
+---
+
+## By the Numbers
+
+### Development
+
+| Metric | Value |
+|---|---|
+| Duration | 22 months (May 2024 – Mar 2026) |
+| Total commits (`--all`) | 1,934 (~1,231 on `main`) |
+| Total PRs | 446 (340 merged, 36 open) |
+| Automated tests collected | **2,615** (Mar 2026; use markers for fast subsets) |
+| Service modules | **36** under `backend/rag_solution/services/` |
+| LLM providers | 3 (WatsonX, OpenAI, Anthropic) |
+| Vector DB backends | 5 |
+| Docker Compose configs | 9 |
+| Pipeline stages | 6 |
+
+### AI Agent Involvement
+
+| Metric | Value |
+|---|---|
+| Commits with Claude `Co-authored-by` (all refs) | **625** |
+| Commits authored as `Claude` | **50** |
+| Commits from `google-labs-jules[bot]` | **17** |
+| AI-generated lines deleted (#760 + #584) | **70,000+** |
+| PRs with Claude Code activity (prior analysis) | 65 (210 comments) |
+| Dependabot PRs (prior analysis) | 42 (55 comments) |
+| Bot PRs (all types, prior analysis) | ~87 (~20% of all PRs) |
+
+### Velocity
+
+| Metric | Notes |
+|---|---|
+| Peak merged months | Oct **101**, Nov **88** (2025) |
+| Median time to merge (human, prior analysis) | 0.7 hrs pre-Claude → 5.3 hrs post-Claude |
+| Bot PR share (prior analysis) | 12% → 34% |
+
+### Impact of Specific Fixes
+
+| Fix | Impact |
+|---|---|
+| PipelineContext ([#786](https://github.com/manavgup/rag_modulo/pull/786) open) | 48+ config queries → 3–4 (per [trace](docs/debug/issue-777-db-query-trace.md)) |
+| Conversation consolidation | 54 queries → 1 (98% reduction), 156ms → 3ms |
+| CoT auto-detection ([#769](https://github.com/manavgup/rag_modulo/pull/769)) | ~8 seconds/query saved |
+| TRUNCATE_INPUT_TOKENS removal ([#564](https://github.com/manavgup/rag_modulo/pull/564)) | Search semantics restored; regression in `test_watsonx.py` |
+| AI slop cleanup ([#760](https://github.com/manavgup/rag_modulo/pull/760)) | −44,777 lines, ~20–30K fewer tokens/session |
+| PRs to fix one deployment | 7 ([#633](https://github.com/manavgup/rag_modulo/pull/633)–[#640](https://github.com/manavgup/rag_modulo/pull/640)) |
+| Hotfixes for AI-introduced bugs | 12+ (e.g. #583, #587, #631, #775) |
+
+### Methodology (for reproducibility)
+
+```bash
+git rev-list --count --all
+poetry run pytest --collect-only -q
+gh pr list --state all --limit 500 --json number,state,mergedAt,additions,deletions
+git log --all --format='%B' | grep -ci 'co-authored-by.*claude'
+```
+
+---
+
+*RAG Modulo is archived at [github.com/manavgup/rag_modulo](https://github.com/manavgup/rag_modulo). The code is MIT-licensed. Take what's useful — [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) for architecture, this post for AI-agent scars, debug docs for RAG and performance — and delete what isn't.*
+
+*— Ship AI*

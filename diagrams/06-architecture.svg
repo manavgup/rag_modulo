@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 680" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="900" height="680" fill="#0f172a" rx="12"/>
+
+  <text x="450" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">RAG Modulo Architecture</text>
+  <text x="450" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">37 services, 21 repositories, 18 routers, 19 models, 25 schemas, 3 LLM providers, 5 vector DBs</text>
+
+  <!-- Frontend layer -->
+  <rect x="30" y="68" width="840" height="60" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="50" y="88" fill="#60a5fa" font-size="11" font-weight="700">FRONTEND</text>
+  <text x="50" y="103" fill="#94a3b8" font-size="9">React 18 + Vite + Tailwind + Carbon</text>
+  <text x="200" y="96" fill="#cbd5e1" font-size="9">search/</text>
+  <text x="280" y="96" fill="#cbd5e1" font-size="9">collections/</text>
+  <text x="380" y="96" fill="#cbd5e1" font-size="9">podcasts/</text>
+  <text x="460" y="96" fill="#cbd5e1" font-size="9">analytics/</text>
+  <text x="548" y="96" fill="#cbd5e1" font-size="9">agents/</text>
+  <text x="618" y="96" fill="#cbd5e1" font-size="9">auth/</text>
+  <text x="200" y="116" fill="#64748b" font-size="9">8 reusable UI components (Button, Input, Modal, Card, FileUpload, Select, TextArea, Badge)</text>
+
+  <!-- Router layer -->
+  <rect x="30" y="145" width="840" height="68" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="50" y="167" fill="#a78bfa" font-size="11" font-weight="700">ROUTERS (18)</text>
+  <text x="50" y="181" fill="#94a3b8" font-size="9">FastAPI endpoints — thin HTTP layer</text>
+  <rect x="200" y="155" width="75" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="237" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">search</text>
+  <rect x="282" y="155" width="85" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="324" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">conversation</text>
+  <rect x="374" y="155" width="75" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="411" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">collection</text>
+  <rect x="456" y="155" width="62" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="487" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">podcast</text>
+  <rect x="525" y="155" width="62" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="556" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">chat</text>
+  <rect x="594" y="155" width="55" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="621" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">auth</text>
+  <rect x="656" y="155" width="52" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="682" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">user</text>
+  <rect x="715" y="155" width="52" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="741" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">health</text>
+  <rect x="774" y="155" width="52" height="22" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="800" y="170" text-anchor="middle" fill="#c4b5fd" font-size="8">mcp</text>
+  <text x="200" y="200" fill="#64748b" font-size="8">+ dashboard, llm_provider, runtime_config, team, token_warning, voice, websocket, agent</text>
+
+  <!-- Service layer -->
+  <rect x="30" y="230" width="840" height="130" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="50" y="252" fill="#fcd34d" font-size="11" font-weight="700">SERVICES (37)</text>
+  <text x="50" y="266" fill="#94a3b8" font-size="9">Business logic + dependency injection</text>
+
+  <!-- Core services -->
+  <text x="200" y="256" fill="#fbbf24" font-size="9" font-weight="600">Core Search</text>
+  <rect x="200" y="261" width="180" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="206" y="273" fill="#fde68a" font-size="8">SearchService → PipelineExecutor</text>
+  <rect x="200" y="280" width="180" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="206" y="292" fill="#fde68a" font-size="8">ChainOfThoughtService</text>
+  <rect x="200" y="299" width="180" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="206" y="311" fill="#fde68a" font-size="8">QuestionDecomposer / AnswerSynthesizer</text>
+
+  <!-- Pipeline -->
+  <text x="400" y="256" fill="#fbbf24" font-size="9" font-weight="600">Pipeline Stages</text>
+  <rect x="400" y="261" width="160" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="406" y="273" fill="#fde68a" font-size="8">PipelineResolution</text>
+  <rect x="400" y="280" width="160" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="406" y="292" fill="#fde68a" font-size="8">QueryEnhancement / Retrieval</text>
+  <rect x="400" y="299" width="160" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="406" y="311" fill="#fde68a" font-size="8">Reranking / Reasoning / Generation</text>
+
+  <!-- Conversation & Content -->
+  <text x="580" y="256" fill="#fbbf24" font-size="9" font-weight="600">Conversation</text>
+  <rect x="580" y="261" width="140" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="586" y="273" fill="#fde68a" font-size="8">ConversationService</text>
+  <rect x="580" y="280" width="140" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="586" y="292" fill="#fde68a" font-size="8">MessageProcessingOrchestrator</text>
+  <rect x="580" y="299" width="140" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="586" y="311" fill="#fde68a" font-size="8">ConversationContextService</text>
+
+  <!-- Config & Support -->
+  <text x="740" y="256" fill="#fbbf24" font-size="9" font-weight="600">Config / Other</text>
+  <rect x="740" y="261" width="115" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="746" y="273" fill="#fde68a" font-size="8">LLMProvider/Model/Params</text>
+  <rect x="740" y="280" width="115" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="746" y="292" fill="#fde68a" font-size="8">PodcastService</text>
+  <rect x="740" y="299" width="115" height="16" rx="2" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="746" y="311" fill="#fde68a" font-size="8">ConfigCache / PipelineCtx</text>
+
+  <!-- DI note -->
+  <text x="200" y="346" fill="#64748b" font-size="8">+ EntityExtraction, SourceAttribution, CitationAttribution, OutputValidator, TokenTracking, Collection, File, User, Team, Dashboard, Voice, Agent, MCPGateway, RuntimeConfig</text>
+
+  <!-- Repository layer -->
+  <rect x="30" y="375" width="520" height="68" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="50" y="397" fill="#4ade80" font-size="11" font-weight="700">REPOSITORIES (21)</text>
+  <text x="50" y="411" fill="#94a3b8" font-size="9">Data access — SQLAlchemy ORM</text>
+  <text x="200" y="403" fill="#86efac" font-size="8">collection  conversation  file  pipeline  pipeline_context  user  team</text>
+  <text x="200" y="418" fill="#86efac" font-size="8">llm_provider  llm_model  llm_parameters  prompt_template  podcast  voice</text>
+  <text x="200" y="433" fill="#86efac" font-size="8">question  runtime_config  token_warning  user_collection  user_provider  agent  user_team</text>
+
+  <!-- LLM Providers -->
+  <rect x="570" y="375" width="300" height="68" rx="8" fill="#1e293b" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="590" y="397" fill="#f9a8d4" font-size="11" font-weight="700">LLM PROVIDERS</text>
+  <text x="590" y="411" fill="#94a3b8" font-size="9">LLMBase → Factory pattern</text>
+  <rect x="590" y="418" width="72" height="20" rx="3" fill="#ec4899" fill-opacity="0.15"/>
+  <text x="626" y="432" text-anchor="middle" fill="#f9a8d4" font-size="9">WatsonX</text>
+  <rect x="670" y="418" width="62" height="20" rx="3" fill="#ec4899" fill-opacity="0.15"/>
+  <text x="701" y="432" text-anchor="middle" fill="#f9a8d4" font-size="9">OpenAI</text>
+  <rect x="740" y="418" width="72" height="20" rx="3" fill="#ec4899" fill-opacity="0.15"/>
+  <text x="776" y="432" text-anchor="middle" fill="#f9a8d4" font-size="9">Anthropic</text>
+
+  <!-- Schemas/Models layer -->
+  <rect x="30" y="460" width="520" height="50" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="50" y="482" fill="#22d3ee" font-size="11" font-weight="700">MODELS (19) + SCHEMAS (25)</text>
+  <text x="50" y="496" fill="#94a3b8" font-size="9">SQLAlchemy models + Pydantic validation</text>
+  <text x="350" y="482" fill="#67e8f9" font-size="8">collection, conversation, file, pipeline, user, team, llm_*, prompt_template,</text>
+  <text x="350" y="496" fill="#67e8f9" font-size="8">podcast, voice, agent, question, runtime_config, pipeline_context, structured_output...</text>
+
+  <!-- Vector Stores -->
+  <rect x="570" y="460" width="300" height="50" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="590" y="482" fill="#c4b5fd" font-size="11" font-weight="700">VECTOR STORES (5)</text>
+  <text x="590" y="496" fill="#94a3b8" font-size="9">VectorStore base → Factory</text>
+  <text x="750" y="482" fill="#ddd6fe" font-size="8">Milvus</text>
+  <text x="750" y="496" fill="#ddd6fe" font-size="8">Elasticsearch  Pinecone  Weaviate  ChromaDB</text>
+
+  <!-- Infrastructure layer -->
+  <rect x="30" y="528" width="840" height="55" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="50" y="550" fill="#94a3b8" font-size="11" font-weight="700">INFRASTRUCTURE</text>
+  <rect x="200" y="540" width="80" height="24" rx="4" fill="#334155"/>
+  <text x="240" y="556" text-anchor="middle" fill="#cbd5e1" font-size="9">PostgreSQL</text>
+  <rect x="290" y="540" width="65" height="24" rx="4" fill="#334155"/>
+  <text x="322" y="556" text-anchor="middle" fill="#cbd5e1" font-size="9">Milvus</text>
+  <rect x="365" y="540" width="55" height="24" rx="4" fill="#334155"/>
+  <text x="392" y="556" text-anchor="middle" fill="#cbd5e1" font-size="9">MinIO</text>
+  <rect x="430" y="540" width="60" height="24" rx="4" fill="#334155"/>
+  <text x="460" y="556" text-anchor="middle" fill="#cbd5e1" font-size="9">MLFlow</text>
+  <rect x="500" y="540" width="45" height="24" rx="4" fill="#334155"/>
+  <text x="522" y="556" text-anchor="middle" fill="#cbd5e1" font-size="9">etcd</text>
+  <text x="580" y="556" fill="#64748b" font-size="9">9 Docker Compose configs | Helm chart | Terraform + Ansible</text>
+
+  <!-- CI/CD bar -->
+  <rect x="30" y="600" width="840" height="45" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="50" y="620" fill="#94a3b8" font-size="11" font-weight="700">CI/CD</text>
+  <text x="50" y="634" fill="#64748b" font-size="9">21 GitHub workflows</text>
+  <rect x="200" y="610" width="50" height="18" rx="3" fill="#22c55e" fill-opacity="0.1"/>
+  <text x="225" y="623" text-anchor="middle" fill="#86efac" font-size="8">01-lint</text>
+  <rect x="256" y="610" width="68" height="18" rx="3" fill="#22c55e" fill-opacity="0.1"/>
+  <text x="290" y="623" text-anchor="middle" fill="#86efac" font-size="8">02-security</text>
+  <rect x="330" y="610" width="52" height="18" rx="3" fill="#22c55e" fill-opacity="0.1"/>
+  <text x="356" y="623" text-anchor="middle" fill="#86efac" font-size="8">03-build</text>
+  <rect x="388" y="610" width="56" height="18" rx="3" fill="#22c55e" fill-opacity="0.1"/>
+  <text x="416" y="623" text-anchor="middle" fill="#86efac" font-size="8">04-pytest</text>
+  <rect x="450" y="610" width="38" height="18" rx="3" fill="#22c55e" fill-opacity="0.1"/>
+  <text x="469" y="623" text-anchor="middle" fill="#86efac" font-size="8">05-ci</text>
+  <text x="510" y="623" fill="#64748b" font-size="8">+ weekly-security-audit, deploy_complete_app, deploy_code_engine, build-multiarch, deploy-docs...</text>
+
+  <!-- Legend -->
+  <text x="450" y="665" text-anchor="middle" fill="#475569" font-size="9">Router → Service → Repository → Model | each layer has a single responsibility</text>
+</svg>
