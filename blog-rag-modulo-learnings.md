@@ -18,6 +18,16 @@ I started building this as the models were getting better, Cline & Cursor were j
 
 A modular RAG platform where every piece was swappable: any vector database, any LLM provider, any chunking strategy. The architecture ended up as strict 3-layer separation — **Router** (thin HTTP) → **Service** (business logic) → **Repository** (data access) — with 37 services, 21 repositories, 18 routers, and factory patterns for both LLM providers and vector stores.
 
+![Design Patterns](diagrams/08-design-patterns.svg)
+
+10 design patterns in production, organized by purpose:
+- **Creational**: Factory (LLM providers, vector stores), Singleton (`@lru_cache` settings), manual DI via `core/dependencies.py`
+- **Structural**: Pipeline (6-stage search with `BaseStage` → `PipelineExecutor`), Repository (21 repos, one per entity, returns DB models not schemas)
+- **Behavioral**: Strategy (pluggable reranking + chunking), Circuit Breaker (MCP gateway: 5 failures → 60s cooldown → half-open test), Middleware chain (auth, CORS, logging)
+- **Data**: Frozen dataclass (`PipelineContext` — fetched once, threaded through all stages), request-scoped `ConfigCache`, Pydantic schemas (25 input/output validators)
+
+The patterns that mattered most were the ones added *late* to fix performance — PipelineContext and ConfigCache replaced 48+ DB queries per search with 3-4.
+
 Deeper architecture notes live in [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md). Trace write-ups for the worst bugs: [`docs/debug/issue-773-rag-quality-investigation.md`](docs/debug/issue-773-rag-quality-investigation.md), [`docs/debug/issue-777-db-query-trace.md`](docs/debug/issue-777-db-query-trace.md).
 
 ## How It Evolved
