@@ -1,6 +1,6 @@
-# The Codex Automation Saga: 16 PRs That All Failed
+# The Codex Automation Saga: 15 PRs That All Failed
 
-*October 10–11, 2025. Two days, 16 PRs, zero working automation.*
+*October 10–11, 2025. Two days, 15 PRs, zero working automation.*
 
 ## What I Was Trying to Do
 

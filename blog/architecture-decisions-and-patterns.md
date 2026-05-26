@@ -18,7 +18,7 @@ Every feature follows the same pattern: router (thin HTTP layer) -> service (bus
 
 ### Multi-vector-database abstraction was the right bet
 
-Supporting Milvus, Elasticsearch, Pinecone, Weaviate, and ChromaDB through a common `VectorStore` base class with a factory pattern meant we could swap backends without touching search logic. In practice, Milvus was the primary backend, but having the abstraction forced clean separation between "how we search" and "where we search." When Milvus needed connection reuse fixes for Kubernetes, only `milvus_store.py` changed.
+Supporting Milvus, Elasticsearch, Pinecone, Weaviate, and ChromaDB through a common `VectorStore` base class with a factory pattern meant I could swap backends without touching search logic. In practice, Milvus was the primary backend, but having the abstraction forced clean separation between "how we search" and "where we search." When Milvus needed connection reuse fixes for Kubernetes, only `milvus_store.py` changed.
 
 **The lesson**: Abstract over infrastructure boundaries, not business logic. The vector store abstraction was worth it because vector DBs are genuinely interchangeable. Don't abstract things that aren't.
 

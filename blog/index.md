@@ -16,7 +16,7 @@ I started building this as AI development tools like Cline and Cursor were just 
 4. **[Break AI work into small, sequenced PRs](#1-break-work-into-small-sequenced-prs)** — 8 small PRs shipped clean; one 3,580-line PR needed two hotfixes.
 5. **[Never let AI skip tests](#2-dont-let-the-ai-skip-tests)** — Skipped tests hid a bug that broke all chat functionality.
 6. **[AI-generated IaC is the most dangerous output](#the-deployment-death-march-prs-633640)** — 7 PRs to fix one deployment because configs referenced non-existent files. ([Full trace](traces/deployment-death-march.md))
-7. **[Full CI/CD automation with AI agents isn't ready](traces/codex-automation-saga.md)** — 16 PRs trying to automate issue→PR, all failed.
+7. **[Full CI/CD automation with AI agents isn't ready](traces/codex-automation-saga.md)** — 15 PRs trying to automate issue→PR, all failed.
 8. **[Pin GitHub Actions to SHAs](#the-supply-chain-attack-766)** — A supply chain attack hit the security scanner. Tags can be force-pushed.
 9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773-775)** — 5 independent design decisions combined to fabricate financial data.
 10. **[Design the DB query pattern before building services](#trace-driven-debugging-issue-777)** — Retrofitting PipelineContext after discovering 48+ queries/request.
@@ -51,7 +51,7 @@ The project had distinct eras, visible in the PR history:
 - **Nov–Dec 2024** — RAG features: WatsonX, multi-provider architecture (#71), question suggestion. 22 PRs in December.
 - **Feb–Jul 2025** — Six-month pause.
 - **Aug–Sep 2025** — Return with Claude Code. Fixed 643 lint issues, added CoT reasoning (#230), conversation UI (#232). AI slop starts accumulating.
-- **Oct 2025** — 98 merged PRs. Podcasts, Docling, reranking, search re-architecture (#551). [16-PR Codex automation saga](traces/codex-automation-saga.md) — all failed.
+- **Oct 2025** — 98 merged PRs. Podcasts, Docling, reranking, search re-architecture (#551). [15-PR Codex automation saga](traces/codex-automation-saga.md) — all failed.
 - **Nov 2025** — Conversation refactor (7 phases), structured output, MCP Gateway. Also: [TRUNCATE_INPUT_TOKENS](traces/truncate-tokens-bug.md) bug (#564), [deployment death march](traces/deployment-death-march.md) (#633–#640), first cleanup (#584, -26K lines).
 - **Mar 2026** — The Great Cleanup (-44,777 lines). Trivy supply chain attack. Hallucination investigation. DI optimization (8 PRs). PipelineContext. `LESSONS_LEARNED.md`.
 
@@ -176,7 +176,7 @@ class PipelineContext:
 
 ### The TRUNCATE_INPUT_TOKENS Disaster (PR #564)
 
-*Full trace: [docs/debug/truncate-input-tokens-bug.md](traces/truncate-tokens-bug.md)*
+*Full trace: [TRUNCATE_INPUT_TOKENS bug](traces/truncate-tokens-bug.md)*
 
 A single configuration parameter — `TRUNCATE_INPUT_TOKENS: 3` in the WatsonX embedding config — was silently truncating every search query to **3 tokens** before generating embeddings.
 
@@ -455,7 +455,7 @@ The PR analysis tool tracks time, size, and review process. It can't measure:
 - **Causal chains** — PR #576 caused #583 caused #587. The tool sees three independent PRs; the reality is one feature that needed three attempts.
 - **Context quality** — AI-authored documentation PRs (#599, #701) were large and looked comprehensive, but contained placeholder URLs, incorrect file paths, and descriptions of code that didn't exist yet. Size metrics would flag them as productive; reality says otherwise.
 
-The tool is most useful for the velocity and composition trends. The qualitative analysis — what went wrong and why — still requires reading the actual PR descriptions.
+The tool is most useful for the velocity and composition trends. The qualitative analysis — what went wrong and why — still requires reading the actual PR descriptions. Raw reports: [full](pr-analysis-full.md) | [pre-Claude](pr-analysis-pre-claude.md) | [post-Claude](pr-analysis-post-claude.md).
 
 ---
 
