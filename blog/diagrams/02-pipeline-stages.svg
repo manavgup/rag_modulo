@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="800" height="320" fill="#0f172a" rx="12"/>
+
+  <text x="400" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">RAG Modulo Search Pipeline</text>
+  <text x="400" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">6 composable stages operating on a shared SearchContext</text>
+
+  <!-- Stage 1 -->
+  <rect x="22" y="75" width="115" height="100" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+  <text x="79" y="100" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700">STAGE 1</text>
+  <text x="79" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Pipeline</text>
+  <text x="79" y="132" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Resolution</text>
+  <text x="79" y="155" text-anchor="middle" fill="#94a3b8" font-size="9">20ms</text>
+  <text x="79" y="167" text-anchor="middle" fill="#94a3b8" font-size="9">DB lookup</text>
+
+  <!-- Arrow 1-2 -->
+  <path d="M140 125 L155 125" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Stage 2 -->
+  <rect x="158" y="75" width="115" height="100" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="215" y="100" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="700">STAGE 2</text>
+  <text x="215" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Query</text>
+  <text x="215" y="132" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Enhancement</text>
+  <text x="215" y="155" text-anchor="middle" fill="#94a3b8" font-size="9">~0ms</text>
+  <text x="215" y="167" text-anchor="middle" fill="#94a3b8" font-size="9">Rewrite/expand</text>
+
+  <!-- Arrow 2-3 -->
+  <path d="M276 125 L291 125" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Stage 3 -->
+  <rect x="294" y="75" width="115" height="100" rx="8" fill="#1e293b" stroke="#ec4899" stroke-width="2"/>
+  <text x="351" y="100" text-anchor="middle" fill="#f9a8d4" font-size="10" font-weight="700">STAGE 3</text>
+  <text x="351" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Retrieval</text>
+  <text x="351" y="138" text-anchor="middle" fill="#94a3b8" font-size="9">~5s</text>
+  <text x="351" y="150" text-anchor="middle" fill="#94a3b8" font-size="9">Vector + keyword</text>
+  <text x="351" y="162" text-anchor="middle" fill="#94a3b8" font-size="9">RRF fusion</text>
+
+  <!-- Arrow 3-4 -->
+  <path d="M412 125 L427 125" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Stage 4 -->
+  <rect x="430" y="75" width="115" height="100" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+  <text x="487" y="100" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700">STAGE 4</text>
+  <text x="487" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Reranking</text>
+  <text x="487" y="138" text-anchor="middle" fill="#94a3b8" font-size="9">~0.7s</text>
+  <text x="487" y="150" text-anchor="middle" fill="#94a3b8" font-size="9">Cross-encoder</text>
+  <text x="487" y="162" text-anchor="middle" fill="#94a3b8" font-size="9">ms-marco-MiniLM</text>
+
+  <!-- Arrow 4-5 -->
+  <path d="M548 125 L563 125" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Stage 5 -->
+  <rect x="566" y="75" width="115" height="100" rx="8" fill="#1e293b" stroke="#14b8a6" stroke-width="2"/>
+  <text x="623" y="100" text-anchor="middle" fill="#5eead4" font-size="10" font-weight="700">STAGE 5</text>
+  <text x="623" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Reasoning</text>
+  <text x="623" y="138" text-anchor="middle" fill="#94a3b8" font-size="9">0-8s</text>
+  <text x="623" y="150" text-anchor="middle" fill="#94a3b8" font-size="9">Chain of Thought</text>
+  <text x="623" y="162" text-anchor="middle" fill="#94a3b8" font-size="9">(auto-detect)</text>
+
+  <!-- Arrow 5-6 -->
+  <path d="M684 125 L699 125" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Stage 6 -->
+  <rect x="702" y="75" width="78" height="100" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+  <text x="741" y="100" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">STAGE 6</text>
+  <text x="741" y="118" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Generate</text>
+  <text x="741" y="138" text-anchor="middle" fill="#94a3b8" font-size="9">~5s</text>
+  <text x="741" y="150" text-anchor="middle" fill="#94a3b8" font-size="9">LLM call</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- SearchContext bar -->
+  <rect x="22" y="195" width="758" height="40" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1" stroke-dasharray="6,3"/>
+  <text x="400" y="213" text-anchor="middle" fill="#94a3b8" font-size="11">SearchContext (shared dataclass) — accumulates results as it flows through each stage</text>
+  <text x="400" y="227" text-anchor="middle" fill="#64748b" font-size="10">pipeline_id, query, enhanced_query, documents, reranked_docs, cot_output, answer, metadata...</text>
+
+  <!-- PipelineContext bar -->
+  <rect x="22" y="250" width="758" height="40" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="400" y="268" text-anchor="middle" fill="#a5b4fc" font-size="11">PipelineContext (frozen dataclass) — fetched once, read by all stages, zero DB queries per stage</text>
+  <text x="400" y="282" text-anchor="middle" fill="#64748b" font-size="10">provider_name, retriever_type, max_new_tokens, temperature, model_id, template... (48 queries → 3)</text>
+
+  <!-- Bottom note -->
+  <text x="400" y="310" text-anchor="middle" fill="#64748b" font-size="10">Each stage implements BaseStage.execute(context) → StageResult | stages can fail without stopping the pipeline</text>
+</svg>

@@ -15,8 +15,8 @@ I started building this as AI development tools like Cline and Cursor were just 
 3. **[Mock-only test suites hide critical bugs](#the-truncate_input_tokens-disaster-pr-564)** — One config param broke all search; 1,738 mocked tests stayed green.
 4. **[Break AI work into small, sequenced PRs](#1-break-work-into-small-sequenced-prs)** — 8 small PRs shipped clean; one 3,580-line PR needed two hotfixes.
 5. **[Never let AI skip tests](#2-dont-let-the-ai-skip-tests)** — Skipped tests hid a bug that broke all chat functionality.
-6. **[AI-generated IaC is the most dangerous output](#the-deployment-death-march-prs-633640)** — 7 PRs to fix one deployment because configs referenced non-existent files. ([Full trace](docs/debug/deployment-death-march.md))
-7. **[Full CI/CD automation with AI agents isn't ready](docs/debug/codex-automation-saga.md)** — 16 PRs trying to automate issue→PR, all failed.
+6. **[AI-generated IaC is the most dangerous output](#the-deployment-death-march-prs-633640)** — 7 PRs to fix one deployment because configs referenced non-existent files. ([Full trace](traces/deployment-death-march.md))
+7. **[Full CI/CD automation with AI agents isn't ready](traces/codex-automation-saga.md)** — 16 PRs trying to automate issue→PR, all failed.
 8. **[Pin GitHub Actions to SHAs](#the-supply-chain-attack-766)** — A supply chain attack hit the security scanner. Tags can be force-pushed.
 9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773-775)** — 5 independent design decisions combined to fabricate financial data.
 10. **[Design the DB query pattern before building services](#trace-driven-debugging-issue-777)** — Retrofitting PipelineContext after discovering 48+ queries/request.
@@ -38,7 +38,7 @@ The codebase uses 10 design patterns — Factory and Repository carry the archit
 
 As one can expect, the patterns that mattered most were the ones added *late* to fix performance — PipelineContext and ConfigCache replaced 48+ DB queries per search with 3-4. I also struggled to get Dependency Injection right - especially since I had limited understanding of how Python and FastAPI enabled it, so that took some time!
 
-Deeper write-ups: [Layered architecture detail](docs/architecture/layered-architecture.md) | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | [Issue #773 trace](docs/debug/issue-773-rag-quality-investigation.md) | [Issue #777 query trace](docs/debug/issue-777-db-query-trace.md). Bug-specific traces linked inline below.
+Deeper write-ups: [Layered architecture detail](layered-architecture-detail.md) | [Architecture decisions and patterns](architecture-decisions-and-patterns.md) | [Hallucination pipeline trace](traces/hallucination-pipeline-trace.md) | [From 44 queries to 5: DB trace](traces/44-queries-to-5-db-trace.md). Bug-specific traces linked inline below.
 
 ## How It Evolved
 
@@ -51,8 +51,8 @@ The project had distinct eras, visible in the PR history:
 - **Nov–Dec 2024** — RAG features: WatsonX, multi-provider architecture (#71), question suggestion. 22 PRs in December.
 - **Feb–Jul 2025** — Six-month pause.
 - **Aug–Sep 2025** — Return with Claude Code. Fixed 643 lint issues, added CoT reasoning (#230), conversation UI (#232). AI slop starts accumulating.
-- **Oct 2025** — 98 merged PRs. Podcasts, Docling, reranking, search re-architecture (#551). [16-PR Codex automation saga](docs/debug/codex-automation-saga.md) — all failed.
-- **Nov 2025** — Conversation refactor (7 phases), structured output, MCP Gateway. Also: [TRUNCATE_INPUT_TOKENS](docs/debug/truncate-input-tokens-bug.md) bug (#564), [deployment death march](docs/debug/deployment-death-march.md) (#633–#640), first cleanup (#584, -26K lines).
+- **Oct 2025** — 98 merged PRs. Podcasts, Docling, reranking, search re-architecture (#551). [16-PR Codex automation saga](traces/codex-automation-saga.md) — all failed.
+- **Nov 2025** — Conversation refactor (7 phases), structured output, MCP Gateway. Also: [TRUNCATE_INPUT_TOKENS](traces/truncate-tokens-bug.md) bug (#564), [deployment death march](traces/deployment-death-march.md) (#633–#640), first cleanup (#584, -26K lines).
 - **Mar 2026** — The Great Cleanup (-44,777 lines). Trivy supply chain attack. Hallucination investigation. DI optimization (8 PRs). PipelineContext. `LESSONS_LEARNED.md`.
 
 ---
@@ -114,7 +114,7 @@ A user searched: *"what were the ibm results in 2020?"*
 - **Got (v2)**: Wall of narrative about COVID and digital transformation, zero financial figures
 - **Got (v3)**: Same narrative, 23-second response time
 
-I wrote a [full investigation document](docs/debug/issue-773-rag-quality-investigation.md) tracing the problem through every pipeline stage (reproducible ranks from direct Milvus inspection). The root cause chain:
+I wrote a [full investigation document](traces/hallucination-pipeline-trace.md) tracing the problem through every pipeline stage (reproducible ranks from direct Milvus inspection). The root cause chain:
 
 1. **Vector search systematically missed financial tables.** Chunk 46 (the actual financial summary: "Revenue $73,620M, Net Income $5,590M") ranked **72nd** out of 761 chunks. Flat tabular text like `"Revenue, 2020 = $ 73,620"` has low cosine similarity to natural language queries like "what were the ibm results."
 
@@ -128,7 +128,7 @@ I wrote a [full investigation document](docs/debug/issue-773-rag-quality-investi
 
 The fix ([#775](https://github.com/manavgup/rag_modulo/pull/775)) was 489 lines: faithfulness constraints on all prompts, entity dedup fix, prompt boundary markers between instructions and context (building on [#771](https://github.com/manavgup/rag_modulo/pull/771)). But the real lesson was **how the problem composed**. Five independent, individually-reasonable design decisions combined to produce fabricated financial data. No single component was "wrong."
 
-**Lesson Learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method I used in the [#773 investigation doc](docs/debug/issue-773-rag-quality-investigation.md).
+**Lesson Learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method I used in the [#773 investigation doc](traces/hallucination-pipeline-trace.md).
 
 ### The Bug That Cost 8 Seconds Per Query (#769)
 
@@ -162,7 +162,7 @@ This is the kind of bug AI agents create routinely: **interface mismatches betwe
 
 The hallucination investigation ([#773](#the-hallucination-investigation-773-775), covered above) taught me to trace through the full pipeline. The second investigation applied the same method to performance:
 
-**[#777 — DB query trace](docs/debug/issue-777-db-query-trace.md)** — One search request, **44 numbered SQL queries** mapped to call sites (duplicate `get_session` from frontend, orchestrator re-fetch, per-stage provider lookups). Fix: a frozen snapshot threaded through stages:
+**[#777 — DB query trace](traces/44-queries-to-5-db-trace.md)** — One search request, **44 numbered SQL queries** mapped to call sites (duplicate `get_session` from frontend, orchestrator re-fetch, per-stage provider lookups). Fix: a frozen snapshot threaded through stages:
 
 ```python
 @dataclass(frozen=True)
@@ -176,7 +176,7 @@ class PipelineContext:
 
 ### The TRUNCATE_INPUT_TOKENS Disaster (PR #564)
 
-*Full trace: [docs/debug/truncate-input-tokens-bug.md](docs/debug/truncate-input-tokens-bug.md)*
+*Full trace: [docs/debug/truncate-input-tokens-bug.md](traces/truncate-tokens-bug.md)*
 
 A single configuration parameter — `TRUNCATE_INPUT_TOKENS: 3` in the WatsonX embedding config — was silently truncating every search query to **3 tokens** before generating embeddings.
 
@@ -229,7 +229,7 @@ The second bug **completely broke chat functionality**. Users couldn't send mess
 
 ### The Deployment Death March (PRs #633–#640)
 
-Seven PRs in two days to fix one deployment. Each fix revealed the next problem — from shell scripts that were referenced but never committed, to Ansible version constraints pointing at incompatible combinations, to an IBM Cloud CLI install URL that had silently started returning an HTML page instead of a script. The [full cascade](docs/debug/deployment-death-march.md) is documented PR by PR.
+Seven PRs in two days to fix one deployment. Each fix revealed the next problem — from shell scripts that were referenced but never committed, to Ansible version constraints pointing at incompatible combinations, to an IBM Cloud CLI install URL that had silently started returning an HTML page instead of a script. The [full cascade](traces/deployment-death-march.md) is documented PR by PR.
 
 **Lesson Learned**: Infrastructure-as-code is where AI agents are most dangerous. They generate plausible configurations that reference resources that don't exist, version combinations that haven't been tested together, and external URLs that may have changed. The blast radius is large and the feedback loop is slow (push and wait for CI).
 
@@ -265,7 +265,7 @@ The DI optimization ([Issue #777](https://github.com/manavgup/rag_modulo/issues/
 | [#785](https://github.com/manavgup/rag_modulo/pull/785) | Inject PipelineService into SearchService | +25/-2 | Merged |
 | [#786](https://github.com/manavgup/rag_modulo/pull/786) | PipelineContext — composite config fetch | +547/-103 | **Open** |
 
-Each merged PR was reviewable in isolation and revertible. The open #786 PR is the capstone: one composite query instead of dozens per search (see [query trace doc](docs/debug/issue-777-db-query-trace.md)).
+Each merged PR was reviewable in isolation and revertible. The open #786 PR is the capstone: one composite query instead of dozens per search (see [query trace doc](traces/44-queries-to-5-db-trace.md)).
 
 Compare this with the conversation refactoring, where Phase 3 (PR #576, +3,580 lines) shipped with critical blockers that required two follow-up hotfix PRs. **The smaller the PR, the fewer the bugs** — not because less code means fewer bugs per line, but because the AI agent can hold the entire change in context and maintain consistency.
 
@@ -463,7 +463,7 @@ The tool is most useful for the velocity and composition trends. The qualitative
 
 1. **Use a proper DI container from the start.** Manual wiring in `dependencies.py` was the source of the worst performance bugs. At **36** service modules, wiring is fragile and duplicate instances break silently.
 
-2. **Design the query pattern first.** "One request = one config query + one search query + one generation call" should have been the constraint from day one. I retrofitted `PipelineContext` after tracing [44+ queries per search](docs/debug/issue-777-db-query-trace.md).
+2. **Design the query pattern first.** "One request = one config query + one search query + one generation call" should have been the constraint from day one. I retrofitted `PipelineContext` after tracing [44+ queries per search](traces/44-queries-to-5-db-trace.md).
 
 3. **Fewer, fatter services.** Group by domain (LLM config, search, conversation), not by database table. Five services with clear boundaries beat twenty with tangled dependencies.
 
@@ -475,7 +475,7 @@ The tool is most useful for the velocity and composition trends. The qualitative
 
 7. **AI-authored code needs different review criteria.** Don't review for "does this look right" — review for interface consistency across components, default values in configuration, skipped tests, and files that were referenced but never created.
 
-8. **Keep investigation docs, not aspirational architecture dumps.** PRs like #701 added thousands of lines of agentic-RAG documentation with placeholders; the durable artifacts were [#773](docs/debug/issue-773-rag-quality-investigation.md) and [#777](docs/debug/issue-777-db-query-trace.md) style traces.
+8. **Keep investigation docs, not aspirational architecture dumps.** PRs like #701 added thousands of lines of agentic-RAG documentation with placeholders; the durable artifacts were [#773](traces/hallucination-pipeline-trace.md) and [#777](traces/44-queries-to-5-db-trace.md) style traces.
 
 ---
 
@@ -518,7 +518,7 @@ Velocity and bot composition analysis: [Part 5](#part-5-the-data--what-pr-analys
 
 | Fix | Impact |
 |---|---|
-| PipelineContext ([#786](https://github.com/manavgup/rag_modulo/pull/786) open) | 48+ config queries → 3–4 (per [trace](docs/debug/issue-777-db-query-trace.md)) |
+| PipelineContext ([#786](https://github.com/manavgup/rag_modulo/pull/786) open) | 48+ config queries → 3–4 (per [trace](traces/44-queries-to-5-db-trace.md)) |
 | Conversation consolidation | 54 queries → 1 (98% reduction), 156ms → 3ms |
 | CoT auto-detection ([#769](https://github.com/manavgup/rag_modulo/pull/769)) | ~8 seconds/query saved |
 | TRUNCATE_INPUT_TOKENS removal ([#564](https://github.com/manavgup/rag_modulo/pull/564)) | Search semantics restored; regression in `test_watsonx.py` |
@@ -558,6 +558,6 @@ gitnapped -d . -p 2Y -a "Manav Gupta" --most-active-day --show-total-stats --pre
 
 ---
 
-*RAG Modulo is archived at [github.com/manavgup/rag_modulo](https://github.com/manavgup/rag_modulo). The code is MIT-licensed. Take what's useful — [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) for architecture, this post for AI-agent scars, debug docs for RAG and performance — and delete what isn't.*
+*RAG Modulo is archived at [github.com/manavgup/rag_modulo](https://github.com/manavgup/rag_modulo). The code is MIT-licensed. Take what's useful — [`LESSONS_LEARNED.md`](architecture-decisions-and-patterns.md) for architecture, this post for AI-agent scars, debug docs for RAG and performance — and delete what isn't.*
 
 *— Ship AI*

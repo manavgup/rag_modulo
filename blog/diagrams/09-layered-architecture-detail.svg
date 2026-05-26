@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 920" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrLeft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="920" fill="#fafaf9" rx="12"/>
+
+  <!-- Title -->
+  <text x="480" y="36" text-anchor="middle" fill="#1c1917" font-size="20" font-weight="700">RAG Modulo — Layered Architecture</text>
+  <text x="480" y="56" text-anchor="middle" fill="#78716c" font-size="12">FastAPI service layer with repository pattern and dependency injection</text>
+
+  <!-- ==================== CLIENT REQUEST ==================== -->
+  <rect x="250" y="80" width="300" height="42" rx="20" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <circle cx="280" cy="101" r="10" fill="#e7e5e4"/>
+  <line x1="275" y1="101" x2="285" y2="101" stroke="#a8a29e" stroke-width="2"/>
+  <text x="400" y="106" text-anchor="middle" fill="#44403c" font-size="13" font-weight="600">Client Request</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="122" x2="400" y2="148" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ==================== ROUTER LAYER ==================== -->
+  <rect x="200" y="155" width="400" height="120" rx="10" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <rect x="200" y="155" width="6" height="120" rx="3" fill="#f59e0b"/>
+  <text x="400" y="178" text-anchor="middle" fill="#1c1917" font-size="15" font-weight="700">Router Layer</text>
+
+  <!-- Code block -->
+  <rect x="225" y="188" width="350" height="72" rx="6" fill="#f5f5f4"/>
+  <text x="237" y="206" fill="#78716c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">@router.post("", response_model=SearchOutput)</text>
+  <text x="237" y="222" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace" font-weight="600">async def search(</text>
+  <text x="237" y="238" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">    search_input: SearchInput,</text>
+  <text x="237" y="254" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">    service: Depends(get_search_service),</text>
+
+  <!-- Right label -->
+  <line x1="610" y1="200" x2="660" y2="200" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+  <rect x="665" y="175" width="125" height="30" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="727" y="195" text-anchor="middle" fill="#92400e" font-size="11" font-weight="600">Router Layer</text>
+  <text x="670" y="222" fill="#78716c" font-size="10">Handles incoming requests.</text>
+  <text x="670" y="236" fill="#78716c" font-size="10">FastAPI route decorators.</text>
+  <text x="670" y="250" fill="#78716c" font-size="10">18 routers: search, collection,</text>
+  <text x="670" y="264" fill="#78716c" font-size="10">conversation, podcast, auth...</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="275" x2="400" y2="310" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="412" y="296" fill="#94a3b8" font-size="9" font-style="italic">Depends()</text>
+
+  <!-- ==================== SERVICE LAYER ==================== -->
+  <rect x="200" y="315" width="400" height="140" rx="10" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <rect x="200" y="315" width="6" height="140" rx="3" fill="#3b82f6"/>
+  <text x="400" y="340" text-anchor="middle" fill="#1c1917" font-size="15" font-weight="700">Service Layer</text>
+
+  <!-- Code block -->
+  <rect x="225" y="350" width="350" height="90" rx="6" fill="#f5f5f4"/>
+  <text x="237" y="368" fill="#78716c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace" font-weight="600">class SearchService:</text>
+  <text x="237" y="384" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">  async def search(self, input) -> SearchOutput:</text>
+  <text x="237" y="400" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">      self._validate_search_input(input)</text>
+  <text x="237" y="416" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">      return await self.pipeline.execute(ctx)</text>
+  <text x="237" y="432" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">  # 6-stage pipeline: resolve→enhance→retrieve→rerank→reason→generate</text>
+
+  <!-- Right label -->
+  <line x1="610" y1="370" x2="660" y2="370" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+  <rect x="665" y="345" width="125" height="30" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="727" y="365" text-anchor="middle" fill="#1e40af" font-size="11" font-weight="600">Service Layer</text>
+  <text x="670" y="392" fill="#78716c" font-size="10">Core business logic.</text>
+  <text x="670" y="406" fill="#78716c" font-size="10">37 services. Constructor DI.</text>
+  <text x="670" y="420" fill="#78716c" font-size="10">Calls repositories for data.</text>
+  <text x="670" y="434" fill="#78716c" font-size="10">Never touches DB directly.</text>
+
+  <!-- Left cross-cutting: Schemas -->
+  <rect x="40" y="300" width="130" height="55" rx="8" fill="#fff" stroke="#e7e5e4" stroke-width="1"/>
+  <text x="55" y="320" fill="#44403c" font-size="10" font-weight="600">Schemas</text>
+  <text x="55" y="334" fill="#78716c" font-size="9">SearchInput</text>
+  <text x="55" y="346" fill="#78716c" font-size="9">SearchOutput (Pydantic)</text>
+  <line x1="170" y1="330" x2="198" y2="365" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+
+  <!-- Left cross-cutting: Auth -->
+  <rect x="40" y="195" width="130" height="55" rx="8" fill="#fff" stroke="#e7e5e4" stroke-width="1"/>
+  <text x="55" y="215" fill="#44403c" font-size="10" font-weight="600">Authentication</text>
+  <text x="55" y="229" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">AuthMiddleware</text>
+  <text x="55" y="241" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">get_current_user()</text>
+  <line x1="170" y1="220" x2="198" y2="220" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="455" x2="400" y2="490" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="412" y="476" fill="#94a3b8" font-size="9" font-style="italic">self.repo</text>
+
+  <!-- ==================== REPOSITORY LAYER ==================== -->
+  <rect x="200" y="495" width="400" height="130" rx="10" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <rect x="200" y="495" width="6" height="130" rx="3" fill="#22c55e"/>
+  <text x="400" y="520" text-anchor="middle" fill="#1c1917" font-size="15" font-weight="700">Repository Layer</text>
+
+  <!-- Code block -->
+  <rect x="225" y="530" width="350" height="80" rx="6" fill="#f5f5f4"/>
+  <text x="237" y="548" fill="#78716c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace" font-weight="600">class CollectionRepository:</text>
+  <text x="237" y="564" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">  def get(self, id: UUID) -> Collection:</text>
+  <text x="237" y="580" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">      return self.db.query(Collection)</text>
+  <text x="237" y="596" fill="#44403c" font-size="10" font-family="'JetBrains Mono', 'SF Mono', monospace">          .options(joinedload(...)).first()</text>
+
+  <!-- Right label -->
+  <line x1="610" y1="550" x2="660" y2="550" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+  <rect x="665" y="525" width="140" height="30" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1"/>
+  <text x="735" y="545" text-anchor="middle" fill="#166534" font-size="11" font-weight="600">Repository Layer</text>
+  <text x="670" y="572" fill="#78716c" font-size="10">Interacts with the database.</text>
+  <text x="670" y="586" fill="#78716c" font-size="10">21 repositories. Returns DB</text>
+  <text x="670" y="600" fill="#78716c" font-size="10">models, never Pydantic schemas.</text>
+  <text x="670" y="614" fill="#78716c" font-size="10">joinedload() prevents N+1.</text>
+
+  <!-- Left cross-cutting: Validation -->
+  <rect x="40" y="510" width="130" height="45" rx="8" fill="#fff" stroke="#e7e5e4" stroke-width="1"/>
+  <text x="55" y="530" fill="#44403c" font-size="10" font-weight="600">Data Validation</text>
+  <text x="55" y="544" fill="#78716c" font-size="9">19 SQLAlchemy models</text>
+  <line x1="170" y1="530" x2="198" y2="545" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="625" x2="400" y2="660" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="412" y="646" fill="#94a3b8" font-size="9" font-style="italic">Session</text>
+
+  <!-- ==================== DATABASE LAYER ==================== -->
+  <rect x="200" y="665" width="400" height="90" rx="10" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <rect x="200" y="665" width="6" height="90" rx="3" fill="#a78bfa"/>
+  <text x="400" y="690" text-anchor="middle" fill="#1c1917" font-size="15" font-weight="700">Database Layer</text>
+
+  <!-- DB icons -->
+  <ellipse cx="270" cy="725" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <rect x="245" y="720" width="50" height="16" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <ellipse cx="270" cy="736" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <text x="270" y="730" text-anchor="middle" fill="#57534e" font-size="9" font-weight="600">Postgres</text>
+
+  <ellipse cx="370" cy="725" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <rect x="345" y="720" width="50" height="16" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <ellipse cx="370" cy="736" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <text x="370" y="730" text-anchor="middle" fill="#57534e" font-size="9" font-weight="600">Milvus</text>
+
+  <ellipse cx="470" cy="725" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <rect x="445" y="720" width="50" height="16" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <ellipse cx="470" cy="736" rx="25" ry="10" fill="#e7e5e4" stroke="#d6d3d1" stroke-width="1"/>
+  <text x="470" y="730" text-anchor="middle" fill="#57534e" font-size="9" font-weight="600">MinIO</text>
+
+  <!-- Right label -->
+  <line x1="610" y1="710" x2="660" y2="710" stroke="#d6d3d1" stroke-width="1" marker-end="url(#arrLeft)"/>
+  <rect x="665" y="685" width="140" height="30" rx="6" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+  <text x="735" y="705" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="600">Database Layer</text>
+  <text x="670" y="732" fill="#78716c" font-size="10">SQLAlchemy engine + pool.</text>
+  <text x="670" y="746" fill="#78716c" font-size="10">5 vector store backends.</text>
+
+  <!-- ==================== EXTERNAL SERVICES ==================== -->
+  <rect x="530" y="800" width="370" height="90" rx="10" fill="#fff" stroke="#d6d3d1" stroke-width="1.5"/>
+  <!-- Terminal dots -->
+  <circle cx="550" cy="816" r="5" fill="#fbbf24"/>
+  <circle cx="564" cy="816" r="5" fill="#22c55e"/>
+  <circle cx="578" cy="816" r="5" fill="#ef4444"/>
+  <text x="650" y="818" fill="#78716c" font-size="10" font-weight="600">External Services</text>
+
+  <rect x="545" y="828" width="340" height="52" rx="4" fill="#f5f5f4"/>
+  <text x="557" y="845" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">LLMProviderFactory.create("watsonx")</text>
+  <text x="557" y="860" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">MCPGatewayClient (circuit breaker)</text>
+  <text x="557" y="875" fill="#78716c" font-size="9" font-family="'JetBrains Mono', 'SF Mono', monospace">WatsonX | OpenAI | Anthropic APIs</text>
+
+  <!-- Arrow from service layer to external -->
+  <path d="M 580 420 Q 800 420 800 798" stroke="#d6d3d1" stroke-width="1" fill="none" stroke-dasharray="5,4" marker-end="url(#arrLeft)"/>
+
+  <!-- ==================== DI / CROSS-CUTTING ==================== -->
+  <rect x="40" y="660" width="130" height="95" rx="8" fill="#fff" stroke="#e7e5e4" stroke-width="1"/>
+  <text x="55" y="680" fill="#44403c" font-size="10" font-weight="600">Dependency Injection</text>
+  <text x="55" y="696" fill="#78716c" font-size="8" font-family="'JetBrains Mono', 'SF Mono', monospace">core/dependencies.py</text>
+  <text x="55" y="712" fill="#78716c" font-size="8">19 factory functions</text>
+  <text x="55" y="726" fill="#78716c" font-size="8">Shared leaf services</text>
+  <text x="55" y="740" fill="#78716c" font-size="8">PipelineContext (frozen)</text>
+  <text x="55" y="754" fill="#78716c" font-size="8">ConfigCache (per-request)</text>
+
+  <!-- Vertical line connecting DI to all layers -->
+  <line x1="105" y1="250" x2="105" y2="660" stroke="#e7e5e4" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Bottom note -->
+  <text x="480" y="910" text-anchor="middle" fill="#a8a29e" font-size="10">Router → Service → Repository → Database | each layer has a single responsibility | services own all business logic</text>
+</svg>

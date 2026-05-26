@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 680" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="900" height="680" fill="#0f172a" rx="12"/>
+
+  <text x="450" y="30" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">Design Patterns in RAG Modulo</text>
+  <text x="450" y="48" text-anchor="middle" fill="#94a3b8" font-size="11">10 patterns across the codebase — where they live and how they connect</text>
+
+  <!-- Row 1: Creational patterns -->
+  <text x="50" y="78" fill="#475569" font-size="10" font-weight="600" text-decoration="underline">CREATIONAL</text>
+
+  <!-- Factory -->
+  <rect x="40" y="90" width="260" height="110" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="55" y="112" fill="#fcd34d" font-size="11" font-weight="700">Factory Pattern</text>
+  <rect x="55" y="120" width="230" height="32" rx="4" fill="#292524"/>
+  <text x="65" y="135" fill="#fde68a" font-size="8" font-weight="600">LLMProviderFactory</text>
+  <text x="65" y="147" fill="#94a3b8" font-size="7">generation/providers/factory.py</text>
+  <text x="65" y="162" fill="#86efac" font-size="8">WatsonX | OpenAI | Anthropic</text>
+  <rect x="55" y="168" width="230" height="25" rx="4" fill="#292524"/>
+  <text x="65" y="183" fill="#fde68a" font-size="8" font-weight="600">VectorStoreFactory</text>
+  <text x="65" y="192" fill="#94a3b8" font-size="7">vectordbs/factory.py</text>
+  <text x="175" y="183" fill="#86efac" font-size="7">Milvus | ES | Pinecone | Weaviate | ChromaDB</text>
+
+  <!-- Singleton -->
+  <rect x="320" y="90" width="260" height="110" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="335" y="112" fill="#fcd34d" font-size="11" font-weight="700">Singleton (via @lru_cache)</text>
+  <rect x="335" y="120" width="230" height="32" rx="4" fill="#292524"/>
+  <text x="345" y="135" fill="#fde68a" font-size="8" font-weight="600">get_settings()</text>
+  <text x="345" y="147" fill="#94a3b8" font-size="7">core/config.py — Pydantic BaseSettings from env</text>
+  <rect x="335" y="158" width="230" height="35" rx="4" fill="#292524"/>
+  <text x="345" y="173" fill="#fde68a" font-size="8" font-weight="600">FastAPI Depends() + factory functions</text>
+  <text x="345" y="185" fill="#94a3b8" font-size="7">core/dependencies.py — 19 service factories</text>
+  <text x="345" y="192" fill="#64748b" font-size="7">Shared leaf services created once, injected into all consumers</text>
+
+  <!-- DI -->
+  <rect x="600" y="90" width="260" height="110" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="615" y="112" fill="#fcd34d" font-size="11" font-weight="700">Dependency Injection</text>
+  <rect x="615" y="120" width="230" height="72" rx="4" fill="#292524"/>
+  <text x="625" y="135" fill="#fde68a" font-size="8" font-weight="600">Constructor-based DI</text>
+  <text x="625" y="148" fill="#94a3b8" font-size="7">Services receive dependencies via __init__</text>
+  <text x="625" y="161" fill="#94a3b8" font-size="7">Routers use FastAPI Depends(get_xxx_service)</text>
+  <text x="625" y="174" fill="#f87171" font-size="7">Manual wiring — no container (lesson: use one)</text>
+  <text x="625" y="187" fill="#64748b" font-size="7">Shared instances forwarded to sub-services (#782-#785)</text>
+
+  <!-- Row 2: Structural patterns -->
+  <text x="50" y="225" fill="#475569" font-size="10" font-weight="600" text-decoration="underline">STRUCTURAL</text>
+
+  <!-- Pipeline -->
+  <rect x="40" y="237" width="400" height="110" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="55" y="259" fill="#c4b5fd" font-size="11" font-weight="700">Pipeline Pattern</text>
+  <text x="55" y="273" fill="#94a3b8" font-size="8">services/pipeline/base_stage.py → pipeline_executor.py</text>
+  <!-- Mini pipeline -->
+  <rect x="55" y="280" width="55" height="20" rx="3" fill="#6366f1" fill-opacity="0.15"/>
+  <text x="82" y="294" text-anchor="middle" fill="#a5b4fc" font-size="7">Resolve</text>
+  <text x="114" y="294" fill="#475569" font-size="8">→</text>
+  <rect x="120" y="280" width="50" height="20" rx="3" fill="#8b5cf6" fill-opacity="0.15"/>
+  <text x="145" y="294" text-anchor="middle" fill="#c4b5fd" font-size="7">Enhance</text>
+  <text x="174" y="294" fill="#475569" font-size="8">→</text>
+  <rect x="180" y="280" width="50" height="20" rx="3" fill="#ec4899" fill-opacity="0.15"/>
+  <text x="205" y="294" text-anchor="middle" fill="#f9a8d4" font-size="7">Retrieve</text>
+  <text x="234" y="294" fill="#475569" font-size="8">→</text>
+  <rect x="240" y="280" width="50" height="20" rx="3" fill="#f59e0b" fill-opacity="0.15"/>
+  <text x="265" y="294" text-anchor="middle" fill="#fcd34d" font-size="7">Rerank</text>
+  <text x="294" y="294" fill="#475569" font-size="8">→</text>
+  <rect x="300" y="280" width="50" height="20" rx="3" fill="#14b8a6" fill-opacity="0.15"/>
+  <text x="325" y="294" text-anchor="middle" fill="#5eead4" font-size="7">Reason</text>
+  <text x="354" y="294" fill="#475569" font-size="8">→</text>
+  <rect x="360" y="280" width="55" height="20" rx="3" fill="#22c55e" fill-opacity="0.15"/>
+  <text x="387" y="294" text-anchor="middle" fill="#86efac" font-size="7">Generate</text>
+  <text x="55" y="317" fill="#94a3b8" font-size="7">BaseStage.execute(SearchContext) → StageResult</text>
+  <text x="55" y="329" fill="#94a3b8" font-size="7">Stages can fail without stopping pipeline. Context accumulates results.</text>
+  <text x="55" y="341" fill="#64748b" font-size="7">PipelineContext (frozen) threaded through — zero DB queries per stage</text>
+
+  <!-- Repository -->
+  <rect x="460" y="237" width="400" height="110" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="475" y="259" fill="#4ade80" font-size="11" font-weight="700">Repository Pattern</text>
+  <text x="475" y="273" fill="#94a3b8" font-size="8">repository/*.py — 21 repositories, one per domain entity</text>
+  <rect x="475" y="280" width="370" height="58" rx="4" fill="#292524"/>
+  <text x="485" y="295" fill="#86efac" font-size="8" font-weight="600">Rules:</text>
+  <text x="485" y="308" fill="#94a3b8" font-size="7">1. Receives SQLAlchemy Session via constructor</text>
+  <text x="485" y="319" fill="#94a3b8" font-size="7">2. Returns DB models, NEVER Pydantic schemas (lesson from #587)</text>
+  <text x="485" y="330" fill="#94a3b8" font-size="7">3. Uses joinedload() to prevent N+1 (54 queries → 1 in conversation)</text>
+
+  <!-- Row 3: Behavioral patterns -->
+  <text x="50" y="372" fill="#475569" font-size="10" font-weight="600" text-decoration="underline">BEHAVIORAL</text>
+
+  <!-- Strategy -->
+  <rect x="40" y="384" width="260" height="100" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="55" y="406" fill="#60a5fa" font-size="11" font-weight="700">Strategy Pattern</text>
+  <rect x="55" y="414" width="230" height="28" rx="4" fill="#292524"/>
+  <text x="65" y="427" fill="#93c5fd" font-size="8" font-weight="600">Reranking</text>
+  <text x="65" y="438" fill="#94a3b8" font-size="7">BaseReranker → LLMReranker, CrossEncoderReranker</text>
+  <rect x="55" y="446" width="230" height="28" rx="4" fill="#292524"/>
+  <text x="65" y="459" fill="#93c5fd" font-size="8" font-weight="600">Chunking</text>
+  <text x="65" y="470" fill="#94a3b8" font-size="7">sentence | semantic | hierarchical | token | fixed</text>
+
+  <!-- Circuit Breaker -->
+  <rect x="320" y="384" width="260" height="100" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="335" y="406" fill="#f87171" font-size="11" font-weight="700">Circuit Breaker</text>
+  <text x="335" y="420" fill="#94a3b8" font-size="8">services/mcp_gateway_client.py</text>
+  <!-- State machine -->
+  <rect x="345" y="430" width="55" height="20" rx="10" fill="#22c55e" fill-opacity="0.15"/>
+  <text x="372" y="444" text-anchor="middle" fill="#86efac" font-size="7">CLOSED</text>
+  <text x="407" y="444" fill="#475569" font-size="7">→5 fails→</text>
+  <rect x="452" y="430" width="45" height="20" rx="10" fill="#ef4444" fill-opacity="0.15"/>
+  <text x="474" y="444" text-anchor="middle" fill="#fca5a5" font-size="7">OPEN</text>
+  <text x="503" y="444" fill="#475569" font-size="7">→60s→</text>
+  <rect x="535" y="430" width="30" height="20" rx="10" fill="#fbbf24" fill-opacity="0.15"/>
+  <text x="550" y="444" text-anchor="middle" fill="#fde68a" font-size="6">HALF</text>
+  <text x="335" y="470" fill="#94a3b8" font-size="7">Graceful degradation: core RAG works if MCP tools fail</text>
+  <text x="335" y="480" fill="#64748b" font-size="7">Exponential backoff: 2^attempt retries, 5s health timeout</text>
+
+  <!-- Middleware -->
+  <rect x="600" y="384" width="260" height="100" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="615" y="406" fill="#c4b5fd" font-size="11" font-weight="700">Middleware / Decorator</text>
+  <text x="615" y="420" fill="#94a3b8" font-size="8">FastAPI BaseHTTPMiddleware chain</text>
+  <rect x="615" y="428" width="230" height="48" rx="4" fill="#292524"/>
+  <text x="625" y="441" fill="#ddd6fe" font-size="8">AuthenticationMiddleware</text>
+  <text x="625" y="453" fill="#ddd6fe" font-size="8">LoggingCORSMiddleware</text>
+  <text x="625" y="465" fill="#ddd6fe" font-size="8">HeaderCaptureMiddleware (MCP SSE)</text>
+
+  <!-- Row 4: Data patterns -->
+  <text x="50" y="510" fill="#475569" font-size="10" font-weight="600" text-decoration="underline">DATA</text>
+
+  <!-- Value Object -->
+  <rect x="40" y="522" width="260" height="100" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="55" y="544" fill="#22d3ee" font-size="11" font-weight="700">Value Object / Frozen Dataclass</text>
+  <rect x="55" y="552" width="230" height="60" rx="4" fill="#292524"/>
+  <text x="65" y="567" fill="#67e8f9" font-size="8" font-weight="600">PipelineContext</text>
+  <text x="170" y="567" fill="#94a3b8" font-size="7">frozen=True, fetched once per request</text>
+  <text x="65" y="580" fill="#67e8f9" font-size="8" font-weight="600">SearchContext</text>
+  <text x="170" y="580" fill="#94a3b8" font-size="7">mutable, accumulates through pipeline</text>
+  <text x="65" y="593" fill="#67e8f9" font-size="8" font-weight="600">StageResult</text>
+  <text x="170" y="593" fill="#94a3b8" font-size="7">success + context + error + metadata</text>
+  <text x="55" y="615" fill="#64748b" font-size="7">Replaced 48+ DB queries/request with single frozen snapshot</text>
+
+  <!-- Cache -->
+  <rect x="320" y="522" width="260" height="100" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="335" y="544" fill="#22d3ee" font-size="11" font-weight="700">Request-Scoped Cache</text>
+  <rect x="335" y="552" width="230" height="60" rx="4" fill="#292524"/>
+  <text x="345" y="567" fill="#67e8f9" font-size="8" font-weight="600">ConfigCache</text>
+  <text x="345" y="580" fill="#94a3b8" font-size="7">services/config_cache.py</text>
+  <text x="345" y="593" fill="#94a3b8" font-size="7">Dict-based, lazy loaders, dies with request</text>
+  <text x="345" y="606" fill="#94a3b8" font-size="7">No TTL complexity, no cross-request leakage</text>
+
+  <!-- Pydantic validation -->
+  <rect x="600" y="522" width="260" height="100" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="615" y="544" fill="#22d3ee" font-size="11" font-weight="700">Schema Validation (Pydantic)</text>
+  <rect x="615" y="552" width="230" height="60" rx="4" fill="#292524"/>
+  <text x="625" y="567" fill="#67e8f9" font-size="8">25 schema files in schemas/</text>
+  <text x="625" y="580" fill="#94a3b8" font-size="7">API input: *Input models (validation + defaults)</text>
+  <text x="625" y="593" fill="#94a3b8" font-size="7">API output: *Output models (serialization)</text>
+  <text x="625" y="606" fill="#94a3b8" font-size="7">Internal: StructuredAnswer, CoT schemas</text>
+
+  <!-- Footer -->
+  <rect x="40" y="638" width="820" height="30" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="450" y="655" text-anchor="middle" fill="#64748b" font-size="9">10 patterns | Factory + Repository + Pipeline carry the architecture | Circuit Breaker + Cache handle the real world</text>
+  <text x="450" y="668" text-anchor="middle" fill="#475569" font-size="8">Lesson: the patterns that mattered most were the ones added late to fix performance (PipelineContext, ConfigCache, CircuitBreaker)</text>
+</svg>
