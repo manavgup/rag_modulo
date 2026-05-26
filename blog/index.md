@@ -523,27 +523,33 @@ The skill caught exactly the kinds of issues it was designed for — and confirm
 
 The skills work as detection tools against a real codebase with real AI-generated mess. More importantly, they encode the *why* — each check links back to a specific bug that cost real time. A developer using these skills on a different project would catch the same classes of bugs without having to learn the lessons the hard way.
 
-### Cross-repo comparison: rag_modulo vs wikimind
+### Cross-repo comparison: three codebases, three profiles
 
-To validate the skills aren't just tuned to one repo's mess, I ran them against [wikimind](https://github.com/manavgup/wikimind) — a 637-commit project where virtually every commit is Claude co-authored (1,184 co-authored on 637 total). Same developer, same AI tools, different discipline.
+To validate the skills aren't tuned to one repo's mess, I ran them against two other projects: [wikimind](https://github.com/manavgup/wikimind) (my own, 637 commits, nearly 100% AI co-authored) and [IBM/mcp-context-forge](https://github.com/IBM/mcp-context-forge) (a large IBM open-source MCP gateway, 2,801 commits, 5.2% AI co-authored).
 
-| Check | rag_modulo | wikimind |
-|---|---|---|
-| Suspicious skipped tests | **7** | 0 |
-| Backup/disabled files | 3 (760 lines) | 0 |
-| Temporary markdown | 2 (840 lines) | 0 |
-| Orphaned tool dirs | 3 (~37K tokens) | 0 |
-| .claude/ bloat | 30 files (clean after #760) | No .claude/ dir |
-| Unpinned GitHub Actions | not checked | 5 of 80 (94% pinned) |
-| **Total bloat** | **~60K tokens** | **~0** |
+| Check | rag_modulo | wikimind | mcp-context-forge |
+|---|---|---|---|
+| Commits | 1,934 | 637 | 2,801 |
+| AI co-authored | ~25-30% | ~100% | 5.2% (145) |
+| Suspicious skipped tests | **7** | 0 | **28** |
+| Backup/disabled files | 3 (760 lines) | 0 | 0 |
+| Temporary markdown | 2 (840 lines) | 0 | 0 |
+| Orphaned tool dirs | 3 (~37K tokens) | 0 | 0 |
+| Unpinned GitHub Actions | not checked | 5 of 80 | **0 of 131** |
+| Dev defaults in prod | not checked | 0 | 0 |
+| **Total bloat** | **~60K tokens** | **~0** | **~0 (but 28 skips)** |
 
-Wikimind is remarkably clean for a repo with a higher AI co-authorship rate. No backup files, no temp markdown, no orphaned framework dirs, no unconditional test skips. The difference: wikimind was built AI-first from the start with consistent discipline. rag_modulo accumulated 22 months of experimentation debris across multiple AI frameworks.
+**What the comparison reveals:**
 
-The `iac-validator` did catch 5 unpinned actions in wikimind — including a community Firefox addon action (`yayuyokitano/firefox-addon@v1.0.4`) with no SHA available. Even well-maintained repos have supply chain gaps.
+**wikimind** is the cleanest — zero bloat, zero suspicious skips, despite the highest AI co-authorship rate. Built AI-first with consistent discipline from day one.
 
-The skills correctly distinguish between a messy repo and a clean one. They're not just tuned to one codebase's problems — they detect structural patterns.
+**mcp-context-forge** has excellent CI/CD security (all 131 actions SHA-pinned, zero missing file references) and zero artifact bloat — but the `repo-hygiene` skill caught **28 suspicious skipped tests**. Five have no reason at all (`test_event_service.py` lines 207, 255, 313, 358, 401). Nineteen have the telltale AI pattern: "complex mocking required" / "covered by other tests" — the same class of skip that hid the chat-breaking bug in rag_modulo's PR #583. Four stub "not implemented" tests were never completed.
 
-The skills are currently local (`~/.claude/skills/`). Once tested on a few more repos, they'll be published as a standalone skill pack.
+**rag_modulo** has the most artifact bloat (orphaned framework dirs, backup files, temp markdown) but fewer suspicious skips than mcp-context-forge. The mess is different: rag_modulo's problem was experimentation debris across multiple AI frameworks; mcp-context-forge's is AI-authored test stubs that were never finished.
+
+**The pattern across all three**: `repo-hygiene` and `iac-validator` produce actionable findings regardless of project size, AI involvement level, or language. The skipped-test check is the highest-signal detector — it caught real issues in 2 of 3 repos. The `iac-validator` SHA-pinning check confirmed mcp-context-forge's excellent security posture (0 unpinned) while flagging wikimind's 5 gaps.
+
+The skills are currently local (`~/.claude/skills/`). Once published, they'll be available as a standalone skill pack.
 
 ---
 
