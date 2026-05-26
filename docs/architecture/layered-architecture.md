@@ -1,10 +1,12 @@
-# Layered Architecture: Router → Service → Repository
+# How RAG Modulo's Layered Architecture Works: Router → Service → Repository
 
-RAG Modulo uses a strict 3-layer separation with FastAPI dependency injection. Every request follows the same path: router validates and delegates, service owns the logic, repository talks to the database.
+RAG Modulo enforces a strict 3-layer separation with FastAPI dependency injection. Every request follows the same path: router validates and delegates, service owns the logic, repository talks to the database. This discipline is what made it possible to re-architect the search pipeline and optimize DI without touching API endpoints or database queries.
 
 ## The Layers
 
 ![Layered Architecture — Request Flow with Code](../diagrams/09-layered-architecture-detail.svg)
+
+For the full dependency graph (which routers inject which services, which services use which repositories), see the [detailed architecture diagram](../diagrams/06-architecture.svg).
 
 ### Router Layer (18 routers)
 
@@ -49,10 +51,12 @@ Data access only. Each repository receives a SQLAlchemy `Session`, performs quer
 # backend/rag_solution/repository/collection_repository.py
 class CollectionRepository:
     def get(self, collection_id: UUID) -> Collection:
-        return self.db.query(Collection)
+        return (
+            self.db.query(Collection)
             .options(joinedload(Collection.users), joinedload(Collection.files))
             .filter(Collection.id == collection_id)
             .first()
+        )
 ```
 
 Uses `joinedload()` to prevent N+1 queries. The conversation repository consolidation reduced session listing from 54 queries to 1.

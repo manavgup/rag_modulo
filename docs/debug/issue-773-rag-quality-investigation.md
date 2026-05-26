@@ -1,4 +1,8 @@
-# Issue #773: RAG Quality Investigation
+# How 5 Independent Design Decisions Combined to Fabricate Financial Data (Issue #773)
+
+*Full pipeline trace: from user query to hallucinated IBM earnings.*
+
+![Hallucination cascade](../diagrams/04-hallucination-trace.svg)
 
 ## Problem Statement
 
