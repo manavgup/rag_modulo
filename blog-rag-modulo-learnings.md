@@ -46,7 +46,14 @@ Coming from a software engineering background but new to python, AND learning ho
 
 As one can expect, the patterns that mattered most were the ones added *late* to fix performance — PipelineContext and ConfigCache replaced 48+ DB queries per search with 3-4. I also struggled to get Dependency Injection right - especially since I had limited understanding of how Python and FastAPI enabled it, so that took some time!
 
-Deeper architecture notes live in [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md). Trace write-ups for the worst bugs: [`docs/debug/issue-773-rag-quality-investigation.md`](docs/debug/issue-773-rag-quality-investigation.md), [`docs/debug/issue-777-db-query-trace.md`](docs/debug/issue-777-db-query-trace.md).
+Deeper write-ups:
+- [Layered architecture detail](docs/architecture/layered-architecture.md) — code snippets for each layer, DI wiring, cross-cutting concerns
+- [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) — architecture decisions that paid off and didn't
+- [Issue #773 — RAG quality investigation](docs/debug/issue-773-rag-quality-investigation.md) — full pipeline trace of a hallucination
+- [Issue #777 — DB query trace](docs/debug/issue-777-db-query-trace.md) — 44 numbered SQL queries mapped to call sites
+- [TRUNCATE_INPUT_TOKENS bug](docs/debug/truncate-input-tokens-bug.md) — one config param broke all search
+- [Deployment death march](docs/debug/deployment-death-march.md) — 7 PRs for 1 deploy
+- [Codex automation saga](docs/debug/codex-automation-saga.md) — 16 PRs trying to automate issue→PR, all failed
 
 ## How It Evolved
 
