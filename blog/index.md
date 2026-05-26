@@ -21,6 +21,8 @@ I started building this as AI development tools like Cline and Cursor were just 
 9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773-775)** — 5 independent design decisions combined to fabricate financial data.
 10. **[Design the DB query pattern before building services](#trace-driven-debugging-issue-777)** — Retrofitting PipelineContext after discovering 48+ queries/request.
 
+These lessons are now encoded as [5 Claude Code skills](#part-7-turning-lessons-into-tools--5-claude-code-skills) that automate the checks. Running `/repo-hygiene` against this repo found ~60K tokens of bloat and 7 suspicious skipped tests — including the exact bug pattern from PR #583.
+
 ---
 
 ## What I Was Trying to Build
@@ -476,6 +478,52 @@ The tool is most useful for the velocity and composition trends. The qualitative
 7. **AI-authored code needs different review criteria.** Don't review for "does this look right" — review for interface consistency across components, default values in configuration, skipped tests, and files that were referenced but never created.
 
 8. **Keep investigation docs, not aspirational architecture dumps.** PRs like #701 added thousands of lines of agentic-RAG documentation with placeholders; the durable artifacts were [#773](traces/hallucination-pipeline-trace.md) and [#777](traces/44-queries-to-5-db-trace.md) style traces.
+
+---
+
+## Part 7: Turning Lessons Into Tools — 5 Claude Code Skills
+
+The lessons above are useful as prose. They're more useful as automation. I built 5 Claude Code skills that encode these lessons into repeatable checks — each one born from a specific failure documented in this article. Then I ran the first one against this repo to see what it would find.
+
+### The skills
+
+| Skill | Lesson | What it does |
+|---|---|---|
+| **repo-hygiene** | [#1](#the-44000-line-cleanup-760), [#5](#5-schedule-the-machete-pass) | Scans for AI-generated artifacts: skipped tests, backup files, temp markdown, .claude/ bloat, orphaned framework directories. Estimates token cost of the bloat. |
+| **ai-code-review** | [#2](#the-config-passthrough-bug-631), [#4](#1-break-work-into-small-sequenced-prs), [#5](#2-dont-let-the-ai-skip-tests) | Reviews AI-authored code for skipped tests, hardcoded dev defaults (`cot_enabled: true`), missing file references, suspicious config values, and cross-boundary changes. |
+| **interface-contract-check** | [#2](#the-config-passthrough-bug-631), [#3](#the-truncate_input_tokens-disaster-pr-564) | Verifies API contracts between frontend and backend: schema shapes, nesting levels, fields defined but never populated, config passthrough. |
+| **iac-validator** | [#6](#the-deployment-death-march-prs-633640), [#8](#the-supply-chain-attack-766) | Validates IaC before pushing: GitHub Actions pinned to SHAs (not tags), referenced scripts exist, docker-compose services resolve, URLs reachable. |
+| **rag-quality-trace** | [#9](#the-hallucination-investigation-773-775), [#10](#trace-driven-debugging-issue-777) | Traces a RAG query through every pipeline stage: what chunks were retrieved, how they ranked, what the reranker changed, what context reached the LLM, what the LLM produced. |
+
+Each skill is a single `SKILL.md` file (150-180 lines) that Claude Code loads on demand. They follow the [Agent Skills spec](https://agentskills.io/specification) — name, description for triggering, and step-by-step instructions with bash commands and report templates.
+
+### Running repo-hygiene against this repo
+
+I ran `/repo-hygiene` against the archived rag_modulo codebase. Results:
+
+**Skipped tests: 7 suspicious, 35 infra-conditional.** The infra-conditional skips (skip when Docker/API not available) are legitimate runtime guards. The 7 suspicious ones are the problem:
+
+- `test_conversation_service_performance.py:414` — skips because "ConversationContextService no longer exists." The service was consolidated in Phase 3. The test should be deleted, not skipped.
+- `test_token_tracking_integration_tdd.py:519, :590` — "Needs repository mock refactoring." This is the exact pattern from PR #583 — the AI couldn't fix the mock and skipped the test to keep the PR green. These may be hiding real bugs.
+- `test_chain_of_thought_integration.py:18` — "Chain of Thought service not fully implemented." CoT IS implemented (PR #230). This skip is stale.
+
+**Orphaned tool directories: 3 dirs, ~37K tokens.** `.ralph/` (34 files, 2,981 lines of markdown), `.claude-flow/` (4 files), `.swarm/` (1 file). These are state directories from AI frameworks I experimented with and stopped using. They're not in .gitignore, so they're consuming context.
+
+**Backup files: 3 files, ~760 lines.** Including `.env.bak` and `backend/.env.backup` — which may contain secrets that shouldn't be in the repo at all.
+
+**Temporary markdown: 2 files, ~840 lines.** `TESTING_STRUCTURED_OUTPUT.md` and `tests/PODCAST_DURATION_CONTROL_ANALYSIS.md` — session artifacts that were never maintained.
+
+**.claude/ directory: CLEAN.** 19 agent files, 4 commands, 4 skills, 3 rules, CLAUDE.md at 63 lines. The PR #760 cleanup is holding.
+
+**Total estimated bloat: ~60,000 tokens across 51 files.**
+
+The skill caught exactly the kinds of issues it was designed for — and confirmed that the #760 cleanup was effective for the `.claude/` directory but missed the orphaned framework directories and stale skipped tests. The "needs mock refactoring" skipped tests are particularly concerning because that's the exact pattern that caused the chat-breaking bug in PR #583.
+
+### What this proves
+
+The skills work as detection tools against a real codebase with real AI-generated mess. More importantly, they encode the *why* — each check links back to a specific bug that cost real time. A developer using these skills on a different project would catch the same classes of bugs without having to learn the lessons the hard way.
+
+The skills are currently local (`~/.claude/skills/`). Once tested on a few more repos, they'll be published as a standalone skill pack.
 
 ---
 
