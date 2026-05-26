@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="800" height="400" fill="#0f172a" rx="12"/>
+
+  <text x="400" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">PR Velocity: Before and After AI Agents</text>
+  <text x="400" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">Monthly merged PRs across 446 total | data from github-pr-analysis</text>
+
+  <!-- Y axis -->
+  <line x1="80" y1="75" x2="80" y2="330" stroke="#334155" stroke-width="1"/>
+  <!-- X axis -->
+  <line x1="80" y1="330" x2="760" y2="330" stroke="#334155" stroke-width="1"/>
+
+  <!-- Y axis labels -->
+  <text x="72" y="332" text-anchor="end" fill="#64748b" font-size="10">0</text>
+  <text x="72" y="280" text-anchor="end" fill="#64748b" font-size="10">20</text>
+  <line x1="80" y1="278" x2="760" y2="278" stroke="#1e293b" stroke-width="1"/>
+  <text x="72" y="229" text-anchor="end" fill="#64748b" font-size="10">40</text>
+  <line x1="80" y1="227" x2="760" y2="227" stroke="#1e293b" stroke-width="1"/>
+  <text x="72" y="178" text-anchor="end" fill="#64748b" font-size="10">60</text>
+  <line x1="80" y1="176" x2="760" y2="176" stroke="#1e293b" stroke-width="1"/>
+  <text x="72" y="127" text-anchor="end" fill="#64748b" font-size="10">80</text>
+  <line x1="80" y1="125" x2="760" y2="125" stroke="#1e293b" stroke-width="1"/>
+  <text x="72" y="80" text-anchor="end" fill="#64748b" font-size="10">100</text>
+  <line x1="80" y1="78" x2="760" y2="78" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Pre-Claude zone -->
+  <rect x="80" y="65" width="470" height="275" fill="#6366f1" fill-opacity="0.04"/>
+  <text x="315" y="88" text-anchor="middle" fill="#6366f1" font-size="10" fill-opacity="0.6">Pre-Claude (3.7 PRs/week avg)</text>
+
+  <!-- Post-Claude zone -->
+  <rect x="550" y="65" width="210" height="275" fill="#22c55e" fill-opacity="0.04"/>
+  <text x="655" y="88" text-anchor="middle" fill="#22c55e" font-size="10" fill-opacity="0.6">Post-Claude (7.1/week)</text>
+
+  <!-- Bars - each month. Scale: 100 PRs = 252px, so 1 PR = 2.52px -->
+  <!-- May 2024: 1 -->
+  <rect x="95" y="327" width="30" height="3" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="110" y="348" text-anchor="middle" fill="#64748b" font-size="8">May24</text>
+
+  <!-- Jun-Jul 2024: 0 (gap) -->
+
+  <!-- Aug 2024: 1 -->
+  <rect x="145" y="327" width="30" height="3" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="160" y="348" text-anchor="middle" fill="#64748b" font-size="8">Aug</text>
+
+  <!-- Sep 2024: 5 -->
+  <rect x="195" y="317" width="30" height="13" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="210" y="348" text-anchor="middle" fill="#64748b" font-size="8">Sep</text>
+
+  <!-- Oct 2024: 6 -->
+  <rect x="245" y="315" width="30" height="15" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="260" y="348" text-anchor="middle" fill="#64748b" font-size="8">Oct</text>
+
+  <!-- Nov 2024: 14 -->
+  <rect x="295" y="295" width="30" height="35" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="310" y="348" text-anchor="middle" fill="#64748b" font-size="8">Nov</text>
+
+  <!-- Dec 2024: 22 -->
+  <rect x="345" y="275" width="30" height="55" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="360" y="348" text-anchor="middle" fill="#64748b" font-size="8">Dec</text>
+
+  <!-- Jan 2025: 9 -->
+  <rect x="395" y="307" width="30" height="23" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="410" y="348" text-anchor="middle" fill="#64748b" font-size="8">Jan25</text>
+
+  <!-- Feb-Jul 2025: 0 (gap / no data) -->
+  <text x="470" y="325" text-anchor="middle" fill="#475569" font-size="9" font-style="italic">Feb-Jul: dev pause</text>
+
+  <!-- Aug 2025: 18 -->
+  <rect x="500" y="285" width="30" height="45" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="515" y="348" text-anchor="middle" fill="#64748b" font-size="8">Aug</text>
+
+  <!-- Sep 2025: 42 -->
+  <rect x="550" y="225" width="30" height="105" rx="2" fill="#6366f1" fill-opacity="0.8"/>
+  <text x="565" y="348" text-anchor="middle" fill="#64748b" font-size="8">Sep</text>
+
+  <!-- Oct 2025: 98 - THE PEAK -->
+  <rect x="600" y="85" width="30" height="245" rx="2" fill="#22c55e" fill-opacity="0.8"/>
+  <text x="615" y="348" text-anchor="middle" fill="#86efac" font-size="8" font-weight="700">Oct</text>
+  <text x="615" y="80" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">98</text>
+
+  <!-- Nov 2025: 82 -->
+  <rect x="650" y="125" width="30" height="205" rx="2" fill="#22c55e" fill-opacity="0.7"/>
+  <text x="665" y="348" text-anchor="middle" fill="#86efac" font-size="8" font-weight="700">Nov</text>
+
+  <!-- Dec 2025: 5 -->
+  <rect x="700" y="317" width="30" height="13" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="715" y="348" text-anchor="middle" fill="#64748b" font-size="8">Dec</text>
+
+  <!-- Mar 2026: 12 -->
+  <rect x="740" y="300" width="20" height="30" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="750" y="348" text-anchor="middle" fill="#64748b" font-size="8">Mar26</text>
+
+  <!-- Annotation line -->
+  <line x1="548" y1="70" x2="548" y2="340" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,4" stroke-opacity="0.5"/>
+  <text x="548" y="368" text-anchor="middle" fill="#fbbf24" font-size="9">Claude Code adoption</text>
+
+  <!-- Legend -->
+  <rect x="570" y="370" width="12" height="12" rx="2" fill="#6366f1" fill-opacity="0.7"/>
+  <text x="588" y="381" fill="#94a3b8" font-size="10">Human + Dependabot</text>
+  <rect x="690" y="370" width="12" height="12" rx="2" fill="#22c55e" fill-opacity="0.7"/>
+  <text x="708" y="381" fill="#94a3b8" font-size="10">AI-heavy era</text>
+</svg>

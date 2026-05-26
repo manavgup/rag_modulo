@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.05"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="480" fill="#0f172a" rx="12"/>
+
+  <!-- Title -->
+  <text x="400" y="36" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">PR #760: The Great AI Slop Cleanup</text>
+  <text x="400" y="56" text-anchor="middle" fill="#94a3b8" font-size="12">+356 lines added / -44,777 lines deleted across 201 files</text>
+
+  <!-- BEFORE column -->
+  <rect x="30" y="75" width="355" height="380" rx="8" fill="url(#redGrad)" stroke="#ef4444" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="207" y="100" text-anchor="middle" fill="#f87171" font-size="14" font-weight="700">BEFORE</text>
+
+  <!-- CLAUDE.md -->
+  <rect x="50" y="115" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="62" y="137" fill="#f87171" font-size="12" font-weight="600">CLAUDE.md</text>
+  <rect x="180" y="123" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="182" y="125" width="166" height="16" rx="2" fill="#ef4444" fill-opacity="0.6"/>
+  <text x="340" y="137" text-anchor="end" fill="#fca5a5" font-size="11">1,025 lines</text>
+
+  <!-- Agent files -->
+  <rect x="50" y="160" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="62" y="182" fill="#f87171" font-size="12" font-weight="600">Agent files</text>
+  <rect x="180" y="168" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="182" y="170" width="166" height="16" rx="2" fill="#ef4444" fill-opacity="0.6"/>
+  <text x="340" y="182" text-anchor="end" fill="#fca5a5" font-size="11">80 files</text>
+
+  <!-- Command files -->
+  <rect x="50" y="205" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="62" y="227" fill="#f87171" font-size="12" font-weight="600">Command files</text>
+  <rect x="180" y="213" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="182" y="215" width="166" height="16" rx="2" fill="#ef4444" fill-opacity="0.6"/>
+  <text x="340" y="227" text-anchor="end" fill="#fca5a5" font-size="11">104 files</text>
+
+  <!-- Skill files -->
+  <rect x="50" y="250" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="62" y="272" fill="#f87171" font-size="12" font-weight="600">Generic skills</text>
+  <rect x="180" y="258" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="182" y="260" width="166" height="16" rx="2" fill="#ef4444" fill-opacity="0.6"/>
+  <text x="340" y="272" text-anchor="end" fill="#fca5a5" font-size="11">25 files</text>
+
+  <!-- Rules -->
+  <rect x="50" y="295" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="62" y="317" fill="#f87171" font-size="12" font-weight="600">Project rules</text>
+  <rect x="180" y="303" width="170" height="20" rx="3" fill="#292524"/>
+  <text x="340" y="317" text-anchor="end" fill="#94a3b8" font-size="11">0 files</text>
+
+  <!-- Context cost -->
+  <rect x="50" y="345" width="315" height="36" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1" stroke-opacity="0.5"/>
+  <text x="62" y="367" fill="#fbbf24" font-size="12" font-weight="600">Context cost/session</text>
+  <text x="340" y="367" text-anchor="end" fill="#fbbf24" font-size="12" font-weight="700">~20-30K tokens</text>
+
+  <!-- Frameworks list -->
+  <text x="207" y="410" text-anchor="middle" fill="#94a3b8" font-size="10">Frameworks: consensus, flow-nexus, hive-mind, swarm,</text>
+  <text x="207" y="424" text-anchor="middle" fill="#94a3b8" font-size="10">neural, sparc, optimization, reasoning, agentdb,</text>
+  <text x="207" y="438" text-anchor="middle" fill="#94a3b8" font-size="10">reasoningbank, stream-chain, skill-builder...</text>
+
+  <!-- AFTER column -->
+  <rect x="415" y="75" width="355" height="380" rx="8" fill="url(#greenGrad)" stroke="#22c55e" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="592" y="100" text-anchor="middle" fill="#4ade80" font-size="14" font-weight="700">AFTER</text>
+
+  <!-- CLAUDE.md -->
+  <rect x="435" y="115" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="447" y="137" fill="#4ade80" font-size="12" font-weight="600">CLAUDE.md</text>
+  <rect x="565" y="123" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="567" y="125" width="10" height="16" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="725" y="137" text-anchor="end" fill="#86efac" font-size="11">63 lines (94% less)</text>
+
+  <!-- Agent files -->
+  <rect x="435" y="160" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="447" y="182" fill="#4ade80" font-size="12" font-weight="600">Agent files</text>
+  <rect x="565" y="168" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="567" y="170" width="40" height="16" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="725" y="182" text-anchor="end" fill="#86efac" font-size="11">19 files (76% less)</text>
+
+  <!-- Command files -->
+  <rect x="435" y="205" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="447" y="227" fill="#4ade80" font-size="12" font-weight="600">Command files</text>
+  <rect x="565" y="213" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="567" y="215" width="7" height="16" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="725" y="227" text-anchor="end" fill="#86efac" font-size="11">4 files (96% less)</text>
+
+  <!-- Skill files -->
+  <rect x="435" y="250" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="447" y="272" fill="#4ade80" font-size="12" font-weight="600">Project skills</text>
+  <rect x="565" y="258" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="567" y="260" width="20" height="16" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="725" y="272" text-anchor="end" fill="#86efac" font-size="11">3 project-specific</text>
+
+  <!-- Rules -->
+  <rect x="435" y="295" width="315" height="36" rx="4" fill="#1e293b"/>
+  <text x="447" y="317" fill="#4ade80" font-size="12" font-weight="600">Project rules</text>
+  <rect x="565" y="303" width="170" height="20" rx="3" fill="#292524"/>
+  <rect x="567" y="305" width="20" height="16" rx="2" fill="#22c55e" fill-opacity="0.6"/>
+  <text x="725" y="317" text-anchor="end" fill="#86efac" font-size="11">3 files (new)</text>
+
+  <!-- Context cost -->
+  <rect x="435" y="345" width="315" height="36" rx="4" fill="#1e293b" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+  <text x="447" y="367" fill="#fbbf24" font-size="12" font-weight="600">Context cost/session</text>
+  <text x="725" y="367" text-anchor="end" fill="#4ade80" font-size="12" font-weight="700">~2-3K tokens</text>
+
+  <!-- What remained -->
+  <text x="592" y="410" text-anchor="middle" fill="#94a3b8" font-size="10">Kept: cicd-stability-guardian, rag-debugger,</text>
+  <text x="592" y="424" text-anchor="middle" fill="#94a3b8" font-size="10">pr-reviewer, core agents (planner, coder, tester),</text>
+  <text x="592" y="438" text-anchor="middle" fill="#94a3b8" font-size="10">backend-service-pattern, search-pipeline, testing-conventions</text>
+</svg>

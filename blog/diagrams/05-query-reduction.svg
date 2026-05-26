@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="800" height="300" fill="#0f172a" rx="12"/>
+
+  <text x="400" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700">Database Query Reduction</text>
+  <text x="400" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">Two patterns that eliminated 98% of configuration queries per search request</text>
+
+  <!-- Before: Config queries -->
+  <rect x="30" y="75" width="350" height="100" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="205" y="97" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700">Before: 48+ queries per search</text>
+
+  <!-- Query bars -->
+  <rect x="50" y="108" width="310" height="10" rx="2" fill="#ef4444" fill-opacity="0.3"/>
+  <text x="55" y="117" fill="#fca5a5" font-size="8">LLMProviderService (3x) | LLMModelService (3x) | PromptTemplateService (2x) | LLMParametersService (2x)</text>
+  <rect x="50" y="122" width="310" height="10" rx="2" fill="#ef4444" fill-opacity="0.25"/>
+  <text x="55" y="131" fill="#fca5a5" font-size="8">PipelineService (4x) | CollectionService (3x) | SessionService (6x) | UserService (4x)</text>
+  <rect x="50" y="136" width="310" height="10" rx="2" fill="#ef4444" fill-opacity="0.2"/>
+  <text x="55" y="145" fill="#fca5a5" font-size="8">+ duplicates from lazy properties creating new service instances without sharing</text>
+  <rect x="50" y="150" width="310" height="10" rx="2" fill="#ef4444" fill-opacity="0.15"/>
+  <text x="55" y="159" fill="#fca5a5" font-size="8">+ eager-loaded relationships pulling full object graphs each time</text>
+
+  <!-- After: PipelineContext -->
+  <rect x="420" y="75" width="350" height="100" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="595" y="97" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700">After: 3-4 queries per search</text>
+
+  <rect x="440" y="108" width="120" height="14" rx="3" fill="#22c55e" fill-opacity="0.3"/>
+  <text x="500" y="119" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">Q1: Pipeline + Provider</text>
+
+  <rect x="440" y="128" width="100" height="14" rx="3" fill="#22c55e" fill-opacity="0.25"/>
+  <text x="490" y="139" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">Q2: Models/Params</text>
+
+  <rect x="440" y="148" width="80" height="14" rx="3" fill="#22c55e" fill-opacity="0.2"/>
+  <text x="480" y="159" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">Q3: Collection</text>
+
+  <text x="595" y="170" text-anchor="middle" fill="#64748b" font-size="9">frozen=True prevents mutation</text>
+
+  <!-- Arrow -->
+  <path d="M385 125 L415 125" stroke="#fbbf24" stroke-width="2" fill="none" marker-end="url(#arrowRight)"/>
+  <text x="400" y="115" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">98%</text>
+
+  <!-- Conversation consolidation -->
+  <rect x="30" y="195" width="350" height="80" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="205" y="217" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700">Before: 54 queries to list sessions</text>
+  <text x="205" y="237" text-anchor="middle" fill="#94a3b8" font-size="10">3 separate repositories, each with eager loading</text>
+  <text x="205" y="253" text-anchor="middle" fill="#94a3b8" font-size="10">Response time: 156ms</text>
+
+  <rect x="420" y="195" width="350" height="80" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="595" y="217" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700">After: 1 query with joinedload()</text>
+  <text x="595" y="237" text-anchor="middle" fill="#94a3b8" font-size="10">Unified ConversationRepository</text>
+  <text x="595" y="253" text-anchor="middle" fill="#94a3b8" font-size="10">Response time: 3ms (52x faster)</text>
+
+  <path d="M385 235 L415 235" stroke="#fbbf24" stroke-width="2" fill="none" marker-end="url(#arrowRight)"/>
+  <text x="400" y="225" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">98%</text>
+
+  <defs>
+    <marker id="arrowRight" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="293" text-anchor="middle" fill="#64748b" font-size="10">Both fixes: design the query pattern you want first, then build services that fit it</text>
+</svg>
