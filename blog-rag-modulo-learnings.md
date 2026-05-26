@@ -6,19 +6,35 @@
 
 I'm archiving [RAG Modulo](https://github.com/manavgup/rag_modulo), a modular Retrieval-Augmented Generation platform I tried to build from May 2024 to March 2026. Python/FastAPI backend, React frontend, 5 vector databases, 3 LLM providers, and **2,615** automated tests (`poetry run pytest --collect-only`, March 2026).
 
+I started building this as the models were getting better, AI development tools like Cline & Cursor were just introduced and SWE Agents were dawning. This story is as much about the evolution of the AI models, the scaffolding around them, and myself as a python programmer. Full disclosure - this was my first serious foray with Python after years of C/C++/Java/Perl.
+
 This article is about what happens when you use AI agents to build a real system over almost two years, the bugs they introduce, the slop they generate.
 
-AI Agents can be surprisingly good work they produce when you learn to direct them. And the things that go wrong that no tutorial prepares you for.
+AI Agents can produce surprisingly good work when you learn to direct them. And the things that go wrong that no tutorial prepares you for.
 
-I started building this as the models were getting better, Cline & Cursor were just introduced and the models were improving. This is the evolution of both the AI models, the scaffolding around them, and myself as a python programmer. Full disclosure - this was my first serious foray with Python after years of C/C++/Java/Perl.
+## Key Lessons (TL;DR)
+
+1. **[Schedule regular garbage collection](#the-44000-line-cleanup-760)** — AI agents leave 70,000+ lines of artifacts. Cut it back before it degrades their own performance.
+2. **[AI agents can't maintain interface contracts across sessions](#the-config-passthrough-bug-631)** — Integration tests at API boundaries are mandatory, not optional.
+3. **[Mock-only test suites hide critical bugs](#the-truncate_input_tokens-disaster-pr-564)** — One config param broke all search; 1,738 mocked tests stayed green.
+4. **[Break AI work into small, sequenced PRs](#1-break-work-into-small-sequenced-prs)** — 8 small PRs shipped clean; one 3,580-line PR needed two hotfixes.
+5. **[Never let AI skip tests](#2-dont-let-the-ai-skip-tests)** — Skipped tests hid a bug that broke all chat functionality.
+6. **[AI-generated IaC is the most dangerous output](#the-deployment-death-march-prs-633640)** — 7 PRs to fix one deployment because configs referenced non-existent files. ([Full trace](docs/debug/deployment-death-march.md))
+7. **[Full CI/CD automation with AI agents isn't ready](#oct-2025-the-explosion)** — 16 PRs trying to automate issue→PR, all failed. ([Full trace](docs/debug/codex-automation-saga.md))
+8. **[Pin GitHub Actions to SHAs](#the-supply-chain-attack-pr-766)** — A supply chain attack hit our security scanner. Tags can be force-pushed.
+9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773--775)** — 5 independent design decisions combined to fabricate financial data.
+10. **[Design the DB query pattern before building services](#trace-driven-debugging-issues-773-and-777)** — Retrofitting PipelineContext after discovering 48+ queries/request.
+
+---
 
 ## What I Was Trying to Build
 
-![RAG Modulo Architecture](diagrams/06-architecture.svg)
 
 A modular RAG platform where every piece was swappable: any vector database, any LLM provider, any chunking strategy. The architecture ended up as strict 3-layer separation — **Router** (thin HTTP) → **Service** (business logic) → **Repository** (data access) — with 37 services, 21 repositories, 18 routers, and factory patterns for both LLM providers and vector stores.
 
-![Design Patterns](diagrams/08-design-patterns.svg)
+![RAG Modulo Architecture](diagrams/06-architecture.svg)
+
+Coming from a software engineering background but new to python, AND learning how to use AI-powered development, I oscillated between hand-coding and AI-driven coding, and went back and forth in implementing design patterns. However, I am able to say that I did implement a few design patterns (one can debate their success or 'purity')
 
 10 design patterns in production, organized by purpose:
 - **Creational**: Factory (LLM providers, vector stores), Singleton (`@lru_cache` settings), manual DI via `core/dependencies.py`
@@ -26,7 +42,9 @@ A modular RAG platform where every piece was swappable: any vector database, any
 - **Behavioral**: Strategy (pluggable reranking + chunking), Circuit Breaker (MCP gateway: 5 failures → 60s cooldown → half-open test), Middleware chain (auth, CORS, logging)
 - **Data**: Frozen dataclass (`PipelineContext` — fetched once, threaded through all stages), request-scoped `ConfigCache`, Pydantic schemas (25 input/output validators)
 
-The patterns that mattered most were the ones added *late* to fix performance — PipelineContext and ConfigCache replaced 48+ DB queries per search with 3-4.
+![Design Patterns](diagrams/08-design-patterns.svg)
+
+As one can expect, the patterns that mattered most were the ones added *late* to fix performance — PipelineContext and ConfigCache replaced 48+ DB queries per search with 3-4. I also struggled to get Dependency Injection right - especially since I had limited understanding of how Python and FastAPI enabled it, so that took some time!
 
 Deeper architecture notes live in [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md). Trace write-ups for the worst bugs: [`docs/debug/issue-773-rag-quality-investigation.md`](docs/debug/issue-773-rag-quality-investigation.md), [`docs/debug/issue-777-db-query-trace.md`](docs/debug/issue-777-db-query-trace.md).
 
@@ -36,21 +54,14 @@ Deeper architecture notes live in [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md). Tr
 
 The project had distinct eras, visible in the PR history:
 
-**May–Jul 2024: Learning Python with vector stores.** The first commits tell the real story: `"fixing milvus_storev2.py WIP"`, `"getting closer on milvus_store.py"`, `"happy with elasticsearch_store.py and the test cases"`. I was a C/C++/Java/Perl developer building my first serious Python project. I started with the hard part — getting 5 different vector databases working behind a common interface — because that was the piece I couldn't find a good library for.
-
-**Aug–Oct 2024: A team shows up.** Contributors joined: @mtykhenko brought build discipline (Poetry, modular Docker Compose, containerized tests), @luizerico built the Carbon Design UI, @jslecointre added MLFlow for evaluation. The project went from "one person's experiment" to "something with CI/CD, auth, and a real frontend." PRs like `"Merge duplicating/confusing APIs, rename resources"` (#22) show the growing pains of multiple people touching the same codebase.
-
-**Nov–Dec 2024: Actual RAG features.** Replaced the genai SDK with WatsonX (#30). Added question suggestion, async search, document processing. Then the big bet: multi-LLM provider architecture with Anthropic, OpenAI, and WatsonX behind a factory pattern (#71). December was a sprint — 22 PRs merged, mostly by me, building the configuration management system that would later balloon into 37 services.
-
-**Feb–Jul 2025: The pause.** Six months of near-zero activity. Life happened.
-
-**Aug–Sep 2025: Return with AI.** Came back with Claude Code as my primary tool. The first thing it did was fix 643 linting issues (#148). Then Chain of Thought reasoning (#230), conversation interface (#232), and a 7-phase defensive programming cleanup. This is when the velocity changed — 60 PRs in two months, most co-authored with Claude. But also when the AI slop started accumulating.
-
-**Oct 2025: The explosion.** 98 PRs merged in a single month. Podcasts, Docling integration, reranking, secret scanning, reusable UI components, search re-architecture from the ground up (#551). Also: a 16-PR saga trying to set up Codex automation (PRs #367-#382) — every single one failed. And the AI agent artifacts were piling up silently.
-
-**Nov 2025: Ship and fix.** Conversation refactoring (7 phases), structured output, MCP Gateway — real features shipped. But also: TRUNCATE_INPUT_TOKENS bug (#564) that broke all search, the deployment death march (#633-#640), and the first big cleanup (#584, -26K lines).
-
-**Mar 2026: The reckoning.** The Great AI Slop Cleanup (-44,777 lines). Trivy supply chain attack. CoT auto-detection fix. Hallucination investigation. DI optimization (8 PRs). PipelineContext. And finally, LESSONS_LEARNED.md — the artifact that made this blog post possible.
+- **May–Jul 2024** — Learning Python by building 5 vector stores. Commit messages: `"getting closer on milvus_store.py"`, `"happy with elasticsearch_store.py"`.
+- **Aug–Oct 2024** — Team forms: @mtykhenko (build/infra), @luizerico (frontend), @jslecointre (MLFlow). CI/CD, auth, Poetry.
+- **Nov–Dec 2024** — RAG features: WatsonX, multi-provider architecture (#71), question suggestion. 22 PRs in December.
+- **Feb–Jul 2025** — Six-month pause.
+- **Aug–Sep 2025** — Return with Claude Code. Fixed 643 lint issues, added CoT reasoning (#230), conversation UI (#232). AI slop starts accumulating.
+- **Oct 2025** — 98 merged PRs. Podcasts, Docling, reranking, search re-architecture (#551). [16-PR Codex automation saga](docs/debug/codex-automation-saga.md) — all failed.
+- **Nov 2025** — Conversation refactor (7 phases), structured output, MCP Gateway. Also: [TRUNCATE_INPUT_TOKENS](docs/debug/truncate-input-tokens-bug.md) bug (#564), [deployment death march](docs/debug/deployment-death-march.md) (#633–#640), first cleanup (#584, -26K lines).
+- **Mar 2026** — The Great Cleanup (-44,777 lines). Trivy supply chain attack. Hallucination investigation. DI optimization (8 PRs). PipelineContext. `LESSONS_LEARNED.md`.
 
 ---
 
@@ -119,7 +130,7 @@ These weren't just dead files. They were **actively consuming tokens** — appro
 
 Add component-specific CLAUDE.md files (backend, frontend, tests, .github) and 3 project rules (python-style, security, git-commits). Net result: context cost per session dropped from ~20-30K tokens to ~2-3K.
 
-**What I learned**: AI agents are prolific generators of configuration scaffolding. Left unchecked, they build elaborate meta-frameworks around your actual project. You need a human with a machete, not a scalpel, to periodically cut it back. And you need to do it *before* the bloat starts degrading the AI's own performance — because it will read all that junk and use it to produce more junk.
+**Lesson Learned**: AI agents are prolific generators of configuration scaffolding. Left unchecked, they build elaborate meta-frameworks around your actual project. You need a human with a machete, not a scalpel, to periodically cut it back. And you need to do it *before* the bloat starts degrading the AI's own performance — because it will read all that junk and use it to produce more junk.
 
 The same pattern happened in the codebase proper. [#584](https://github.com/manavgup/rag_modulo/pull/584) deleted **106 files** and **26,353 lines**: backup conftest files, disabled test files, duplicate AGENTS.md files, migration scripts, root-level test scripts, session summaries, implementation plans, analysis docs, TDD summaries. All generated during development sessions, none maintained afterward.
 
@@ -133,15 +144,15 @@ One PR came from Google Jules, Google's AI coding agent. The task: fix a failing
 
 The PR was 109 additions, 11 deletions, across 5 files. It worked. The build passed. But the "temporary workaround" note is telling — **AI agents are honest about their limitations when you let them be**. Jules correctly identified that disabling the cache was a band-aid, not a fix. A human developer might have done the same thing under time pressure but wouldn't have flagged it as clearly.
 
-**What I learned**: AI agents are useful as first responders. They can unblock CI, fix the immediate problem, and clearly document what they didn't solve. The danger is when you don't follow up on their "investigate further" notes.
+**Lesson Learned**: AI agents are useful as first responders. They can unblock CI, fix the immediate problem, and clearly document what they didn't solve. The danger is when you don't follow up on their "investigate further" notes.
 
 ### The Hallucination Investigation ([#773](https://github.com/manavgup/rag_modulo/issues/773) / [#775](https://github.com/manavgup/rag_modulo/pull/775))
 
-This is the story that convinced me AI agents need supervision, not autonomy.
+This is the painful (and embarassing) story of how the uninitiated developers like me can lose control over AI agents without supervision.
 
 ![Anatomy of a RAG Hallucination](diagrams/04-hallucination-trace.svg)
 
-A user searched: *"what were the ibm results in 2020?"*
+IF a user searched: *"what were the ibm results in 2020?"*
 
 - **Expected**: Revenue $73.6B, Net Income $5.59B, EPS $6.13
 - **Got (v1)**: Hallucinated data — Net Income $15.8B, EPS $7.52 — **completely fabricated numbers**
@@ -162,7 +173,7 @@ I wrote a [full investigation document](docs/debug/issue-773-rag-quality-investi
 
 The fix ([#775](https://github.com/manavgup/rag_modulo/pull/775)) was 489 lines: faithfulness constraints on all prompts, entity dedup fix, prompt boundary markers between instructions and context (building on [#771](https://github.com/manavgup/rag_modulo/pull/771)). But the real lesson was **how the problem composed**. Five independent, individually-reasonable design decisions combined to produce fabricated financial data. No single component was "wrong."
 
-**What I learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method we used in the [#773 investigation doc](docs/debug/issue-773-rag-quality-investigation.md).
+**Lesson Learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method we used in the [#773 investigation doc](docs/debug/issue-773-rag-quality-investigation.md).
 
 ### The Bug That Cost 8 Seconds Per Query ([#769](https://github.com/manavgup/rag_modulo/pull/769))
 
@@ -174,7 +185,7 @@ The frontend change (Claude, in that session) added `cot_enabled: true` so CoT w
 
 **Fixed in #769** (tighter CoT triggers + frontend only sends `cot_enabled: false` when structured output requires it). If you fork the repo, grep for `cot_enabled` before you trust latency numbers.
 
-**What I learned**: AI agents writing frontend code will add development defaults that make features testable — and then forget to remove them. Same class of bug humans make; AI makes it more often because "make it work now" beats "remove the dev flag."
+**Lesson Learned**: AI agents writing frontend code will add development defaults that make features testable — and then forget to remove them. Same class of bug humans make; AI makes it more often because "make it work now" beats "remove the dev flag."
 
 ### The Config Passthrough Bug ([#631](https://github.com/manavgup/rag_modulo/pull/631))
 
@@ -186,7 +197,7 @@ For weeks, user configuration from the frontend (structured output toggle, CoT t
 
 This is the kind of bug AI agents create routinely: **interface mismatches between components they wrote at different times**. Claude wrote the frontend API client in one session and the backend orchestrator in another. Each session's code was internally consistent, but they disagreed on the schema shape. The mismatch was invisible until someone manually tested the toggle.
 
-**What I learned**: When AI agents write both sides of an API boundary, they can't be trusted to keep the contract consistent across sessions. You need integration tests that verify the full path, not just unit tests on each side. Or better: generate the client from the server's OpenAPI spec.
+**Lesson Learned**: When AI agents write both sides of an API boundary, they can't be trusted to keep the contract consistent across sessions. You need integration tests that verify the full path, not just unit tests on each side. Or better: generate the client from the server's OpenAPI spec.
 
 ---
 
@@ -215,6 +226,8 @@ class PipelineContext:
 
 ### The TRUNCATE_INPUT_TOKENS Disaster (PR #564)
 
+*Full trace: [docs/debug/truncate-input-tokens-bug.md](docs/debug/truncate-input-tokens-bug.md)*
+
 A single configuration parameter — `TRUNCATE_INPUT_TOKENS: 3` in the WatsonX embedding config — was silently truncating every search query to **3 tokens** before generating embeddings.
 
 The query *"What percentage of IBM's workforce consists of women?"* (12 tokens) was being embedded as roughly *"What percentage of"*. The semantic information was destroyed. Wrong embeddings produced wrong chunks, which produced wrong answers.
@@ -236,7 +249,7 @@ We locked the fix in with an explicit regression test — default embed params m
 
 The production code still documents the incident in comments on `backend/vectordbs/utils/watsonx.py`.
 
-**What I learned**: If you mock your external services in every test, you can ship a bug that fundamentally breaks your core functionality and your entire test suite will be green. Integration tests that hit real embeddings aren't optional for RAG. The embedding configuration was one parameter; it broke everything downstream.
+**Lesson Learned**: If you mock your external services in every test, you can ship a bug that fundamentally breaks your core functionality and your entire test suite will be green. Integration tests that hit real embeddings aren't optional for RAG. The embedding configuration was one parameter; it broke everything downstream.
 
 ### The Seven-Phase Conversation Refactoring Saga
 
@@ -262,9 +275,11 @@ Phase 3 is where it got ugly. The AI-authored service consolidation (PR #576) in
 
 The second bug **completely broke chat functionality**. Users couldn't send messages. The first 500 a new contributor hit on local setup was [@mtykhenko](https://github.com/mtykhenko) — not an edge case, the happy path ([#587](https://github.com/manavgup/rag_modulo/pull/587)). Later, the same contributor fixed first-run friction in [#717](https://github.com/manavgup/rag_modulo/pull/717) / [#718](https://github.com/manavgup/rag_modulo/pull/718) (orphaned Vite processes, env naming). **Human contributors catch what AI review misses** because they actually run `make local-dev-all`.
 
-**What I learned**: AI agents are capable of executing large refactoring plans — Phase 1-2 shipped cleanly, Phase 4 shipped cleanly. But the complex phases (service consolidation with cross-cutting dependencies) produce subtle interface bugs. The pattern: AI writes both the old interface and the new interface, and introduces a mismatch that compiles but fails at runtime. **The leading underscore on a parameter name** is exactly the kind of thing an AI agent won't notice — it's a Python convention for "unused," and the AI was being "clean" by adding it.
+**Lesson Learned**: AI agents are capable of executing large refactoring plans — Phase 1-2 shipped cleanly, Phase 4 shipped cleanly. But the complex phases (service consolidation with cross-cutting dependencies) produce subtle interface bugs. The pattern: AI writes both the old interface and the new interface, and introduces a mismatch that compiles but fails at runtime. **The leading underscore on a parameter name** is exactly the kind of thing an AI agent won't notice — it's a Python convention for "unused," and the AI was being "clean" by adding it.
 
 ### The Deployment Death March (PRs #633–#640)
+
+*Full trace: [docs/debug/deployment-death-march.md](docs/debug/deployment-death-march.md)*
 
 Seven PRs in two days to fix one deployment:
 
@@ -278,7 +293,7 @@ Seven PRs in two days to fix one deployment:
 
 Each fix revealed the next problem. The shell scripts in #633 had been referenced in the workflow but never existed — an AI agent had written the workflow referencing scripts it planned to create later, but the scripts were never committed. The Ansible version constraints in #634 were auto-generated and pointed to incompatible combinations. The IBM Cloud CLI installation in #637 failed because a third-party URL changed from serving a script to serving an HTML page.
 
-**What I learned**: Infrastructure-as-code is where AI agents are most dangerous. They generate plausible configurations that reference resources that don't exist, version combinations that haven't been tested together, and external URLs that may have changed. The blast radius is large (broken deployments, CI failures visible to the whole team) and the feedback loop is slow (you have to push and wait for CI to discover the problem).
+**Lesson Learned**: Infrastructure-as-code is where AI agents are most dangerous. They generate plausible configurations that reference resources that don't exist, version combinations that haven't been tested together, and external URLs that may have changed. The blast radius is large (broken deployments, CI failures visible to the whole team) and the feedback loop is slow (you have to push and wait for CI to discover the problem).
 
 ### The Supply Chain Attack (PR #766)
 
@@ -288,13 +303,13 @@ I had 14 references to `aquasecurity/trivy-action@master` across 5 workflow file
 
 PR #766 pinned every reference to a known-safe SHA: `aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1`. The PR also included a manual checklist: rotate CI/CD secrets, review audit logs, check for IOCs, block the exfiltration domain.
 
-**What I learned**: Pin your GitHub Actions to SHAs, not tags. Tags can be force-pushed. This isn't theoretical — it happened to me. And it happened specifically to the *security scanning* tool. The irony was not lost.
+**Lesson Learned**: Pin your GitHub Actions to SHAs, not tags. Tags can be force-pushed. This isn't theoretical — it happened to me. And it happened specifically to the *security scanning* tool. The irony was not lost.
 
 ---
 
 ## Part 3: How to Guide AI Agents (The Hard-Won Playbook)
 
-After hundreds of Claude co-authored commits and 50 fully AI-authored ones, here's what I learned about making AI agents productive instead of destructive:
+After hundreds of Claude co-authored commits and 50 fully AI-authored ones, here's Lesson Learned about making AI agents productive instead of destructive:
 
 ### 1. Break Work Into Small, Sequenced PRs
 
