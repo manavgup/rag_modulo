@@ -20,9 +20,9 @@ AI Agents can produce surprisingly good work when you learn to direct them. And 
 4. **[Break AI work into small, sequenced PRs](#1-break-work-into-small-sequenced-prs)** — 8 small PRs shipped clean; one 3,580-line PR needed two hotfixes.
 5. **[Never let AI skip tests](#2-dont-let-the-ai-skip-tests)** — Skipped tests hid a bug that broke all chat functionality.
 6. **[AI-generated IaC is the most dangerous output](#the-deployment-death-march-prs-633640)** — 7 PRs to fix one deployment because configs referenced non-existent files. ([Full trace](docs/debug/deployment-death-march.md))
-7. **[Full CI/CD automation with AI agents isn't ready](#oct-2025-the-explosion)** — 16 PRs trying to automate issue→PR, all failed. ([Full trace](docs/debug/codex-automation-saga.md))
-8. **[Pin GitHub Actions to SHAs](#the-supply-chain-attack-pr-766)** — A supply chain attack hit our security scanner. Tags can be force-pushed.
-9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773--775)** — 5 independent design decisions combined to fabricate financial data.
+7. **[Full CI/CD automation with AI agents isn't ready](docs/debug/codex-automation-saga.md)** — 16 PRs trying to automate issue→PR, all failed.
+8. **[Pin GitHub Actions to SHAs](#the-supply-chain-attack-766)** — A supply chain attack hit our security scanner. Tags can be force-pushed.
+9. **[RAG hallucination is an emergent property, not a single bug](#the-hallucination-investigation-773-775)** — 5 independent design decisions combined to fabricate financial data.
 10. **[Design the DB query pattern before building services](#trace-driven-debugging-issues-773-and-777)** — Retrofitting PipelineContext after discovering 48+ queries/request.
 
 ---
@@ -113,7 +113,7 @@ Of **1,934** commits across all branches (first commit: 2024-05-05):
 
 The story isn't in the percentages — it's in *which* commits were which, and what happened after.
 
-### The 44,000-Line Cleanup ([#760](https://github.com/manavgup/rag_modulo/pull/760))
+### The 44,000-Line Cleanup (#760)
 
 The single most important PR in the project's history was a **deletion**. PR #760: +356 / -44,777. Two hundred and one files changed.
 
@@ -143,7 +143,7 @@ The same pattern happened in the codebase proper. [#584](https://github.com/mana
 
 **Rule #1 of AI-assisted development: schedule regular garbage collection.** Not of code — of artifacts. The AI leaves breadcrumbs everywhere, and they accumulate into a maze.
 
-### How Google Jules Fixed My Docker Build ([#685](https://github.com/manavgup/rag_modulo/pull/685))
+### How Google Jules Fixed My Docker Build (#685)
 
 One PR came from Google Jules, Google's AI coding agent. The task: fix a failing Docker build cache issue in the security scanning workflow. Jules' solution: disable the cache entirely.
 
@@ -153,7 +153,7 @@ The PR was 109 additions, 11 deletions, across 5 files. It worked. The build pas
 
 **Lesson Learned**: AI agents are useful as first responders. They can unblock CI, fix the immediate problem, and clearly document what they didn't solve. The danger is when you don't follow up on their "investigate further" notes.
 
-### The Hallucination Investigation ([#773](https://github.com/manavgup/rag_modulo/issues/773) / [#775](https://github.com/manavgup/rag_modulo/pull/775))
+### The Hallucination Investigation (#773 / #775)
 
 This is the painful (and embarassing) story of how the uninitiated developers like me can lose control over AI agents without supervision.
 
@@ -182,7 +182,7 @@ The fix ([#775](https://github.com/manavgup/rag_modulo/pull/775)) was 489 lines:
 
 **Lesson Learned**: RAG hallucination isn't one bug. It's an emergent property of your retrieval + reranking + generation stack. You can't unit-test your way out of it. You need end-to-end traces through the full pipeline, comparing what the user asked, what chunks were retrieved, what the LLM received, and what it produced — the same method we used in the [#773 investigation doc](docs/debug/issue-773-rag-quality-investigation.md).
 
-### The Bug That Cost 8 Seconds Per Query ([#769](https://github.com/manavgup/rag_modulo/pull/769))
+### The Bug That Cost 8 Seconds Per Query (#769)
 
 The frontend component `LightweightSearchInterface.tsx` had been sending `cot_enabled: true` in `config_metadata` on **every** search request. That overrode the backend's automatic complexity detection, forcing Chain of Thought on simple factual lookups.
 
@@ -194,7 +194,7 @@ The frontend change (Claude, in that session) added `cot_enabled: true` so CoT w
 
 **Lesson Learned**: AI agents writing frontend code will add development defaults that make features testable — and then forget to remove them. Same class of bug humans make; AI makes it more often because "make it work now" beats "remove the dev flag."
 
-### The Config Passthrough Bug ([#631](https://github.com/manavgup/rag_modulo/pull/631))
+### The Config Passthrough Bug (#631)
 
 For weeks, user configuration from the frontend (structured output toggle, CoT toggle, show reasoning steps) was being **silently ignored** by the backend. The frontend sent `config_metadata` as a top-level field. The backend expected it nested inside `metadata.config_metadata`.
 
@@ -302,7 +302,7 @@ Each fix revealed the next problem. The shell scripts in #633 had been reference
 
 **Lesson Learned**: Infrastructure-as-code is where AI agents are most dangerous. They generate plausible configurations that reference resources that don't exist, version combinations that haven't been tested together, and external URLs that may have changed. The blast radius is large (broken deployments, CI failures visible to the whole team) and the feedback loop is slow (you have to push and wait for CI to discover the problem).
 
-### The Supply Chain Attack (PR #766)
+### The Supply Chain Attack (#766)
 
 In March 2026, the Trivy GitHub Action was compromised. Attackers force-pushed malicious commits to version tags and `master`, injecting a three-stage credential harvester that exfiltrated CI secrets — environment variables, SSH keys, cloud credentials.
 
