@@ -523,6 +523,26 @@ The skill caught exactly the kinds of issues it was designed for — and confirm
 
 The skills work as detection tools against a real codebase with real AI-generated mess. More importantly, they encode the *why* — each check links back to a specific bug that cost real time. A developer using these skills on a different project would catch the same classes of bugs without having to learn the lessons the hard way.
 
+### Cross-repo comparison: rag_modulo vs wikimind
+
+To validate the skills aren't just tuned to one repo's mess, I ran them against [wikimind](https://github.com/manavgup/wikimind) — a 637-commit project where virtually every commit is Claude co-authored (1,184 co-authored on 637 total). Same developer, same AI tools, different discipline.
+
+| Check | rag_modulo | wikimind |
+|---|---|---|
+| Suspicious skipped tests | **7** | 0 |
+| Backup/disabled files | 3 (760 lines) | 0 |
+| Temporary markdown | 2 (840 lines) | 0 |
+| Orphaned tool dirs | 3 (~37K tokens) | 0 |
+| .claude/ bloat | 30 files (clean after #760) | No .claude/ dir |
+| Unpinned GitHub Actions | not checked | 5 of 80 (94% pinned) |
+| **Total bloat** | **~60K tokens** | **~0** |
+
+Wikimind is remarkably clean for a repo with a higher AI co-authorship rate. No backup files, no temp markdown, no orphaned framework dirs, no unconditional test skips. The difference: wikimind was built AI-first from the start with consistent discipline. rag_modulo accumulated 22 months of experimentation debris across multiple AI frameworks.
+
+The `iac-validator` did catch 5 unpinned actions in wikimind — including a community Firefox addon action (`yayuyokitano/firefox-addon@v1.0.4`) with no SHA available. Even well-maintained repos have supply chain gaps.
+
+The skills correctly distinguish between a messy repo and a clean one. They're not just tuned to one codebase's problems — they detect structural patterns.
+
 The skills are currently local (`~/.claude/skills/`). Once tested on a few more repos, they'll be published as a standalone skill pack.
 
 ---
